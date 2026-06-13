@@ -159,6 +159,93 @@ test("changes a numbered chapter card to a colorful style", async ({ page }, tes
   await expect(page.locator(".lesson-card").filter({ hasText: "Lecture 1" }).locator(".lesson-art.rose")).toBeVisible();
 });
 
+test("uploads courseware and sends it for note organization", async ({ page }, testInfo) => {
+  await page.goto("/");
+
+  const email = `upload-${testInfo.project.name}-${Date.now()}-${Math.random().toString(16).slice(2)}@example.com`;
+  await page.getByLabel("昵称").fill("课件学生");
+  await page.getByLabel("邮箱").fill(email);
+  await page.getByLabel("密码").fill("12345678");
+  await page.getByRole("button", { name: "进入笔记本" }).click();
+
+  await expect(page.getByRole("heading", { name: "自然对话基础" })).toBeVisible({ timeout: 30_000 });
+  await dismissOnboarding(page);
+
+  const workspace = await page.evaluate(async () => {
+    const response = await fetch("/api/workspace");
+    return response.json();
+  });
+  const course = workspace.courses[0];
+  const lesson = workspace.lessons.find((item: { courseId: string }) => item.courseId === course.id);
+  const now = new Date().toISOString();
+  let organizeRequests = 0;
+
+  await page.route("**/api/ai/organize", async (route) => {
+    organizeRequests += 1;
+    const request = route.request();
+    const contentType = await request.headerValue("content-type");
+    expect(contentType).toContain("multipart/form-data");
+    expect(request.postDataBuffer()?.toString("utf8")).toContain("lecture-notes.txt");
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    if (organizeRequests === 1) {
+      await route.fulfill({
+        contentType: "text/plain",
+        status: 502,
+        body: "upstream connection closed"
+      });
+      return;
+    }
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        lesson,
+        note: {
+          id: `note-${Date.now()}`,
+          userId: course.userId,
+          courseId: course.id,
+          lessonId: lesson.id,
+          title: "动量守恒课件整理",
+          sourceType: "file",
+          sourceText: "动量守恒与冲量",
+          contentMarkdown: "# 动量守恒课件整理\n\n## 核心内容\n\n动量守恒与冲量。",
+          summary: "课件整理完成。",
+          flashcards: [],
+          mindMap: [
+            {
+              id: "mind-root",
+              label: "动量守恒",
+              children: [{ id: "mind-formula", label: "公式：$p=mv$" }]
+            }
+          ],
+          createdAt: now,
+          updatedAt: now
+        }
+      })
+    });
+  });
+
+  await page.locator(".upload-zone input[type=file]").setInputFiles({
+    name: "lecture-notes.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("动量守恒与冲量")
+  });
+  await expect(page.getByText("lecture-notes.txt")).toBeVisible();
+  await page.getByRole("button", { name: /开始整理/ }).click();
+  await expect(page.getByRole("progressbar", { name: /整理进度/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /整理中 \d+%/ })).toBeVisible();
+  await expect(page.getByText("整理请求中断或服务器响应异常，请检查网络后重试。")).toBeVisible({
+    timeout: 10_000
+  });
+  await expect(page.getByRole("button", { name: /开始整理/ })).toBeEnabled();
+
+  await page.getByRole("button", { name: /开始整理/ }).click();
+
+  await expect(page.getByRole("article").getByRole("heading", { name: "动量守恒课件整理" })).toBeVisible({
+    timeout: 30_000
+  });
+  await expect(page.locator(".mindmap .katex")).toContainText("p=mv");
+});
+
 test("organizes material into a note when AI is configured", async ({ page }, testInfo) => {
   await page.goto("/");
 

@@ -16,7 +16,8 @@ import {
   Network,
   Search,
   Sparkles,
-  Upload
+  Upload,
+  X
 } from "lucide-react";
 import type { Course, Lesson, MindMapNode, Note, User, UserPreferences } from "@/lib/types";
 import MarkdownView from "@/components/MarkdownView";
@@ -28,7 +29,7 @@ type Workspace = {
   preferences: UserPreferences;
 };
 
-type SourceType = "text" | "outline" | "image";
+type SourceType = "text" | "outline" | "image" | "file";
 type Mode = "standard" | "exam" | "deep";
 type ProcessStep = {
   label: string;
@@ -36,7 +37,7 @@ type ProcessStep = {
 };
 
 const organizeSteps: ProcessStep[] = [
-  { label: "读取材料", description: "正在整理文字、截图或大纲输入。" },
+  { label: "读取材料", description: "正在解析文字、图片或课件内容。" },
   { label: "理解重点", description: "提取概念、公式、表格和复习线索。" },
   { label: "判断章节", description: "匹配已有章节，必要时准备新建章节。" },
   { label: "生成笔记", description: "写入 Markdown、闪卡和思维导图结构。" },
@@ -609,14 +610,17 @@ function OrganizerPanel({
   const [commandMessage, setCommandMessage] = useState("");
   const [targetInstruction, setTargetInstruction] = useState("");
   const [text, setText] = useState("");
-  const [imageDataUrl, setImageDataUrl] = useState("");
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [organizeStep, setOrganizeStep] = useState(0);
+  const [organizeProgress, setOrganizeProgress] = useState(0);
+  const [organizeElapsedSeconds, setOrganizeElapsedSeconds] = useState(0);
   const [organizeMessage, setOrganizeMessage] = useState("");
   const [error, setError] = useState("");
   const [hydrated, setHydrated] = useState(false);
   const commandRef = useRef<HTMLTextAreaElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setHydrated(true);
@@ -637,21 +641,36 @@ function OrganizerPanel({
   useEffect(() => {
     if (!busy) {
       setOrganizeStep(0);
+      setOrganizeProgress(0);
+      setOrganizeElapsedSeconds(0);
       return;
     }
+
+    const startedAt = Date.now();
     setOrganizeStep(0);
+    setOrganizeProgress(4);
     const timer = window.setInterval(() => {
-      setOrganizeStep((current) => Math.min(current + 1, organizeSteps.length - 1));
-    }, 1500);
+      const elapsedMs = Date.now() - startedAt;
+      const progress = estimateOrganizeProgress(elapsedMs);
+      setOrganizeProgress(progress);
+      setOrganizeElapsedSeconds(Math.floor(elapsedMs / 1000));
+      setOrganizeStep(getOrganizeStep(progress));
+    }, 500);
     return () => window.clearInterval(timer);
   }, [busy]);
 
-  async function handleImage(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const dataUrl = await readFileAsDataUrl(file);
-    setImageDataUrl(dataUrl);
-    setSourceType("image");
+  function handleFiles(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []);
+    if (!files.length) return;
+
+    setSelectedFiles(files);
+    setSourceType(files.every((file) => file.type.startsWith("image/")) ? "image" : "file");
+    setError("");
+  }
+
+  function removeFile(index: number) {
+    setSelectedFiles((current) => current.filter((_, fileIndex) => fileIndex !== index));
+    if (fileRef.current) fileRef.current.value = "";
   }
 
   async function submitCommand(event: FormEvent) {
@@ -693,40 +712,51 @@ function OrganizerPanel({
     const form = new FormData(event.currentTarget as HTMLFormElement);
     const currentText = textRef.current?.value ?? String(form.get("sourceText") ?? text);
 
-    if (!currentText.trim() && !imageDataUrl) {
-      setError("请先粘贴文字、输入大纲，或上传一张课堂截图。");
+    if (!currentText.trim() && !selectedFiles.length) {
+      setError("请先粘贴文字、输入大纲，或上传图片/课件。");
       return;
     }
     setBusy(true);
     setError("");
     setOrganizeMessage("");
 
-    const response = await fetch("/api/ai/organize", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        courseId: course.id,
-        targetInstruction,
-        sourceType,
-        mode,
-        text: currentText,
-        imageDataUrl: sourceType === "image" ? imageDataUrl : undefined
-      })
-    });
+    const payload = new FormData();
+    payload.set("courseId", course.id);
+    payload.set("targetInstruction", targetInstruction);
+    payload.set("sourceType", sourceType);
+    payload.set("mode", mode);
+    payload.set("text", currentText);
+    selectedFiles.forEach((file) => payload.append("files", file));
 
-    const data = await response.json();
-    setBusy(false);
+    try {
+      const response = await fetch("/api/ai/organize", {
+        method: "POST",
+        body: payload
+      });
+      const data = await readJsonResponse(response);
 
-    if (!response.ok) {
-      setError(data.error ?? "AI 整理失败。");
-      return;
+      if (!response.ok || data?.error) {
+        setError(data?.error ?? "AI 整理失败。");
+        return;
+      }
+      if (!data?.note || !data?.lesson) {
+        setError("服务器返回了不完整的整理结果，请重试。");
+        return;
+      }
+
+      setOrganizeProgress(100);
+      setOrganizeStep(organizeSteps.length - 1);
+      onNoteCreated({ note: data.note, lesson: data.lesson });
+      setOrganizeMessage(data.warning ?? `已保存到「${data.lesson.title}」，可以进入章节查看完整笔记。`);
+      if (textRef.current) textRef.current.value = "";
+      setText("");
+      setSelectedFiles([]);
+      if (fileRef.current) fileRef.current.value = "";
+    } catch {
+      setError("整理请求中断或服务器响应异常，请检查网络后重试。");
+    } finally {
+      setBusy(false);
     }
-
-    onNoteCreated({ note: data.note, lesson: data.lesson });
-    setOrganizeMessage(data.warning ?? `已保存到「${data.lesson.title}」，可以进入章节查看完整笔记。`);
-    if (textRef.current) textRef.current.value = "";
-    setText("");
-    setImageDataUrl("");
   }
 
   if (collapsed) {
@@ -790,19 +820,48 @@ function OrganizerPanel({
             大纲
           </button>
           <button className={sourceType === "image" ? "active" : ""} onClick={() => setSourceType("image")} type="button">
-            截图
+            图片
+          </button>
+          <button className={sourceType === "file" ? "active" : ""} onClick={() => setSourceType("file")} type="button">
+            课件
           </button>
         </div>
 
         <label className="upload-zone">
           <Upload size={24} />
-          <strong>{imageDataUrl ? "已选择截图，可以继续补充文字" : "上传课堂截图或板书"}</strong>
-          <span className="small-muted">支持 PNG / JPG，图片会交给真实模型识别整理</span>
-          <input accept="image/*" onChange={handleImage} type="file" />
+          <strong>{selectedFiles.length ? `已选择 ${selectedFiles.length} 个文件` : "上传图片或课程课件"}</strong>
+          <span className="small-muted">支持 PNG / JPG / WEBP / PDF / PPTX / DOCX / TXT / Markdown</span>
+          <input
+            accept="image/png,image/jpeg,image/webp,image/gif,.pdf,.pptx,.docx,.txt,.md,.markdown,.csv"
+            multiple
+            onChange={handleFiles}
+            ref={fileRef}
+            type="file"
+          />
         </label>
+        {selectedFiles.length ? (
+          <div className="selected-files" aria-label="已选择的文件">
+            {selectedFiles.map((file, index) => (
+              <div className="selected-file" key={`${file.name}-${file.lastModified}-${index}`}>
+                <FileText size={16} />
+                <span title={file.name}>{file.name}</span>
+                <small>{formatFileSize(file.size)}</small>
+                <button aria-label={`移除 ${file.name}`} onClick={() => removeFile(index)} type="button">
+                  <X size={15} />
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : null}
 
         <label className="field">
-          <span>{sourceType === "outline" ? "课程大纲" : sourceType === "image" ? "补充说明" : "原始文字"}</span>
+          <span>
+            {sourceType === "outline"
+              ? "课程大纲"
+              : sourceType === "image" || sourceType === "file"
+                ? "补充说明"
+                : "原始文字"}
+          </span>
           <textarea
             ref={textRef}
             name="sourceText"
@@ -810,7 +869,9 @@ function OrganizerPanel({
             placeholder={
               sourceType === "outline"
                 ? "例如：1. 牛顿第一定律 2. 惯性参考系 3. 受力分析常见错误"
-                : "粘贴课堂记录、老师板书文字、课件片段或自己的草稿"
+                : sourceType === "image" || sourceType === "file"
+                  ? "可选：补充课程背景、老师强调的重点或期望的整理方向"
+                  : "粘贴课堂记录、老师板书文字、课件片段或自己的草稿"
             }
           />
         </label>
@@ -827,10 +888,17 @@ function OrganizerPanel({
         <div className="status-row">
           <span className="small-muted">AI 会选择已有章节，或自动新建章节</span>
           <button className="primary-button" disabled={busy || !hydrated} type="submit">
-            {busy ? "整理中..." : <><Sparkles size={17} /> 开始整理</>}
+            {busy ? `整理中 ${organizeProgress}%` : <><Sparkles size={17} /> 开始整理</>}
           </button>
         </div>
-        {busy ? <ProcessProgress steps={organizeSteps} activeIndex={organizeStep} /> : null}
+        {busy ? (
+          <ProcessProgress
+            steps={organizeSteps}
+            activeIndex={organizeStep}
+            percentage={organizeProgress}
+            elapsedSeconds={organizeElapsedSeconds}
+          />
+        ) : null}
         {organizeMessage ? <div className="command-message">{organizeMessage}</div> : null}
         {error ? <div className="error-box">{error}</div> : null}
       </form>
@@ -838,9 +906,40 @@ function OrganizerPanel({
   );
 }
 
-function ProcessProgress({ steps, activeIndex }: { steps: ProcessStep[]; activeIndex: number }) {
+function ProcessProgress({
+  steps,
+  activeIndex,
+  percentage,
+  elapsedSeconds
+}: {
+  steps: ProcessStep[];
+  activeIndex: number;
+  percentage?: number;
+  elapsedSeconds?: number;
+}) {
   return (
     <div className="progress-panel" aria-live="polite">
+      {typeof percentage === "number" ? (
+        <div className="progress-summary">
+          <div className="progress-summary-row">
+            <strong>预计整理进度</strong>
+            <span>{percentage}%</span>
+          </div>
+          <div
+            aria-label={`整理进度 ${percentage}%`}
+            aria-valuemax={100}
+            aria-valuemin={0}
+            aria-valuenow={percentage}
+            className="progress-track"
+            role="progressbar"
+          >
+            <span style={{ width: `${percentage}%` }} />
+          </div>
+          <small className="progress-hint">
+            已等待 {formatElapsedTime(elapsedSeconds ?? 0)}；不设自动超时，请保持页面打开。
+          </small>
+        </div>
+      ) : null}
       {steps.map((step, index) => (
         <div
           className={`progress-step ${index < activeIndex ? "done" : ""} ${index === activeIndex ? "active" : ""}`}
@@ -901,7 +1000,7 @@ function LearningArtifacts({ note }: { note: Note }) {
 function MindMapItem({ node }: { node: MindMapNode }) {
   return (
     <li>
-      {node.label}
+      <MarkdownView compact inline content={node.label} />
       {node.children?.length ? (
         <ul className="mindmap">
           {node.children.map((child) => (
@@ -913,11 +1012,37 @@ function MindMapItem({ node }: { node: MindMapNode }) {
   );
 }
 
-function readFileAsDataUrl(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function estimateOrganizeProgress(elapsedMs: number) {
+  const ratio = Math.min(elapsedMs / 240_000, 1);
+  return Math.min(96, Math.round(4 + 92 * Math.pow(ratio, 0.65)));
+}
+
+function getOrganizeStep(progress: number) {
+  if (progress < 22) return 0;
+  if (progress < 48) return 1;
+  if (progress < 67) return 2;
+  if (progress < 100) return 3;
+  return 4;
+}
+
+async function readJsonResponse(response: Response) {
+  const raw = await response.text();
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new Error("INVALID_SERVER_RESPONSE");
+  }
+}
+
+function formatElapsedTime(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return minutes ? `${minutes} 分 ${seconds} 秒` : `${seconds} 秒`;
 }

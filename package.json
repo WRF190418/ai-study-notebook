@@ -8,22 +8,29 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "smoke": "playwright test"
+    "smoke": "playwright test",
+    "demo:public": "powershell -ExecutionPolicy Bypass -File scripts/start-public-demo.ps1",
+    "demo:stop": "powershell -ExecutionPolicy Bypass -File scripts/stop-public-demo.ps1"
   },
   "dependencies": {
+    "@tesseract.js-data/chi_sim": "^1.0.0",
+    "@tesseract.js-data/eng": "^1.0.0",
     "@types/bcryptjs": "^2.4.6",
     "bcryptjs": "^2.4.3",
     "jose": "^5.10.0",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.468.0",
     "nanoid": "^5.0.9",
     "next": "^15.1.0",
     "openai": "^4.77.0",
+    "pdfjs-dist": "^6.0.227",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^9.0.1",
     "rehype-katex": "^7.0.1",
     "remark-gfm": "^4.0.0",
     "remark-math": "^6.0.0",
+    "tesseract.js": "^7.0.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {

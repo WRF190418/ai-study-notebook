@@ -39,9 +39,10 @@ const resultSchema = z.object({
 });
 
 type OrganizeInput = {
-  sourceType: "text" | "outline" | "image";
+  sourceType: "text" | "outline" | "image" | "file";
   text: string;
-  imageDataUrl?: string;
+  imageDataUrls?: string[];
+  fileNames?: string[];
   courseTitle: string;
   targetInstruction?: string;
   lessons: Pick<Lesson, "id" | "title" | "subtitle" | "order">[];
@@ -55,6 +56,7 @@ type AiProvider = {
   apiKey: string;
   baseURL?: string;
   model: string;
+  supportsVision: boolean;
 };
 
 type ChatRequest = Omit<OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming, "model">;
@@ -68,7 +70,7 @@ export async function organizeWithBuiltInAi(input: OrganizeInput): Promise<AiOrg
 
   const instruction = [
     "你是一个给大学生使用的 AI 学习笔记整理器。",
-    "请把用户提供的截图、文字或大纲整理成漂亮、严谨、可复习的课程笔记。",
+    "请把用户提供的截图、课件、文字或大纲整理成漂亮、严谨、可复习的课程笔记。",
     "必须输出严格 JSON，不要使用 Markdown 代码围栏。",
     "markdown 字段必须是 Markdown，支持 GFM 表格与 LaTeX。行内公式用 $...$，块级公式用 $$...$$。",
     "最高优先级：忠实于用户材料。不得把用户没有提到的主题当作主要内容，不得把一个短句擅自扩展成另一个完整知识点。",
@@ -85,6 +87,7 @@ export async function organizeWithBuiltInAi(input: OrganizeInput): Promise<AiOrg
     "如果已有章节都不适合，输出 {\"mode\":\"new\",\"title\":\"新章节中文标题\",\"subtitle\":\"简短英文或说明副标题\",\"icon\":\"book|atom|sparkles|function|image\",\"accent\":\"sage|amber|cobalt|rose\",\"reason\":\"原因\"}。",
     "用户有整理要求时优先满足；用户没有明确要求时，根据材料主题和已有章节语义判断。",
     `当前课程：${input.courseTitle}`,
+    `上传文件：${input.fileNames?.join("、") || "无"}`,
     `用户整理要求：${input.targetInstruction?.trim() || "用户没有明确要求，请你根据材料内容判断归档章节。"}`,
     `已有章节：${JSON.stringify(input.lessons)}`,
     `整理模式：${modeText}`
@@ -92,23 +95,24 @@ export async function organizeWithBuiltInAi(input: OrganizeInput): Promise<AiOrg
     .filter(Boolean)
     .join("\n");
 
-  const content: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [
+  const textContent: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [
     {
       type: "text",
-      text: `${instruction}\n\n用户材料：\n${input.text || "(用户主要提供了截图，请识别图中内容并整理。)"}`
+      text: `${instruction}\n\n用户材料：\n${input.text || "(用户主要提供了图片，请识别图中内容并整理。)"}`
     }
   ];
+  const content = [...textContent];
 
-  if (input.imageDataUrl) {
+  for (const imageDataUrl of input.imageDataUrls ?? []) {
     content.push({
       type: "image_url",
       image_url: {
-        url: input.imageDataUrl
+        url: imageDataUrl
       }
     });
   }
 
-  const raw = await createCompletionWithFallback({
+  const createRequest = (userContent: OpenAI.Chat.Completions.ChatCompletionContentPart[]): ChatRequest => ({
     temperature: 0.45,
     response_format: { type: "json_object" },
     messages: [
@@ -119,10 +123,30 @@ export async function organizeWithBuiltInAi(input: OrganizeInput): Promise<AiOrg
       },
       {
         role: "user",
-        content
+        content: userContent
       }
     ]
   });
+
+  let raw;
+  if (input.imageDataUrls?.length) {
+    const hasLocalOcr = input.text.includes("## 图片 OCR：");
+    const preferVision = process.env.AI_PREFER_VISION === "true";
+
+    if (hasLocalOcr && !preferVision) {
+      raw = await createCompletionWithFallback(createRequest(textContent));
+    } else {
+      try {
+        raw = await createCompletionWithFallback(createRequest(content), { requiresVision: true });
+      } catch (visionError) {
+        if (!hasLocalOcr) throw visionError;
+        console.warn("Vision provider unavailable; falling back to local OCR text.", visionError);
+        raw = await createCompletionWithFallback(createRequest(textContent));
+      }
+    }
+  } else {
+    raw = await createCompletionWithFallback(createRequest(textContent));
+  }
 
   const parsed = resultSchema.parse(parseJsonObject(raw.content));
   const normalizedTargetLesson =
@@ -284,23 +308,30 @@ export async function interpretNotebookCommand(input: {
   return commandSchema.parse(parseJsonObject(raw.content));
 }
 
-async function createCompletionWithFallback(request: ChatRequest) {
-  const providers = getConfiguredProviders();
+async function createCompletionWithFallback(request: ChatRequest, options?: { requiresVision?: boolean }) {
+  const providers = getConfiguredProviders(options?.requiresVision);
   const errors: unknown[] = [];
 
   for (const provider of providers) {
     const client = new OpenAI({
       apiKey: provider.apiKey,
-      baseURL: provider.baseURL
+      baseURL: provider.baseURL,
+      maxRetries: 0,
+      fetch: fetchWithoutSdkTimeout
     });
     const attempts = request.response_format ? [request, { ...request, response_format: undefined }] : [request];
 
     for (const attempt of attempts) {
       try {
-        const completion = await client.chat.completions.create({
-          ...attempt,
-          model: provider.model
-        });
+        const completion = await client.chat.completions.create(
+          {
+            ...attempt,
+            model: provider.model
+          },
+          {
+            maxRetries: 0
+          }
+        );
         const content = completion.choices[0]?.message.content;
         if (!content) throw new Error("AI_EMPTY_RESPONSE");
         return { content, provider };
@@ -314,13 +345,26 @@ async function createCompletionWithFallback(request: ChatRequest) {
   throw errors.at(-1) ?? new Error("AI_PROVIDER_KEY_MISSING");
 }
 
-function getConfiguredProviders() {
-  const order = (process.env.AI_PROVIDER_ORDER ?? "deepseek,openai,zhipu")
+async function fetchWithoutSdkTimeout(input: RequestInfo | URL, init?: RequestInit) {
+  const { signal: _sdkTimeoutSignal, ...options } = init ?? {};
+  return fetch(input, options);
+}
+
+function getConfiguredProviders(requiresVision = false) {
+  const configuredOrder = requiresVision
+    ? process.env.AI_VISION_PROVIDER_ORDER ?? "openai,zhipu"
+    : process.env.AI_PROVIDER_ORDER ?? "deepseek,openai,zhipu";
+  const order = configuredOrder
     .split(",")
     .map((item) => item.trim().toLowerCase())
     .filter(Boolean) as AiProviderId[];
-  const providers = Array.from(new Set(order)).map(createProvider).filter((provider): provider is AiProvider => Boolean(provider));
-  if (!providers.length) throw new Error("AI_PROVIDER_KEY_MISSING");
+  const providers = Array.from(new Set(order))
+    .map(createProvider)
+    .filter((provider): provider is AiProvider => Boolean(provider))
+    .filter((provider) => !requiresVision || provider.supportsVision);
+  if (!providers.length) {
+    throw new Error(requiresVision ? "AI_VISION_PROVIDER_MISSING" : "AI_PROVIDER_KEY_MISSING");
+  }
   return providers;
 }
 
@@ -333,7 +377,8 @@ function createProvider(id: AiProviderId): AiProvider | null {
       label: "DeepSeek",
       apiKey,
       baseURL: process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com",
-      model: process.env.DEEPSEEK_MODEL || "deepseek-chat"
+      model: process.env.DEEPSEEK_MODEL || "deepseek-chat",
+      supportsVision: false
     };
   }
 
@@ -345,7 +390,10 @@ function createProvider(id: AiProviderId): AiProvider | null {
       label: "智谱 GLM",
       apiKey,
       baseURL: process.env.ZHIPU_BASE_URL || "https://open.bigmodel.cn/api/paas/v4",
-      model: process.env.ZHIPU_MODEL || "glm-4-flash"
+      model: process.env.ZHIPU_MODEL || "glm-4-flash",
+      supportsVision: /(?:^|[-_])(?:glm-\d+(?:\.\d+)?v|vision|vl)(?:$|[-_])/i.test(
+        process.env.ZHIPU_MODEL || "glm-4-flash"
+      )
     };
   }
 
@@ -356,8 +404,13 @@ function createProvider(id: AiProviderId): AiProvider | null {
     label: "OpenAI",
     apiKey,
     baseURL: process.env.OPENAI_BASE_URL,
-    model: process.env.OPENAI_MODEL || "gpt-4o-mini"
+    model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+    supportsVision: isVisionModel(process.env.OPENAI_MODEL || "gpt-4o-mini")
   };
+}
+
+function isVisionModel(model: string) {
+  return /gpt-4(?:o|\.\d)|gpt-5|vision|gemini|(?:^|[-_])vl(?:$|[-_])/i.test(model);
 }
 
 function shouldRetryWithoutJsonFormat(error: unknown, request: ChatRequest) {

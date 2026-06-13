@@ -72,7 +72,7 @@ export type Note = {
   courseId: string;
   lessonId: string;
   title: string;
-  sourceType: "text" | "outline" | "image";
+  sourceType: "text" | "outline" | "image" | "file";
   sourceText: string;
   contentMarkdown: string;
   summary: string;

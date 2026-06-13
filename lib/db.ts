@@ -3,7 +3,10 @@ import path from "node:path";
 import { nanoid } from "nanoid";
 import type { AppDb, Course, Lesson, Note, PasswordReset, User, UserPreferences } from "@/lib/types";
 
-const dataDir = path.join(process.cwd(), "data");
+const dataDir =
+  process.env.APP_DATA_DIR ||
+  process.env.RAILWAY_VOLUME_MOUNT_PATH ||
+  path.join(process.cwd(), "data");
 const dbPath = path.join(dataDir, "app-db.json");
 let writeQueue = Promise.resolve();
 

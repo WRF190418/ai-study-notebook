@@ -739,6 +739,48 @@ button {
   background: rgba(255, 255, 255, 0.72);
 }
 
+.progress-summary {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 4px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(63, 143, 122, 0.12);
+}
+
+.progress-summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #38594f;
+  font-size: 13px;
+}
+
+.progress-summary-row span {
+  color: var(--primary-ink, #1f6f60);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.progress-track {
+  overflow: hidden;
+  height: 8px;
+  border-radius: 999px;
+  background: #e3ebe8;
+}
+
+.progress-track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--primary, #1f7a68), #6eb39f);
+  transition: width 400ms ease;
+}
+
+.progress-hint {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .progress-step {
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr);
@@ -895,7 +937,7 @@ button {
 
 .mode-tabs {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 6px;
   margin-bottom: 16px;
   border-radius: 8px;
@@ -918,6 +960,45 @@ button {
 
 .upload-zone input {
   display: none;
+}
+
+.selected-files {
+  display: grid;
+  gap: 7px;
+  margin: -4px 0 14px;
+}
+
+.selected-file {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 8px 10px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.selected-file > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selected-file small {
+  color: var(--muted);
+}
+
+.selected-file button {
+  display: grid;
+  place-items: center;
+  border: 0;
+  padding: 2px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
 }
 
 .status-row {
@@ -1091,6 +1172,16 @@ button {
 
 .mindmap li::marker {
   color: var(--sage);
+}
+
+.markdown-inline,
+.markdown-inline .katex {
+  display: inline;
+}
+
+.markdown-inline .katex-display {
+  display: inline-block;
+  margin: 0;
 }
 
 .app-shell {

@@ -4,30 +4,88 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { createLesson, createNote, viewDb } from "@/lib/db";
 import { organizeWithBuiltInAi } from "@/lib/ai";
+import { MaterialParseError, parseUploadedMaterials } from "@/lib/courseware";
 import type { AiOrganizeResult, Lesson } from "@/lib/types";
 
-const schema = z.object({
+const metadataSchema = z.object({
   courseId: z.string(),
   targetInstruction: z.string().max(1000).default(""),
-  sourceType: z.enum(["text", "outline", "image"]),
+  sourceType: z.enum(["text", "outline", "image", "file"]).default("text"),
   text: z.string().max(25_000).default(""),
-  imageDataUrl: z.string().max(8_000_000).optional(),
   mode: z.enum(["standard", "exam", "deep"]).default("standard")
 });
 
+const legacySchema = metadataSchema.extend({
+  imageDataUrl: z.string().max(8_000_000).optional()
+});
+
 export async function POST(request: Request) {
+  const encoder = new TextEncoder();
+  let heartbeat: ReturnType<typeof setInterval> | undefined;
+  let active = true;
+
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(encoder.encode(" \n"));
+      heartbeat = setInterval(() => {
+        if (active) controller.enqueue(encoder.encode(`${" ".repeat(2048)}\n`));
+      }, 10_000);
+
+      void handleOrganize(request)
+        .then(async (response) => {
+          if (!active) return;
+          const body = await response.text();
+          if (!active) return;
+          controller.enqueue(encoder.encode(body));
+          controller.close();
+        })
+        .catch((error) => {
+          console.error(error);
+          if (!active) return;
+          controller.enqueue(encoder.encode(JSON.stringify({ error: "整理失败，请稍后重试。" })));
+          controller.close();
+        })
+        .finally(() => {
+          active = false;
+          if (heartbeat) clearInterval(heartbeat);
+        });
+    },
+    cancel() {
+      active = false;
+      if (heartbeat) clearInterval(heartbeat);
+    }
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Cache-Control": "no-cache, no-transform",
+      "Content-Type": "application/json; charset=utf-8",
+      "X-Accel-Buffering": "no"
+    }
+  });
+}
+
+async function handleOrganize(request: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "未登录。" }, { status: 401 });
 
-  const parsed = schema.safeParse(await request.json());
-  if (!parsed.success) {
+  let input: Awaited<ReturnType<typeof parseOrganizeRequest>>;
+  try {
+    input = await parseOrganizeRequest(request);
+  } catch (error) {
+    console.error("Material parsing failed.", error);
+    const message = error instanceof MaterialParseError ? error.message : "整理材料格式不正确。";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+
+  if (!input.text.trim() && !input.imageDataUrls.length) {
     return NextResponse.json({ error: "整理材料格式不正确。" }, { status: 400 });
   }
 
   const { course, lessons } = await viewDb((db) => {
-    const course = db.courses.find((item) => item.id === parsed.data.courseId && item.userId === user.id);
+    const course = db.courses.find((item) => item.id === input.courseId && item.userId === user.id);
     const lessons = db.lessons
-      .filter((item) => item.courseId === parsed.data.courseId && item.userId === user.id)
+      .filter((item) => item.courseId === input.courseId && item.userId === user.id)
       .sort((a, b) => a.order - b.order);
     return { course, lessons };
   });
@@ -36,17 +94,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "找不到对应课程。" }, { status: 404 });
   }
 
-  const explicitTargetLesson = inferExplicitTargetLesson(parsed.data.targetInstruction, lessons);
+  const explicitTargetLesson = inferExplicitTargetLesson(input.targetInstruction, lessons);
 
   try {
     const result = await organizeWithBuiltInAi({
-      sourceType: parsed.data.sourceType,
-      text: parsed.data.text,
-      imageDataUrl: parsed.data.imageDataUrl,
+      sourceType: input.sourceType,
+      text: input.text,
+      imageDataUrls: input.imageDataUrls,
+      fileNames: input.fileNames,
       courseTitle: course.title,
-      targetInstruction: parsed.data.targetInstruction,
+      targetInstruction: input.targetInstruction,
       lessons: lessons.map(({ id, title, subtitle, order }) => ({ id, title, subtitle, order })),
-      mode: parsed.data.mode
+      mode: input.mode
     });
 
     const lesson = await resolveTargetLesson({
@@ -62,8 +121,8 @@ export async function POST(request: Request) {
       courseId: course.id,
       lessonId: lesson.id,
       title: result.title,
-      sourceType: parsed.data.sourceType,
-      sourceText: parsed.data.text,
+      sourceType: input.sourceType,
+      sourceText: input.text || `上传文件：${input.fileNames.join("、")}`,
       contentMarkdown: result.markdown,
       summary: result.summary,
       flashcards: result.flashcards,
@@ -72,13 +131,13 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ note, lesson });
   } catch (error) {
-    if (canCreateFallback(parsed.data.text, parsed.data.imageDataUrl)) {
+    if (canCreateFallback(input.text, input.imageDataUrls)) {
       const fallback = buildFallbackOrganizeResult({
-        text: parsed.data.text,
-        sourceType: parsed.data.sourceType,
-        targetInstruction: parsed.data.targetInstruction,
+        text: input.text,
+        sourceType: input.sourceType,
+        targetInstruction: input.targetInstruction,
         lessons,
-        mode: parsed.data.mode,
+        mode: input.mode,
         reason: explainAiFailure(error)
       });
 
@@ -95,8 +154,8 @@ export async function POST(request: Request) {
         courseId: course.id,
         lessonId: lesson.id,
         title: fallback.title,
-        sourceType: parsed.data.sourceType,
-        sourceText: parsed.data.text,
+        sourceType: input.sourceType,
+        sourceText: input.text || `上传文件：${input.fileNames.join("、")}`,
         contentMarkdown: fallback.markdown,
         summary: fallback.summary,
         flashcards: fallback.flashcards,
@@ -115,6 +174,75 @@ export async function POST(request: Request) {
     console.error(error);
     return NextResponse.json({ error: explainAiFailure(error) }, { status: getAiFailureStatus(error) });
   }
+}
+
+async function parseOrganizeRequest(request: Request) {
+  const contentType = request.headers.get("content-type") ?? "";
+
+  if (contentType.includes("multipart/form-data")) {
+    let form: FormData;
+    try {
+      form = await request.formData();
+    } catch {
+      throw new MaterialParseError("上传内容无法读取，请刷新页面后重新选择文件。");
+    }
+
+    const files = form
+      .getAll("files")
+      .filter(isUploadedFile);
+    const requestedSourceType = readFormString(form, "sourceType");
+    const inferredSourceType = files.some((file) => !file.type.startsWith("image/")) ? "file" : files.length ? "image" : "text";
+    const parsed = metadataSchema.safeParse({
+      courseId: readFormString(form, "courseId"),
+      targetInstruction: readFormString(form, "targetInstruction"),
+      sourceType: requestedSourceType || inferredSourceType,
+      text: readFormString(form, "text"),
+      mode: readFormString(form, "mode") || "standard"
+    });
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      throw new MaterialParseError(`整理参数不正确：${issue?.path.join(".") || "未知字段"}。请刷新页面后重试。`);
+    }
+
+    const materials = await parseUploadedMaterials(files);
+    const supplementalText = parsed.data.text.trim()
+      ? `## 用户补充说明\n\n${parsed.data.text.trim()}`
+      : "";
+    const text = [supplementalText, materials.extractedText].filter(Boolean).join("\n\n---\n\n");
+    const hasDocument = files.some((file) => !file.type.startsWith("image/"));
+    const sourceType = hasDocument ? ("file" as const) : materials.imageDataUrls.length ? ("image" as const) : parsed.data.sourceType;
+
+    return {
+      ...parsed.data,
+      sourceType,
+      text,
+      imageDataUrls: materials.imageDataUrls,
+      fileNames: materials.fileNames
+    };
+  }
+
+  const parsed = legacySchema.safeParse(await request.json());
+  if (!parsed.success) throw new MaterialParseError("整理材料格式不正确。");
+  return {
+    ...parsed.data,
+    imageDataUrls: parsed.data.imageDataUrl ? [parsed.data.imageDataUrl] : [],
+    fileNames: [] as string[]
+  };
+}
+
+function readFormString(form: FormData, key: string) {
+  const value = form.get(key);
+  return typeof value === "string" ? value : "";
+}
+
+function isUploadedFile(value: FormDataEntryValue): value is File {
+  return (
+    typeof value !== "string" &&
+    typeof value.name === "string" &&
+    typeof value.size === "number" &&
+    typeof value.type === "string" &&
+    typeof value.arrayBuffer === "function"
+  );
 }
 
 async function resolveTargetLesson({
@@ -155,8 +283,8 @@ async function resolveTargetLesson({
   );
 }
 
-function canCreateFallback(text: string, imageDataUrl?: string) {
-  return Boolean(text.trim() || imageDataUrl);
+function canCreateFallback(text: string, imageDataUrls: string[]) {
+  return Boolean(text.trim() || imageDataUrls.length);
 }
 
 function buildFallbackOrganizeResult({
@@ -168,7 +296,7 @@ function buildFallbackOrganizeResult({
   reason
 }: {
   text: string;
-  sourceType: "text" | "outline" | "image";
+  sourceType: "text" | "outline" | "image" | "file";
   targetInstruction: string;
   lessons: Lesson[];
   mode: "standard" | "exam" | "deep";
@@ -176,7 +304,14 @@ function buildFallbackOrganizeResult({
 }): AiOrganizeResult {
   const title = inferFallbackTitle(text, sourceType);
   const targetLesson = inferLocalTargetLesson(targetInstruction, lessons, title);
-  const sourceLabel = sourceType === "outline" ? "大纲" : sourceType === "image" ? "截图/补充说明" : "文字材料";
+  const sourceLabel =
+    sourceType === "outline"
+      ? "大纲"
+      : sourceType === "image"
+        ? "截图/补充说明"
+        : sourceType === "file"
+          ? "课件"
+          : "文字材料";
   const modeLabel = mode === "exam" ? "考试复习版" : mode === "deep" ? "深度理解版" : "标准课堂笔记";
   const safeText = text.trim() || "用户上传了图片材料，但当前模型服务不可用，暂时无法识别图片内容。";
   const summary = `AI 服务暂时不可用，已根据${sourceLabel}保存一版可编辑草稿。`;
@@ -234,16 +369,26 @@ function buildFallbackOrganizeResult({
   };
 }
 
-function inferFallbackTitle(text: string, sourceType: "text" | "outline" | "image") {
-  const firstLine = text
-    .trim()
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .find(Boolean);
+function inferFallbackTitle(text: string, sourceType: "text" | "outline" | "image" | "file") {
+  if (sourceType === "image") {
+    const ocrText = text.split(/## 图片 OCR：[^\n]*\n+/)[1] ?? "";
+    const ocrTitle = firstMeaningfulLine(ocrText);
+    return ocrTitle?.slice(0, 36) || "图片材料待整理";
+  }
+
+  const firstLine = firstMeaningfulLine(text);
   if (firstLine) {
     return firstLine.split(/[。！？!?；;]/)[0].slice(0, 36) || "本地草稿笔记";
   }
-  return sourceType === "image" ? "截图材料待整理" : "本地草稿笔记";
+  return sourceType === "file" ? "课件材料待整理" : "本地草稿笔记";
+}
+
+function firstMeaningfulLine(value: string) {
+  return value
+    .trim()
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find((line) => Boolean(line) && !/^#{1,6}\s/.test(line) && line !== "---");
 }
 
 function inferLocalTargetLesson(targetInstruction: string, lessons: Lesson[], title: string): AiOrganizeResult["targetLesson"] {
@@ -335,6 +480,9 @@ function getAiFailureStatus(error: unknown) {
 function explainAiFailure(error: unknown) {
   if (error instanceof Error && (error.message === "OPENAI_API_KEY_MISSING" || error.message === "AI_PROVIDER_KEY_MISSING")) {
     return "尚未配置可用的 AI API Key，请在 .env.local 中填入 DEEPSEEK_API_KEY、OPENAI_API_KEY 或 ZHIPU_API_KEY 并重启服务。";
+  }
+  if (error instanceof Error && error.message === "AI_VISION_PROVIDER_MISSING") {
+    return "尚未配置可用的视觉模型，且本地 OCR 未识别到可整理的文字。";
   }
   const status = typeof error === "object" && error !== null && "status" in error ? (error as { status?: number }).status : undefined;
   if (status === 400) return "模型请求被拒绝，可能是当前模型不支持该参数、图片或 JSON 输出格式。";
