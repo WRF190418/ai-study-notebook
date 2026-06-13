@@ -21,3 +21,25 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run build
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: railway-production
+      cancel-in-progress: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm install --global @railway/cli
+      - run: railway up --service web --ci
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}

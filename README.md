@@ -58,12 +58,13 @@ lib/
 
 ## Railway 部署
 
-项目根目录包含 `railway.json`，连接 GitHub 后 Railway 会自动构建并部署 `main` 分支。
+项目根目录包含 `railway.json`。GitHub Actions 会在 `main` 分支检查通过后，通过 Railway Project Token 自动部署到现有 Web Service。
 
-1. 创建 Railway Web Service 并连接 GitHub 仓库。
+1. 创建 Railway Web Service。
 2. 配置 `.env.example` 中使用到的 AI Key 与 `AUTH_SECRET`。
 3. 为 Web Service 添加 Volume，挂载路径设为 `/app/data`。
 4. 在 Networking 中生成固定的 `*.up.railway.app` 域名。
+5. 在 GitHub Actions Secret 中设置 Railway Project Token：`RAILWAY_TOKEN`。
 
 服务健康检查地址为 `/api/health`。应用也支持通过 `APP_DATA_DIR` 指定其他持久化目录。
 
