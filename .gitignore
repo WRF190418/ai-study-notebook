@@ -10,3 +10,4 @@ test-results
 cloudflared-tunnel.log
 tunnel-dev.log
 public-demo-url.txt
+github-recovery-codes.txt
