@@ -15,6 +15,7 @@ import {
 } from "@/lib/db";
 import { interpretNotebookCommand } from "@/lib/ai";
 import type { AiCommandOperation, AiCommandPlan } from "@/lib/ai";
+import { attachImageToNote, ImageUploadError, isImageFile, removeStoredMediaFiles } from "@/lib/media";
 
 const schema = z.object({
   command: z.string().min(2).max(2000),
@@ -30,19 +31,21 @@ class CommandValidationError extends Error {}
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "未登录。" }, { status: 401 });
-
-  const parsed = schema.safeParse(await request.json());
-  if (!parsed.success) {
-    return NextResponse.json({ error: "请输入有效的 AI 命令。" }, { status: 400 });
+  if (exceedsUploadLimit(request)) {
+    return NextResponse.json({ error: "AI 命令附图不能超过 10 MB。" }, { status: 413 });
   }
 
   try {
+    const input = await readCommandInput(request);
+    if (!input) return NextResponse.json({ error: "请输入有效的 AI 命令。" }, { status: 400 });
+    const { data, attachedImage } = input;
     const workspace = await getWorkspace(user.id);
     const plan = await interpretNotebookCommand({
-      command: parsed.data.command,
-      currentCourseId: parsed.data.currentCourseId,
-      currentLessonId: parsed.data.currentLessonId,
-      currentNoteId: parsed.data.currentNoteId,
+      command: data.command,
+      currentCourseId: data.currentCourseId,
+      currentLessonId: data.currentLessonId,
+      currentNoteId: data.currentNoteId,
+      attachedImage: attachedImage ? { name: attachedImage.name, mimeType: attachedImage.type } : undefined,
       courses: workspace.courses,
       lessons: workspace.lessons,
       notes: workspace.notes,
@@ -53,22 +56,22 @@ export async function POST(request: Request) {
       return NextResponse.json({
         action: "reply",
         message: plan.message || "这条命令还不够明确，请说明要操作的课程、章节或笔记。",
-        selectedCourseId: parsed.data.currentCourseId,
-        selectedLessonId: parsed.data.currentLessonId,
-        selectedNoteId: parsed.data.currentNoteId,
+        selectedCourseId: data.currentCourseId,
+        selectedLessonId: data.currentLessonId,
+        selectedNoteId: data.currentNoteId,
         workspace
       });
     }
 
-    validatePlan(plan, workspace);
+    validatePlan(plan, workspace, attachedImage);
 
-    let selectedCourseId = parsed.data.currentCourseId;
-    let selectedLessonId = parsed.data.currentLessonId;
-    let selectedNoteId = parsed.data.currentNoteId;
+    let selectedCourseId = data.currentCourseId;
+    let selectedLessonId = data.currentLessonId;
+    let selectedNoteId = data.currentNoteId;
     const executionMessages: string[] = [];
 
     for (const operation of plan.operations) {
-      const result = await executeOperation(operation, user.id, workspace);
+      const result = await executeOperation(operation, user.id, workspace, attachedImage);
       executionMessages.push(result.message);
       selectedCourseId = result.courseId ?? selectedCourseId;
       selectedLessonId = result.lessonId ?? selectedLessonId;
@@ -95,6 +98,9 @@ export async function POST(request: Request) {
     if (error instanceof CommandValidationError) {
       return NextResponse.json({ error: error.message }, { status: 422 });
     }
+    if (error instanceof ImageUploadError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     if (error instanceof Error && (error.message === "OPENAI_API_KEY_MISSING" || error.message === "AI_PROVIDER_KEY_MISSING")) {
       return NextResponse.json({ error: "真实 AI 服务尚未配置，命令不会使用本地规则代替执行。" }, { status: 503 });
     }
@@ -107,7 +113,7 @@ export async function POST(request: Request) {
   }
 }
 
-function validatePlan(plan: AiCommandPlan, workspace: Workspace) {
+function validatePlan(plan: AiCommandPlan, workspace: Workspace, attachedImage?: File) {
   const courseIds = new Set(workspace.courses.map((item) => item.id));
   const lessonById = new Map(workspace.lessons.map((item) => [item.id, item]));
   const noteIds = new Set(workspace.notes.map((item) => item.id));
@@ -115,6 +121,7 @@ function validatePlan(plan: AiCommandPlan, workspace: Workspace) {
   const deletedLessons = new Set<string>();
   const deletedNotes = new Set<string>();
   let courseCount = workspace.courses.length;
+  let imageInsertions = 0;
 
   for (const operation of plan.operations) {
     if (operation.courseId && deletedCourses.has(operation.courseId)) {
@@ -174,6 +181,16 @@ function validatePlan(plan: AiCommandPlan, workspace: Workspace) {
         requireExisting(operation.noteId, noteIds, "AI 选择的笔记不存在。");
         requireObject(operation.updatedNote, "AI 没有给出笔记修改内容。");
         break;
+      case "insert_image":
+        requireExisting(operation.noteId, noteIds, "AI 选择的笔记不存在。");
+        if (!attachedImage) throw new CommandValidationError("请先在 AI 命令行中附上要插入的图片。");
+        requireObject(operation.image, "AI 没有给出图片插入位置。");
+        if (operation.image?.placement === "after_heading") {
+          requireText(operation.image.afterHeading, "AI 没有给出图片要放在哪个标题后。");
+        }
+        imageInsertions += 1;
+        if (imageInsertions > 1) throw new CommandValidationError("一条命令只能插入一次所附图片。");
+        break;
       case "move_note": {
         requireExisting(operation.noteId, noteIds, "AI 选择的笔记不存在。");
         requireExisting(operation.courseId, courseIds, "AI 选择的目标课程不存在。");
@@ -192,7 +209,7 @@ function validatePlan(plan: AiCommandPlan, workspace: Workspace) {
   if (courseCount < 1) throw new CommandValidationError("至少需要保留一个课程板块。");
 }
 
-async function executeOperation(operation: AiCommandOperation, userId: string, workspace: Workspace) {
+async function executeOperation(operation: AiCommandOperation, userId: string, workspace: Workspace, attachedImage?: File) {
   switch (operation.action) {
     case "create_course": {
       const input = operation.course!;
@@ -217,19 +234,32 @@ async function executeOperation(operation: AiCommandOperation, userId: string, w
       return { message: `已新建章节「${lesson.title}」。`, courseId: lesson.courseId, lessonId: lesson.id, noteId: "" };
     }
     case "delete_course": {
-      const deleted = await deleteCourse(userId, operation.courseId!);
-      if (!deleted) throw new CommandValidationError("课程在执行前已不存在。");
-      return { message: `已删除课程「${deleted.title}」。`, courseId: "", lessonId: "", noteId: "" };
+      const result = await deleteCourse(userId, operation.courseId!);
+      if (!result) throw new CommandValidationError("课程在执行前已不存在。");
+      await removeStoredMediaFiles(result.removedMediaAssets);
+      return { message: `已删除课程「${result.course.title}」。`, courseId: "", lessonId: "", noteId: "" };
     }
     case "delete_lesson": {
-      const deleted = await deleteLesson(userId, operation.lessonId!);
-      if (!deleted) throw new CommandValidationError("章节在执行前已不存在。");
-      return { message: `已删除章节「${deleted.title}」。`, courseId: deleted.courseId, lessonId: "", noteId: "" };
+      const result = await deleteLesson(userId, operation.lessonId!);
+      if (!result) throw new CommandValidationError("章节在执行前已不存在。");
+      await removeStoredMediaFiles(result.removedMediaAssets);
+      return {
+        message: `已删除章节「${result.lesson.title}」。`,
+        courseId: result.lesson.courseId,
+        lessonId: "",
+        noteId: ""
+      };
     }
     case "delete_note": {
-      const deleted = await deleteNote(userId, operation.noteId!);
-      if (!deleted) throw new CommandValidationError("笔记在执行前已不存在。");
-      return { message: `已删除笔记「${deleted.title}」。`, courseId: deleted.courseId, lessonId: deleted.lessonId, noteId: "" };
+      const result = await deleteNote(userId, operation.noteId!);
+      if (!result) throw new CommandValidationError("笔记在执行前已不存在。");
+      await removeStoredMediaFiles(result.removedMediaAssets);
+      return {
+        message: `已删除笔记「${result.note.title}」。`,
+        courseId: result.note.courseId,
+        lessonId: result.note.lessonId,
+        noteId: ""
+      };
     }
     case "update_course": {
       const updated = await updateCourse(userId, operation.courseId!, {
@@ -278,6 +308,29 @@ async function executeOperation(operation: AiCommandOperation, userId: string, w
       if (!updated) throw new CommandValidationError("笔记在执行前已不存在。");
       return { message: `已更新笔记「${updated.title}」。`, courseId: updated.courseId, lessonId: updated.lessonId, noteId: updated.id };
     }
+    case "insert_image": {
+      if (!attachedImage) throw new CommandValidationError("没有收到要插入的图片。");
+      const { note } = await attachImageToNote({
+        userId,
+        noteId: operation.noteId!,
+        file: attachedImage,
+        placement: operation.image!.placement,
+        afterHeading: operation.image!.afterHeading,
+        alt: operation.image!.alt
+      });
+      const position =
+        operation.image!.placement === "start"
+          ? "开头"
+          : operation.image!.placement === "after_heading"
+            ? `“${operation.image!.afterHeading}”标题后`
+            : "结尾";
+      return {
+        message: `已将图片插入笔记「${note.title}」的${position}。`,
+        courseId: note.courseId,
+        lessonId: note.lessonId,
+        noteId: note.id
+      };
+    }
     case "move_note": {
       const updated = await updateNote(userId, operation.noteId!, {
         courseId: operation.courseId,
@@ -297,6 +350,35 @@ async function executeOperation(operation: AiCommandOperation, userId: string, w
       return { message: "已更新界面偏好。" };
     }
   }
+}
+
+async function readCommandInput(request: Request) {
+  const contentType = request.headers.get("content-type") ?? "";
+  if (contentType.includes("multipart/form-data")) {
+    const form = await request.formData();
+    const parsed = schema.safeParse({
+      command: readFormString(form, "command"),
+      currentCourseId: readFormString(form, "currentCourseId"),
+      currentLessonId: readFormString(form, "currentLessonId"),
+      currentNoteId: readFormString(form, "currentNoteId")
+    });
+    if (!parsed.success) return null;
+    const image = form.get("image");
+    return { data: parsed.data, attachedImage: isImageFile(image) ? image : undefined };
+  }
+
+  const parsed = schema.safeParse(await request.json());
+  return parsed.success ? { data: parsed.data, attachedImage: undefined } : null;
+}
+
+function readFormString(form: FormData, key: string) {
+  const value = form.get(key);
+  return typeof value === "string" ? value : "";
+}
+
+function exceedsUploadLimit(request: Request) {
+  const contentLength = Number(request.headers.get("content-length") || 0);
+  return Number.isFinite(contentLength) && contentLength > 11 * 1024 * 1024;
 }
 
 function normalizeSelection(workspace: Workspace, selection: { courseId: string; lessonId: string; noteId: string }) {

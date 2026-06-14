@@ -181,6 +181,7 @@ const commandOperationSchema = z.object({
     "update_course",
     "update_lesson",
     "update_note",
+    "insert_image",
     "move_note",
     "update_preferences"
   ]),
@@ -211,6 +212,13 @@ const commandOperationSchema = z.object({
       title: z.string().optional(),
       summary: z.string().optional(),
       markdown: z.string().optional()
+    })
+    .optional(),
+  image: z
+    .object({
+      placement: z.enum(["start", "end", "after_heading"]),
+      afterHeading: z.string().optional(),
+      alt: z.string().optional()
     })
     .optional(),
   preferences: z
@@ -263,9 +271,16 @@ const commandOperationSchema = z.object({
       break;
     case "delete_note":
     case "update_note":
+    case "insert_image":
       requireText(operation.noteId, ["noteId"], `${operation.action} 缺少 noteId`);
       if (operation.action === "update_note") {
         requireObject(operation.updatedNote, ["updatedNote"], "update_note 缺少笔记修改内容");
+      }
+      if (operation.action === "insert_image") {
+        requireObject(operation.image, ["image"], "insert_image 缺少图片插入位置");
+        if (operation.image?.placement === "after_heading") {
+          requireText(operation.image.afterHeading, ["image", "afterHeading"], "insert_image 缺少目标标题");
+        }
       }
       break;
     case "move_note":
@@ -293,6 +308,7 @@ export async function interpretNotebookCommand(input: {
   currentCourseId: string;
   currentLessonId?: string;
   currentNoteId?: string;
+  attachedImage?: { name: string; mimeType: string };
   courses: Course[];
   lessons: Lesson[];
   notes: Note[];
@@ -334,7 +350,7 @@ export async function interpretNotebookCommand(input: {
           "输出对象固定为 {message, requiresClarification, operations}。",
           "operations 可以包含 0 到 8 个动作，并按执行顺序排列。不要输出白名单外的动作。",
           '严格示例：{"message":"同时修改第一章标题和颜色","requiresClarification":false,"operations":[{"action":"update_lesson","lessonId":"真实章节 id","lesson":{"title":"经典力学导论","accent":"cobalt"}}]}',
-          "允许动作：create_course、create_lesson、delete_course、delete_lesson、delete_note、update_course、update_lesson、update_note、move_note、update_preferences。",
+          "允许动作：create_course、create_lesson、delete_course、delete_lesson、delete_note、update_course、update_lesson、update_note、insert_image、move_note、update_preferences。",
           "create_course 必须给 course.title、code、term、description；可给 starter lesson 的 lessonTitle、lessonSubtitle。",
           "create_lesson 必须选择 courseId，并给 lesson.title；可给 subtitle、icon、accent。",
           "delete_course/delete_lesson/delete_note 必须使用上下文里真实存在的对应 id。只有用户明确要求删除时才允许。",
@@ -342,6 +358,7 @@ export async function interpretNotebookCommand(input: {
           "update_course 必须给 courseId，并在 course 中给出需要更新的 title/code/term/description。",
           "update_lesson 必须给 lessonId，并在 lesson 中给出需要更新的 title/subtitle/icon/accent。",
           "update_note 必须给 noteId。修改正文时，updatedNote.markdown 必须是完整修改后的 Markdown，不是修改说明；也可更新 title、summary。",
+          "insert_image 仅在 attachedImage 不为空且用户要求把所附图片放进笔记时使用。必须给 noteId 和 image.placement（start/end/after_heading）；after_heading 时必须给 image.afterHeading；可给简洁的 image.alt。不要在 updatedNote.markdown 中伪造图片 URL。",
           "move_note 必须给 noteId、courseId、lessonId，且目标章节必须属于目标课程。",
           "update_preferences 用于全局页面主题、按钮、密度、卡片和布局偏好。",
           "复杂命令可以拆成多个 operations，例如同时重命名章节并改变颜色。",
@@ -365,6 +382,7 @@ export async function interpretNotebookCommand(input: {
           courses: courseContext,
           lessons: lessonContext,
           notes: noteContext,
+          attachedImage: input.attachedImage ?? null,
           currentPreferences: input.preferences
         })
       }
@@ -394,13 +412,15 @@ export async function interpretNotebookCommand(input: {
           currentNoteId: input.currentNoteId || null,
           courses: courseContext,
           lessons: lessonContext,
+          notes: noteContext,
+          attachedImage: input.attachedImage ?? null,
           requiredShape: {
             message: "string",
             requiresClarification: "boolean",
             operations: [
               {
                 action:
-                  "create_course|create_lesson|delete_course|delete_lesson|delete_note|update_course|update_lesson|update_note|move_note|update_preferences"
+                  "create_course|create_lesson|delete_course|delete_lesson|delete_note|update_course|update_lesson|update_note|insert_image|move_note|update_preferences"
               }
             ]
           },

@@ -12,6 +12,26 @@ async function dismissOnboarding(page: import("@playwright/test").Page) {
   }
 }
 
+function testPng(name = "note-image.png") {
+  return {
+    name,
+    mimeType: "image/png",
+    buffer: Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+      "base64"
+    )
+  };
+}
+
+async function createTestNote(page: import("@playwright/test").Page) {
+  await page.getByLabel("整理要求").fill("整理到柏拉图的现实观");
+  await page
+    .getByLabel("原始文字")
+    .fill("课堂插图测试笔记。核心内容包括理念世界、可感世界与洞穴寓言。");
+  await page.getByRole("button", { name: /开始整理/ }).click();
+  await expect(page.locator(".note-reader")).toBeVisible({ timeout: 90_000 });
+}
+
 test("registers a user and reaches the course workspace", async ({ page }, testInfo) => {
   await page.goto("/");
 
@@ -114,10 +134,17 @@ test("creates a course board from a direct AI command", async ({ page }, testInf
   await expect(page.getByRole("heading", { name: "自然对话基础" })).toBeVisible({ timeout: 30_000 });
   await dismissOnboarding(page);
   await page.getByLabel("AI 命令行").fill("新建一个phy1000学习板块");
+  const commandResponse = page.waitForResponse((response) => response.url().includes("/api/ai/command"));
   await page.getByRole("button", { name: /执行命令/ }).click();
+  const response = await commandResponse;
+  const data = await response.json();
+  const createdCourse = data.workspace.courses.find((course: { id: string }) => course.id === data.selectedCourseId);
 
+  expect(response.ok()).toBeTruthy();
+  expect(createdCourse).toBeTruthy();
+  expect(createdCourse.code.toUpperCase()).toContain("PHY1000");
   await expect(page.getByText("已新建板块")).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByRole("heading", { name: "PHY1000" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: createdCourse.title })).toBeVisible();
   await expect(page.getByLabel("选择课程")).toHaveValue(/.+/);
 });
 
@@ -182,6 +209,77 @@ test("uses a real AI provider for a compound notebook command", async ({ page },
   await expect(page.getByText(/由 .+ 理解并执行/)).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole("heading", { name: "经典力学导论" })).toBeVisible();
   await expect(page.locator(".lesson-card").filter({ hasText: "Lecture 1" }).locator(".lesson-art.cobalt")).toBeVisible();
+});
+
+test("inserts an uploaded image directly into a note", async ({ page }, testInfo) => {
+  await page.goto("/");
+
+  const email = `note-image-${testInfo.project.name}-${Date.now()}-${Math.random().toString(16).slice(2)}@example.com`;
+  await page.getByLabel("昵称").fill("插图学生");
+  await page.getByLabel("邮箱").fill(email);
+  await page.getByLabel("密码").fill("12345678");
+  await page.getByRole("button", { name: "进入笔记本" }).click();
+  await expect(page.getByRole("heading", { name: "自然对话基础" })).toBeVisible({ timeout: 30_000 });
+  await dismissOnboarding(page);
+
+  await createTestNote(page);
+  await page.getByRole("button", { name: "插入图片" }).click();
+  await page.getByLabel("选择笔记图片").setInputFiles(testPng());
+  await page.getByLabel("图片插入位置").selectOption("end");
+  await page.getByLabel("图片说明").fill("课堂示意图");
+  await page.getByRole("button", { name: "确认插入" }).click();
+
+  await expect(page.getByText("图片已插入笔记结尾。")).toBeVisible({ timeout: 30_000 });
+  const image = page.locator(".note-reader .markdown img").last();
+  await expect(image).toBeVisible();
+  await expect(image).toHaveAttribute("alt", "课堂示意图");
+  await expect(image).toHaveAttribute("src", /\/api\/media\//);
+  const imageUrl = await image.getAttribute("src");
+
+  await page.getByRole("button", { name: "插入图片" }).click();
+  await page.getByLabel("选择笔记图片").setInputFiles(testPng("missing-heading.png"));
+  await page.getByLabel("图片插入位置").selectOption("after_heading");
+  await page.getByLabel("图片目标标题").fill("不存在的标题");
+  await page.getByRole("button", { name: "确认插入" }).click();
+  await expect(page.getByText(/没有找到标题“不存在的标题”/)).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator(".note-reader .markdown img")).toHaveCount(1);
+
+  const browser = page.context().browser()!;
+  const anonymousContext = await browser.newContext();
+  const anonymousImageResponse = await anonymousContext.request.get(
+    new URL(imageUrl!, page.url()).toString()
+  );
+  expect(anonymousImageResponse.status()).toBe(401);
+  await anonymousContext.close();
+});
+
+test("uses real AI to place an attached image in the current note", async ({ page }, testInfo) => {
+  await page.goto("/");
+
+  const email = `ai-note-image-${testInfo.project.name}-${Date.now()}-${Math.random().toString(16).slice(2)}@example.com`;
+  await page.getByLabel("昵称").fill("AI 插图学生");
+  await page.getByLabel("邮箱").fill(email);
+  await page.getByLabel("密码").fill("12345678");
+  await page.getByRole("button", { name: "进入笔记本" }).click();
+  await expect(page.getByRole("heading", { name: "自然对话基础" })).toBeVisible({ timeout: 30_000 });
+  await dismissOnboarding(page);
+
+  await createTestNote(page);
+  await page.getByLabel("AI 命令图片").setInputFiles(testPng("ai-illustration.png"));
+  await page.getByLabel("AI 命令行").fill("把所附图片放到当前笔记的开头，图片说明写成 AI 课堂插图");
+  const commandResponse = page.waitForResponse((response) => response.url().includes("/api/ai/command"));
+  await page.getByRole("button", { name: /执行命令/ }).click();
+  const response = await commandResponse;
+  const data = await response.json();
+
+  expect(response.ok()).toBeTruthy();
+  expect(data.action).toBe("ai_plan");
+  expect(data.aiProvider).toBeTruthy();
+  await expect(page.getByText(/已将图片插入笔记/)).toBeVisible({ timeout: 30_000 });
+  const image = page.locator(".note-reader .markdown img").first();
+  await expect(image).toBeVisible();
+  await expect(image).toHaveAttribute("alt", "AI 课堂插图");
+  await expect(image).toHaveAttribute("src", /\/api\/media\//);
 });
 
 test("changes a numbered chapter card color without renaming it", async ({ page }, testInfo) => {

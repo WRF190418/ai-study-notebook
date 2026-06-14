@@ -11,6 +11,7 @@ import {
   FileText,
   FunctionSquare,
   HelpCircle,
+  ImagePlus,
   Library,
   LogOut,
   Network,
@@ -256,6 +257,7 @@ export default function NotebookApp({
                   setSelectedNoteId("");
                 }}
                 onSelectNote={setSelectedNoteId}
+                onWorkspaceUpdated={setWorkspace}
               />
             ) : (
               <CourseHome
@@ -470,7 +472,8 @@ function LessonDetail({
   notes,
   selectedNote,
   onBack,
-  onSelectNote
+  onSelectNote,
+  onWorkspaceUpdated
 }: {
   course?: Course;
   lesson: Lesson;
@@ -478,6 +481,7 @@ function LessonDetail({
   selectedNote?: Note;
   onBack: () => void;
   onSelectNote: (id: string) => void;
+  onWorkspaceUpdated: (workspace: Workspace) => void;
 }) {
   return (
     <>
@@ -539,6 +543,11 @@ function LessonDetail({
                 <h2>{selectedNote.title}</h2>
                 <p>{selectedNote.summary}</p>
               </div>
+              <NoteImageInsert
+                key={selectedNote.id}
+                note={selectedNote}
+                onWorkspaceUpdated={onWorkspaceUpdated}
+              />
             </div>
             <MarkdownView content={selectedNote.contentMarkdown} />
           </section>
@@ -546,6 +555,120 @@ function LessonDetail({
         </>
       ) : null}
     </>
+  );
+}
+
+function NoteImageInsert({
+  note,
+  onWorkspaceUpdated
+}: {
+  note: Note;
+  onWorkspaceUpdated: (workspace: Workspace) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [image, setImage] = useState<File | null>(null);
+  const [placement, setPlacement] = useState<"start" | "end" | "after_heading">("end");
+  const [afterHeading, setAfterHeading] = useState("");
+  const [alt, setAlt] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!image) {
+      setMessage("请选择要插入的图片。");
+      return;
+    }
+    if (placement === "after_heading" && !afterHeading.trim()) {
+      setMessage("请输入图片要放在哪个标题后。");
+      return;
+    }
+
+    setBusy(true);
+    setMessage("");
+    const payload = new FormData();
+    payload.set("image", image);
+    payload.set("placement", placement);
+    payload.set("afterHeading", afterHeading);
+    payload.set("alt", alt);
+
+    try {
+      const response = await fetch(`/api/notes/${note.id}/images`, {
+        method: "POST",
+        body: payload
+      });
+      const data = await readJsonResponse(response);
+      if (!response.ok || data?.error) {
+        setMessage(data?.error ?? "图片插入失败。");
+        return;
+      }
+      onWorkspaceUpdated(data.workspace);
+      setImage(null);
+      setMessage(data.message ?? "图片已插入笔记。");
+      setOpen(false);
+    } catch {
+      setMessage("图片上传中断，请检查网络后重试。");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="note-image-control">
+      <button className="ghost-button" onClick={() => setOpen((value) => !value)} type="button">
+        <ImagePlus size={17} />
+        插入图片
+      </button>
+      {open ? (
+        <form className="note-image-form" onSubmit={submit}>
+          <label className="field">
+            <span>选择图片</span>
+            <input
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              aria-label="选择笔记图片"
+              onChange={(event) => setImage(event.target.files?.[0] ?? null)}
+              type="file"
+            />
+          </label>
+          <label className="field">
+            <span>插入位置</span>
+            <select
+              aria-label="图片插入位置"
+              onChange={(event) => setPlacement(event.target.value as typeof placement)}
+              value={placement}
+            >
+              <option value="start">笔记开头</option>
+              <option value="end">笔记结尾</option>
+              <option value="after_heading">指定标题后</option>
+            </select>
+          </label>
+          {placement === "after_heading" ? (
+            <label className="field">
+              <span>标题文字</span>
+              <input
+                aria-label="图片目标标题"
+                onChange={(event) => setAfterHeading(event.target.value)}
+                placeholder="例如：原始材料要点"
+                value={afterHeading}
+              />
+            </label>
+          ) : null}
+          <label className="field">
+            <span>图片说明（可选）</span>
+            <input
+              aria-label="图片说明"
+              onChange={(event) => setAlt(event.target.value)}
+              placeholder="例如：实验装置示意图"
+              value={alt}
+            />
+          </label>
+          <button className="primary-button" disabled={busy} type="submit">
+            {busy ? "插入中..." : "确认插入"}
+          </button>
+        </form>
+      ) : null}
+      {message ? <div className="note-image-message">{message}</div> : null}
+    </div>
   );
 }
 
@@ -615,6 +738,7 @@ function OrganizerPanel({
   const [commandBusy, setCommandBusy] = useState(false);
   const [commandStep, setCommandStep] = useState(0);
   const [commandMessage, setCommandMessage] = useState("");
+  const [commandImage, setCommandImage] = useState<File | null>(null);
   const [targetInstruction, setTargetInstruction] = useState("");
   const [text, setText] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -626,6 +750,7 @@ function OrganizerPanel({
   const [error, setError] = useState("");
   const [hydrated, setHydrated] = useState(false);
   const commandRef = useRef<HTMLTextAreaElement>(null);
+  const commandImageRef = useRef<HTMLInputElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -694,15 +819,26 @@ function OrganizerPanel({
     setError("");
 
     try {
+      const commandPayload = commandImage
+        ? (() => {
+            const payload = new FormData();
+            payload.set("command", currentCommand);
+            payload.set("currentCourseId", course.id);
+            payload.set("currentLessonId", currentLessonId);
+            payload.set("currentNoteId", currentNoteId);
+            payload.set("image", commandImage);
+            return payload;
+          })()
+        : JSON.stringify({
+            command: currentCommand,
+            currentCourseId: course.id,
+            currentLessonId,
+            currentNoteId
+          });
       const response = await fetch("/api/ai/command", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          command: currentCommand,
-          currentCourseId: course.id,
-          currentLessonId,
-          currentNoteId
-        })
+        headers: commandImage ? undefined : { "Content-Type": "application/json" },
+        body: commandPayload
       });
       const data = await readJsonResponse(response);
 
@@ -713,6 +849,8 @@ function OrganizerPanel({
 
       onCommandApplied(data);
       if (commandRef.current) commandRef.current.value = "";
+      if (commandImageRef.current) commandImageRef.current.value = "";
+      setCommandImage(null);
       setCommandMessage(
         data.aiProvider ? `${data.message ?? "命令已处理。"}（由 ${data.aiProvider} 理解并执行）` : data.message ?? "命令已处理。"
       );
@@ -807,6 +945,36 @@ function OrganizerPanel({
             placeholder="例如：删除刚才那篇笔记；把牛顿第二定律改成考试复习版；新建一个高等数学板块，学期为 2026 秋季。"
           />
         </label>
+        <div className="command-image-row">
+          <label className="command-image-picker">
+            <ImagePlus size={16} />
+            {commandImage ? "更换图片" : "附加图片"}
+            <input
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              aria-label="AI 命令图片"
+              onChange={(event) => setCommandImage(event.target.files?.[0] ?? null)}
+              ref={commandImageRef}
+              type="file"
+            />
+          </label>
+          {commandImage ? (
+            <div className="command-image-name">
+              <span title={commandImage.name}>{commandImage.name}</span>
+              <button
+                aria-label="移除 AI 命令图片"
+                onClick={() => {
+                  setCommandImage(null);
+                  if (commandImageRef.current) commandImageRef.current.value = "";
+                }}
+                type="button"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ) : (
+            <span className="small-muted">可命令 AI 把所附图片插入指定笔记位置</span>
+          )}
+        </div>
         <div className="status-row">
           <span className="small-muted">由真实 AI 理解上下文并执行经过校验的操作</span>
           <button className="ghost-button" disabled={commandBusy || !hydrated} type="submit">

@@ -1,7 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { nanoid } from "nanoid";
-import type { AppDb, Course, Lesson, Note, PasswordReset, User, UserPreferences } from "@/lib/types";
+import type { AppDb, Course, Lesson, MediaAsset, Note, PasswordReset, User, UserPreferences } from "@/lib/types";
 
 const dataDir =
   process.env.APP_DATA_DIR ||
@@ -24,7 +24,8 @@ const emptyDb: AppDb = {
   passwordResets: [],
   courses: [],
   lessons: [],
-  notes: []
+  notes: [],
+  mediaAssets: []
 };
 
 export function defaultPreferences(userId: string): UserPreferences {
@@ -56,6 +57,7 @@ async function readDb(): Promise<AppDb> {
   const db = JSON.parse(raw) as AppDb;
   db.preferences ??= [];
   db.passwordResets ??= [];
+  db.mediaAssets ??= [];
   for (const user of db.users) {
     if (!db.preferences.some((item) => item.userId === user.id)) {
       db.preferences.push(defaultPreferences(user.id));
@@ -347,9 +349,14 @@ export async function deleteCourse(userId: string, courseId: string) {
     const index = db.courses.findIndex((item) => item.id === courseId && item.userId === userId);
     if (index === -1) return null;
     const [course] = db.courses.splice(index, 1);
+    const removedNoteIds = new Set(
+      db.notes.filter((note) => note.userId === userId && note.courseId === courseId).map((note) => note.id)
+    );
     db.lessons = db.lessons.filter((lesson) => !(lesson.userId === userId && lesson.courseId === courseId));
     db.notes = db.notes.filter((note) => !(note.userId === userId && note.courseId === courseId));
-    return course;
+    const removedMediaAssets = db.mediaAssets.filter((asset) => removedNoteIds.has(asset.noteId));
+    db.mediaAssets = db.mediaAssets.filter((asset) => !removedNoteIds.has(asset.noteId));
+    return { course, removedMediaAssets };
   });
 }
 
@@ -371,8 +378,13 @@ export async function deleteLesson(userId: string, lessonId: string) {
     const index = db.lessons.findIndex((item) => item.id === lessonId && item.userId === userId);
     if (index === -1) return null;
     const [lesson] = db.lessons.splice(index, 1);
+    const removedNoteIds = new Set(
+      db.notes.filter((note) => note.userId === userId && note.lessonId === lessonId).map((note) => note.id)
+    );
     db.notes = db.notes.filter((note) => !(note.userId === userId && note.lessonId === lessonId));
-    return lesson;
+    const removedMediaAssets = db.mediaAssets.filter((asset) => removedNoteIds.has(asset.noteId));
+    db.mediaAssets = db.mediaAssets.filter((asset) => !removedNoteIds.has(asset.noteId));
+    return { lesson, removedMediaAssets };
   });
 }
 
@@ -409,6 +421,101 @@ export async function deleteNote(userId: string, noteId: string) {
     const index = db.notes.findIndex((item) => item.id === noteId && item.userId === userId);
     if (index === -1) return null;
     const [note] = db.notes.splice(index, 1);
+    const removedMediaAssets = db.mediaAssets.filter((asset) => asset.userId === userId && asset.noteId === noteId);
+    db.mediaAssets = db.mediaAssets.filter((asset) => !(asset.userId === userId && asset.noteId === noteId));
+    return { note, removedMediaAssets };
+  });
+}
+
+export async function findNoteById(userId: string, noteId: string) {
+  return viewDb((db) => db.notes.find((note) => note.id === noteId && note.userId === userId) ?? null);
+}
+
+export async function createMediaAsset(input: Omit<MediaAsset, "createdAt">) {
+  return mutateDb((db) => {
+    const asset: MediaAsset = {
+      ...input,
+      createdAt: new Date().toISOString()
+    };
+    db.mediaAssets.push(asset);
+    return asset;
+  });
+}
+
+export async function findMediaAsset(userId: string, assetId: string) {
+  return viewDb(
+    (db) => db.mediaAssets.find((asset) => asset.id === assetId && asset.userId === userId) ?? null
+  );
+}
+
+export async function deleteMediaAsset(userId: string, assetId: string) {
+  return mutateDb((db) => {
+    const index = db.mediaAssets.findIndex((asset) => asset.id === assetId && asset.userId === userId);
+    if (index === -1) return null;
+    const [asset] = db.mediaAssets.splice(index, 1);
+    return asset;
+  });
+}
+
+export async function insertImageIntoNote(
+  userId: string,
+  noteId: string,
+  input: {
+    imageUrl: string;
+    alt: string;
+    placement: "start" | "end" | "after_heading";
+    afterHeading?: string;
+  }
+) {
+  return mutateDb((db) => {
+    const note = db.notes.find((item) => item.id === noteId && item.userId === userId);
+    if (!note) return null;
+    note.contentMarkdown = insertImageMarkdown(note.contentMarkdown, input);
+    note.updatedAt = new Date().toISOString();
     return note;
   });
+}
+
+function insertImageMarkdown(
+  markdown: string,
+  input: {
+    imageUrl: string;
+    alt: string;
+    placement: "start" | "end" | "after_heading";
+    afterHeading?: string;
+  }
+) {
+  const safeAlt = input.alt.replace(/[\[\]\r\n]/g, " ").trim() || "笔记图片";
+  const image = `![${safeAlt}](${input.imageUrl})`;
+  const content = markdown.trim();
+
+  if (input.placement === "start") {
+    return [image, content].filter(Boolean).join("\n\n");
+  }
+
+  if (input.placement === "after_heading" && input.afterHeading?.trim()) {
+    const target = normalizeHeading(input.afterHeading);
+    const lines = markdown.split(/\r?\n/);
+    const index = lines.findIndex((line) => {
+      const match = line.match(/^#{1,6}\s+(.+?)\s*#*\s*$/);
+      if (!match) return false;
+      const heading = normalizeHeading(match[1]);
+      return heading === target || heading.includes(target) || target.includes(heading);
+    });
+    if (index >= 0) {
+      lines.splice(index + 1, 0, "", image, "");
+      return lines.join("\n").replace(/\n{4,}/g, "\n\n\n").trim();
+    }
+    throw new Error("NOTE_IMAGE_HEADING_NOT_FOUND");
+  }
+
+  return [content, image].filter(Boolean).join("\n\n");
+}
+
+function normalizeHeading(value: string) {
+  return value
+    .trim()
+    .replace(/^#{1,6}\s*/, "")
+    .replace(/\s*#*\s*$/, "")
+    .toLocaleLowerCase();
 }

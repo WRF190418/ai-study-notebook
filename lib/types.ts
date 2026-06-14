@@ -82,6 +82,17 @@ export type Note = {
   updatedAt: string;
 };
 
+export type MediaAsset = {
+  id: string;
+  userId: string;
+  noteId: string;
+  fileName: string;
+  mimeType: "image/png" | "image/jpeg" | "image/webp" | "image/gif";
+  size: number;
+  storageName: string;
+  createdAt: string;
+};
+
 export type AppDb = {
   users: User[];
   preferences: UserPreferences[];
@@ -89,6 +100,7 @@ export type AppDb = {
   courses: Course[];
   lessons: Lesson[];
   notes: Note[];
+  mediaAssets: MediaAsset[];
 };
 
 export type AiOrganizeResult = {

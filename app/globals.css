@@ -1076,6 +1076,111 @@ button {
   padding: 26px;
 }
 
+.note-image-control {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.note-image-form {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(360px, calc(100vw - 48px));
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+  background: white;
+  box-shadow: 0 18px 48px rgba(23, 32, 51, 0.18);
+}
+
+.note-image-form .field {
+  margin-bottom: 10px;
+}
+
+.note-image-form .primary-button {
+  width: 100%;
+}
+
+.note-image-message {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: max-content;
+  max-width: 320px;
+  border: 1px solid #cfe2da;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #f1f8f5;
+  color: #315d50;
+  font-size: 13px;
+}
+
+.markdown img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: 720px;
+  margin: 22px auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  object-fit: contain;
+  box-shadow: 0 10px 28px rgba(23, 32, 51, 0.1);
+}
+
+.command-image-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: -4px 0 12px;
+}
+
+.command-image-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: white;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.command-image-picker input {
+  display: none;
+}
+
+.command-image-name {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  border-radius: 7px;
+  padding: 7px 9px;
+  background: #eef4f1;
+  color: #375047;
+  font-size: 13px;
+}
+
+.command-image-name span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.command-image-name button {
+  display: inline-flex;
+  border: 0;
+  padding: 2px;
+  background: transparent;
+  color: inherit;
+}
+
 .markdown {
   color: #243044;
   font-size: 16px;
@@ -1431,6 +1536,28 @@ button {
   .sidebar-footer {
     margin-top: 22px;
     padding-top: 0;
+  }
+
+  .note-reader .panel-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .note-image-control > .ghost-button {
+    width: 100%;
+  }
+
+  .note-image-form {
+    position: static;
+    width: 100%;
+    margin-top: 8px;
+  }
+
+  .note-image-message {
+    position: static;
+    width: 100%;
+    max-width: none;
+    margin-top: 8px;
   }
 
   .topbar {
