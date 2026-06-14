@@ -1026,6 +1026,45 @@ button {
   cursor: pointer;
 }
 
+.file-thumbnail {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f7f9f8;
+  object-fit: cover;
+}
+
+.keep-images-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: -2px 0 14px;
+  border: 1px solid rgba(63, 143, 122, 0.2);
+  border-radius: 8px;
+  padding: 11px 12px;
+  background: #f4faf7;
+  color: #31564d;
+  cursor: pointer;
+}
+
+.keep-images-option input {
+  margin-top: 3px;
+  accent-color: var(--primary, #1f7a68);
+}
+
+.keep-images-option span,
+.keep-images-option small {
+  display: block;
+}
+
+.keep-images-option small {
+  margin-top: 3px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
 .status-row {
   display: flex;
   align-items: center;
@@ -1165,6 +1204,11 @@ button {
   background: #eef4f1;
   color: #375047;
   font-size: 13px;
+}
+
+.command-image-name .file-thumbnail {
+  width: 30px;
+  height: 30px;
 }
 
 .command-image-name span {

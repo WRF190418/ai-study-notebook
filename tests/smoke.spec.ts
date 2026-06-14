@@ -23,6 +23,36 @@ function testPng(name = "note-image.png") {
   };
 }
 
+async function pasteTestPng(
+  page: import("@playwright/test").Page,
+  label: string,
+  options: { name?: string; text?: string } = {}
+) {
+  const image = testPng(options.name ?? "clipboard-image.png");
+  await page.getByLabel(label).evaluate(
+    (element, payload) => {
+      const binary = atob(payload.base64);
+      const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+      const clipboard = new DataTransfer();
+      clipboard.items.add(new File([bytes], payload.name, { type: payload.mimeType }));
+      if (payload.text) clipboard.setData("text/plain", payload.text);
+      element.dispatchEvent(
+        new ClipboardEvent("paste", {
+          bubbles: true,
+          cancelable: true,
+          clipboardData: clipboard
+        })
+      );
+    },
+    {
+      base64: image.buffer.toString("base64"),
+      name: image.name,
+      mimeType: image.mimeType,
+      text: options.text ?? ""
+    }
+  );
+}
+
 async function createTestNote(page: import("@playwright/test").Page) {
   await page.getByLabel("整理要求").fill("整理到柏拉图的现实观");
   await page
@@ -265,8 +295,10 @@ test("uses real AI to place an attached image in the current note", async ({ pag
   await dismissOnboarding(page);
 
   await createTestNote(page);
-  await page.getByLabel("AI 命令图片").setInputFiles(testPng("ai-illustration.png"));
   await page.getByLabel("AI 命令行").fill("把所附图片放到当前笔记的开头，图片说明写成 AI 课堂插图");
+  await pasteTestPng(page, "AI 命令行", { name: "ai-illustration.png" });
+  await expect(page.locator(".command-image-name .file-thumbnail")).toBeVisible();
+  await expect(page.getByText(/已从剪贴板附加图片/)).toBeVisible();
   const commandResponse = page.waitForResponse((response) => response.url().includes("/api/ai/command"));
   await page.getByRole("button", { name: /执行命令/ }).click();
   const response = await commandResponse;
@@ -279,6 +311,35 @@ test("uses real AI to place an attached image in the current note", async ({ pag
   const image = page.locator(".note-reader .markdown img").first();
   await expect(image).toBeVisible();
   await expect(image).toHaveAttribute("alt", "AI 课堂插图");
+  await expect(image).toHaveAttribute("src", /\/api\/media\//);
+});
+
+test("pastes source text and an image, then keeps the original image in the organized note", async ({ page }, testInfo) => {
+  await page.goto("/");
+
+  const email = `paste-organize-${testInfo.project.name}-${Date.now()}-${Math.random().toString(16).slice(2)}@example.com`;
+  await page.getByLabel("昵称").fill("粘贴整理学生");
+  await page.getByLabel("邮箱").fill(email);
+  await page.getByLabel("密码").fill("12345678");
+  await page.getByRole("button", { name: "进入笔记本" }).click();
+  await expect(page.getByRole("heading", { name: "自然对话基础" })).toBeVisible({ timeout: 30_000 });
+  await dismissOnboarding(page);
+
+  await page.getByLabel("整理要求").fill("整理到柏拉图的现实观");
+  await pasteTestPng(page, "原始文字", {
+    name: "source-illustration.png",
+    text: "剪贴板图片整理测试。请保留原图，并总结图片与课堂主题的关系。"
+  });
+
+  await expect(page.locator('textarea[name="sourceText"]')).toHaveValue(/剪贴板图片整理测试/);
+  await expect(page.locator(".selected-file .file-thumbnail")).toBeVisible();
+  await expect(page.getByText(/已从剪贴板加入 1 张图片/)).toBeVisible();
+  await expect(page.getByLabel("同时把原图放入整理后的笔记")).toBeChecked();
+
+  await page.getByRole("button", { name: /开始整理/ }).click();
+  await expect(page.locator(".note-reader")).toBeVisible({ timeout: 90_000 });
+  const image = page.locator(".note-reader .markdown img").last();
+  await expect(image).toBeVisible();
   await expect(image).toHaveAttribute("src", /\/api\/media\//);
 });
 

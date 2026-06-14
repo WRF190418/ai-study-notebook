@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, ClipboardEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   Atom,
   BookOpen,
@@ -742,6 +742,7 @@ function OrganizerPanel({
   const [targetInstruction, setTargetInstruction] = useState("");
   const [text, setText] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [keepOriginalImages, setKeepOriginalImages] = useState(true);
   const [busy, setBusy] = useState(false);
   const [organizeStep, setOrganizeStep] = useState(0);
   const [organizeProgress, setOrganizeProgress] = useState(0);
@@ -798,6 +799,59 @@ function OrganizerPanel({
     setSelectedFiles(files);
     setSourceType(files.every((file) => file.type.startsWith("image/")) ? "image" : "file");
     setError("");
+  }
+
+  function handleCommandPaste(event: ClipboardEvent<HTMLTextAreaElement>) {
+    const images = getClipboardImages(event.clipboardData);
+    if (!images.length) return;
+
+    event.preventDefault();
+    pasteClipboardText(event.currentTarget, event.clipboardData.getData("text/plain"));
+    const accepted = images.filter(isSupportedClipboardImage);
+    if (!accepted.length) {
+      setCommandMessage(getClipboardImageError(images));
+      return;
+    }
+
+    setCommandImage(accepted[0]);
+    setCommandMessage(
+      accepted.length > 1
+        ? "AI 命令一次只接收一张图片，已附加剪贴板中的第一张。"
+        : "已从剪贴板附加图片，请继续输入图片要放入哪篇笔记、哪个位置。"
+    );
+  }
+
+  function handleSourcePaste(event: ClipboardEvent<HTMLTextAreaElement>) {
+    const images = getClipboardImages(event.clipboardData);
+    if (!images.length) return;
+
+    event.preventDefault();
+    const nextText = pasteClipboardText(event.currentTarget, event.clipboardData.getData("text/plain"));
+    const validImages = images.filter(isSupportedClipboardImage);
+    if (!validImages.length) {
+      setText(nextText);
+      setError(getClipboardImageError(images));
+      return;
+    }
+
+    const currentImageCount = selectedFiles.filter((file) => file.type.startsWith("image/")).length;
+    const availableImageSlots = Math.max(0, 4 - currentImageCount);
+    const availableFileSlots = Math.max(0, 8 - selectedFiles.length);
+    const accepted = validImages.slice(0, Math.min(availableImageSlots, availableFileSlots));
+
+    setText(nextText);
+    if (accepted.length) {
+      setSelectedFiles((current) => [...current, ...accepted]);
+      setSourceType("image");
+      setError("");
+      setOrganizeMessage(
+        validImages.length > accepted.length
+          ? `已粘贴 ${accepted.length} 张图片；图片最多 4 张、文件总数最多 8 个，其余未加入。`
+          : `已从剪贴板加入 ${accepted.length} 张图片，整理后会默认保留原图。`
+      );
+    } else {
+      setError("图片最多 4 张、文件总数最多 8 个，请先移除已有文件。");
+    }
   }
 
   function removeFile(index: number) {
@@ -880,6 +934,7 @@ function OrganizerPanel({
     payload.set("sourceType", sourceType);
     payload.set("mode", mode);
     payload.set("text", currentText);
+    payload.set("keepOriginalImages", String(keepOriginalImages));
     selectedFiles.forEach((file) => payload.append("files", file));
 
     try {
@@ -942,6 +997,7 @@ function OrganizerPanel({
           <textarea
             ref={commandRef}
             className="command-box"
+            onPaste={handleCommandPaste}
             placeholder="例如：删除刚才那篇笔记；把牛顿第二定律改成考试复习版；新建一个高等数学板块，学期为 2026 秋季。"
           />
         </label>
@@ -959,6 +1015,7 @@ function OrganizerPanel({
           </label>
           {commandImage ? (
             <div className="command-image-name">
+              <ImageFilePreview file={commandImage} />
               <span title={commandImage.name}>{commandImage.name}</span>
               <button
                 aria-label="移除 AI 命令图片"
@@ -1027,7 +1084,7 @@ function OrganizerPanel({
           <div className="selected-files" aria-label="已选择的文件">
             {selectedFiles.map((file, index) => (
               <div className="selected-file" key={`${file.name}-${file.lastModified}-${index}`}>
-                <FileText size={16} />
+                {file.type.startsWith("image/") ? <ImageFilePreview file={file} /> : <FileText size={16} />}
                 <span title={file.name}>{file.name}</span>
                 <small>{formatFileSize(file.size)}</small>
                 <button aria-label={`移除 ${file.name}`} onClick={() => removeFile(index)} type="button">
@@ -1050,6 +1107,7 @@ function OrganizerPanel({
             ref={textRef}
             name="sourceText"
             onInput={(event) => setText(event.currentTarget.value)}
+            onPaste={handleSourcePaste}
             placeholder={
               sourceType === "outline"
                 ? "例如：1. 牛顿第一定律 2. 惯性参考系 3. 受力分析常见错误"
@@ -1059,6 +1117,20 @@ function OrganizerPanel({
             }
           />
         </label>
+
+        {selectedFiles.some((file) => file.type.startsWith("image/")) ? (
+          <label className="keep-images-option">
+            <input
+              checked={keepOriginalImages}
+              onChange={(event) => setKeepOriginalImages(event.target.checked)}
+              type="checkbox"
+            />
+            <span>
+              <strong>同时把原图放入整理后的笔记</strong>
+              <small>默认开启；图片会保存在笔记正文结尾，并可长期查看。</small>
+            </span>
+          </label>
+        ) : null}
 
         <label className="field">
           <span>输出风格</span>
@@ -1200,6 +1272,63 @@ function formatFileSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function ImageFilePreview({ file }: { file: File }) {
+  const [url, setUrl] = useState("");
+
+  useEffect(() => {
+    const nextUrl = URL.createObjectURL(file);
+    setUrl(nextUrl);
+    return () => URL.revokeObjectURL(nextUrl);
+  }, [file]);
+
+  return url ? <img alt="" className="file-thumbnail" src={url} /> : <ImagePlus size={16} />;
+}
+
+function getClipboardImages(clipboard: DataTransfer) {
+  const now = Date.now();
+  return Array.from(clipboard.items)
+    .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
+    .map((item, index) => {
+      const file = item.getAsFile();
+      if (!file) return null;
+      const extension = clipboardImageExtension(file.type);
+      return new File([file], `clipboard-${now}-${index + 1}.${extension}`, {
+        type: file.type,
+        lastModified: now
+      });
+    })
+    .filter((file): file is File => Boolean(file));
+}
+
+function isSupportedClipboardImage(file: File) {
+  return ["image/png", "image/jpeg", "image/webp", "image/gif"].includes(file.type) && file.size <= 10 * 1024 * 1024;
+}
+
+function getClipboardImageError(files: File[]) {
+  if (files.some((file) => file.size > 10 * 1024 * 1024)) {
+    return "单张粘贴图片不能超过 10 MB。";
+  }
+  return "仅支持粘贴 PNG、JPG、WEBP 或 GIF 图片。";
+}
+
+function clipboardImageExtension(mimeType: string) {
+  if (mimeType === "image/jpeg") return "jpg";
+  if (mimeType === "image/webp") return "webp";
+  if (mimeType === "image/gif") return "gif";
+  return "png";
+}
+
+function pasteClipboardText(textarea: HTMLTextAreaElement, pastedText: string) {
+  if (!pastedText) return textarea.value;
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const nextValue = `${textarea.value.slice(0, start)}${pastedText}${textarea.value.slice(end)}`;
+  textarea.value = nextValue;
+  const caret = start + pastedText.length;
+  textarea.setSelectionRange(caret, caret);
+  return nextValue;
 }
 
 function estimateOrganizeProgress(elapsedMs: number) {

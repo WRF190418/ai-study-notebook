@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { createLesson, createNote, viewDb } from "@/lib/db";
 import { organizeWithBuiltInAi } from "@/lib/ai";
 import { MaterialParseError, parseUploadedMaterials } from "@/lib/courseware";
+import { attachImageToNote } from "@/lib/media";
 import type { AiOrganizeResult, Lesson } from "@/lib/types";
 
 const metadataSchema = z.object({
@@ -12,7 +13,8 @@ const metadataSchema = z.object({
   targetInstruction: z.string().max(1000).default(""),
   sourceType: z.enum(["text", "outline", "image", "file"]).default("text"),
   text: z.string().max(25_000).default(""),
-  mode: z.enum(["standard", "exam", "deep"]).default("standard")
+  mode: z.enum(["standard", "exam", "deep"]).default("standard"),
+  keepOriginalImages: z.union([z.boolean(), z.enum(["true", "false"]).transform((value) => value === "true")]).default(true)
 });
 
 const legacySchema = metadataSchema.extend({
@@ -128,8 +130,14 @@ async function handleOrganize(request: Request) {
       flashcards: result.flashcards,
       mindMap: result.mindMap
     });
+    const retained = await retainOriginalImages({
+      userId: user.id,
+      note,
+      files: input.imageFiles,
+      enabled: input.keepOriginalImages
+    });
 
-    return NextResponse.json({ note, lesson });
+    return NextResponse.json({ note: retained.note, lesson, warning: retained.warning });
   } catch (error) {
     if (canCreateFallback(input.text, input.imageDataUrls)) {
       const fallback = buildFallbackOrganizeResult({
@@ -161,13 +169,22 @@ async function handleOrganize(request: Request) {
         flashcards: fallback.flashcards,
         mindMap: fallback.mindMap
       });
+      const retained = await retainOriginalImages({
+        userId: user.id,
+        note,
+        files: input.imageFiles,
+        enabled: input.keepOriginalImages
+      });
 
       console.warn("AI organize failed; saved local fallback note.", error);
       return NextResponse.json({
-        note,
+        note: retained.note,
         lesson,
         fallback: true,
-        warning: `AI 暂时不可用，已先保存为本地草稿。原因：${explainAiFailure(error)}`
+        warning: [
+          `AI 暂时不可用，已先保存为本地草稿。原因：${explainAiFailure(error)}`,
+          retained.warning
+        ].filter(Boolean).join(" ")
       });
     }
 
@@ -197,7 +214,8 @@ async function parseOrganizeRequest(request: Request) {
       targetInstruction: readFormString(form, "targetInstruction"),
       sourceType: requestedSourceType || inferredSourceType,
       text: readFormString(form, "text"),
-      mode: readFormString(form, "mode") || "standard"
+      mode: readFormString(form, "mode") || "standard",
+      keepOriginalImages: readFormString(form, "keepOriginalImages") || "true"
     });
     if (!parsed.success) {
       const issue = parsed.error.issues[0];
@@ -217,7 +235,8 @@ async function parseOrganizeRequest(request: Request) {
       sourceType,
       text,
       imageDataUrls: materials.imageDataUrls,
-      fileNames: materials.fileNames
+      fileNames: materials.fileNames,
+      imageFiles: files.filter((file) => file.type.startsWith("image/"))
     };
   }
 
@@ -226,8 +245,44 @@ async function parseOrganizeRequest(request: Request) {
   return {
     ...parsed.data,
     imageDataUrls: parsed.data.imageDataUrl ? [parsed.data.imageDataUrl] : [],
-    fileNames: [] as string[]
+    fileNames: [] as string[],
+    imageFiles: [] as File[]
   };
+}
+
+async function retainOriginalImages({
+  userId,
+  note,
+  files,
+  enabled
+}: {
+  userId: string;
+  note: Awaited<ReturnType<typeof createNote>>;
+  files: File[];
+  enabled: boolean;
+}) {
+  if (!enabled || !files.length) return { note, warning: "" };
+
+  let currentNote = note;
+  try {
+    for (const file of files) {
+      const attached = await attachImageToNote({
+        userId,
+        noteId: currentNote.id,
+        file,
+        alt: file.name,
+        placement: "end"
+      });
+      currentNote = attached.note;
+    }
+    return { note: currentNote, warning: "" };
+  } catch (error) {
+    console.error("Retaining original organize images failed.", error);
+    return {
+      note: currentNote,
+      warning: "笔记已保存，但有原图未能写入正文，请在笔记中重新插入。"
+    };
+  }
 }
 
 function readFormString(form: FormData, key: string) {
