@@ -171,21 +171,19 @@ export async function organizeWithBuiltInAi(input: OrganizeInput): Promise<AiOrg
   };
 }
 
-const commandSchema = z.object({
+const commandOperationSchema = z.object({
   action: z.enum([
     "create_course",
     "create_lesson",
     "delete_course",
     "delete_lesson",
     "delete_note",
-    "rename_course",
-    "rename_lesson",
-    "update_lesson_style",
+    "update_course",
+    "update_lesson",
     "update_note",
-    "update_preferences",
-    "reply"
+    "move_note",
+    "update_preferences"
   ]),
-  message: z.string().default(""),
   courseId: z.string().optional(),
   course: z
     .object({
@@ -207,7 +205,6 @@ const commandSchema = z.object({
       accent: z.enum(["sage", "amber", "cobalt", "rose"]).optional()
     })
     .optional(),
-  newTitle: z.string().optional(),
   noteId: z.string().optional(),
   updatedNote: z
     .object({
@@ -227,18 +224,80 @@ const commandSchema = z.object({
       noteLayout: z.enum(["reader", "study"]).optional()
     })
     .optional()
+}).superRefine((operation, context) => {
+  const requireText = (value: string | undefined, path: (string | number)[], message: string) => {
+    if (!value?.trim()) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path, message });
+    }
+  };
+  const requireObject = (value: object | undefined, path: (string | number)[], message: string) => {
+    if (!value || !Object.values(value).some((item) => item !== undefined && item !== "")) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path, message });
+    }
+  };
+
+  switch (operation.action) {
+    case "create_course":
+      requireText(operation.course?.title, ["course", "title"], "create_course 缺少 course.title");
+      requireText(operation.course?.code, ["course", "code"], "create_course 缺少 course.code");
+      requireText(operation.course?.term, ["course", "term"], "create_course 缺少 course.term");
+      requireText(operation.course?.description, ["course", "description"], "create_course 缺少 course.description");
+      break;
+    case "create_lesson":
+      requireText(operation.courseId, ["courseId"], "create_lesson 缺少 courseId");
+      requireText(operation.lesson?.title, ["lesson", "title"], "create_lesson 缺少 lesson.title");
+      break;
+    case "delete_course":
+    case "update_course":
+      requireText(operation.courseId, ["courseId"], `${operation.action} 缺少 courseId`);
+      if (operation.action === "update_course") {
+        requireObject(operation.course, ["course"], "update_course 缺少课程修改内容");
+      }
+      break;
+    case "delete_lesson":
+    case "update_lesson":
+      requireText(operation.lessonId, ["lessonId"], `${operation.action} 缺少 lessonId`);
+      if (operation.action === "update_lesson") {
+        requireObject(operation.lesson, ["lesson"], "update_lesson 缺少章节修改内容");
+      }
+      break;
+    case "delete_note":
+    case "update_note":
+      requireText(operation.noteId, ["noteId"], `${operation.action} 缺少 noteId`);
+      if (operation.action === "update_note") {
+        requireObject(operation.updatedNote, ["updatedNote"], "update_note 缺少笔记修改内容");
+      }
+      break;
+    case "move_note":
+      requireText(operation.noteId, ["noteId"], "move_note 缺少 noteId");
+      requireText(operation.courseId, ["courseId"], "move_note 缺少目标 courseId");
+      requireText(operation.lessonId, ["lessonId"], "move_note 缺少目标 lessonId");
+      break;
+    case "update_preferences":
+      requireObject(operation.preferences, ["preferences"], "update_preferences 缺少界面修改内容");
+      break;
+  }
 });
 
-export type AiCommandResult = z.infer<typeof commandSchema>;
+const commandPlanSchema = z.object({
+  message: z.string().default(""),
+  requiresClarification: z.boolean().default(false),
+  operations: z.array(commandOperationSchema).max(8).default([])
+});
+
+export type AiCommandOperation = z.infer<typeof commandOperationSchema>;
+export type AiCommandPlan = z.infer<typeof commandPlanSchema>;
 
 export async function interpretNotebookCommand(input: {
   command: string;
   currentCourseId: string;
+  currentLessonId?: string;
+  currentNoteId?: string;
   courses: Course[];
   lessons: Lesson[];
   notes: Note[];
   preferences: UserPreferences;
-}): Promise<AiCommandResult> {
+}): Promise<AiCommandPlan & { provider: string }> {
   const courseContext = input.courses.map(({ id, title, code, term, description }) => ({
     id,
     title,
@@ -253,42 +312,47 @@ export async function interpretNotebookCommand(input: {
     subtitle,
     order
   }));
-  const noteContext = input.notes.map(({ id, courseId, lessonId, title, summary, contentMarkdown }) => ({
+  const noteContext = input.notes.slice(0, 30).map(({ id, courseId, lessonId, title, summary, contentMarkdown, createdAt }) => ({
     id,
     courseId,
     lessonId,
     title,
     summary,
-    markdownPreview: contentMarkdown.slice(0, 6000)
+    createdAt,
+    markdownPreview: contentMarkdown.slice(0, id === input.currentNoteId ? 12_000 : 2_000)
   }));
 
   const raw = await createCompletionWithFallback({
-    temperature: 0.25,
+    temperature: 0.15,
     response_format: { type: "json_object" },
     messages: [
       {
         role: "system",
         content: [
-          "你是网页笔记本的 AI 命令行解析器。",
+          "你是网页笔记本中真正负责理解和规划操作的 AI 助手。",
           "你只能输出严格 JSON，不要 Markdown 代码围栏。",
-          "允许动作：",
-          "1. create_course：用户要求新建大板块/课程/科目/笔记本。必须给 course.title、code、term、description，可给 lessonTitle。",
-          "2. create_lesson：用户要求在当前课程中新建章节/小节/课时/笔记栏/章节卡片。必须给 lesson.title，可给 subtitle、icon、accent。",
-          "3. delete_course：用户要求删除课程/大板块/科目。必须选择 courseId。删除风险高，只有用户明确删除课程时使用。",
-          "4. delete_lesson：用户要求删除章节/小节/课时/笔记栏/章节卡片。必须选择 lessonId。",
-          "5. delete_note：用户要求删除某篇笔记。必须根据上下文选择最匹配 noteId。",
-          "6. rename_course：用户要求修改课程/大板块名称。必须选择 courseId，并给 newTitle。",
-          "7. rename_lesson：用户要求修改章节/小节/课时/笔记栏标题。必须选择 lessonId，并给 newTitle。",
-          "8. update_lesson_style：用户要求修改某个章节卡片/课程按钮/章节按钮的颜色、图标、外观。必须选择 lessonId，并在 lesson.accent 或 lesson.icon 中给出修改。注意：如果用户说“第一章课程按钮颜色改为粉色”，这是 update_lesson_style，不是 rename_lesson。",
-          "9. update_note：用户要求修改某篇笔记正文。必须选择 noteId，并在 updatedNote.markdown 里输出完整修改后的 Markdown；如有需要也输出 title/summary。",
-          "10. update_preferences：用户要求改变整个页面布局、全局按钮造型、主题颜色、卡片风格、界面密度、章节排列、阅读布局等视觉体验。只允许输出 preferences 枚举值。",
-          "11. reply：用户意图不清或风险太高时，只回复解释，不做修改。",
+          "输出对象固定为 {message, requiresClarification, operations}。",
+          "operations 可以包含 0 到 8 个动作，并按执行顺序排列。不要输出白名单外的动作。",
+          '严格示例：{"message":"同时修改第一章标题和颜色","requiresClarification":false,"operations":[{"action":"update_lesson","lessonId":"真实章节 id","lesson":{"title":"经典力学导论","accent":"cobalt"}}]}',
+          "允许动作：create_course、create_lesson、delete_course、delete_lesson、delete_note、update_course、update_lesson、update_note、move_note、update_preferences。",
+          "create_course 必须给 course.title、code、term、description；可给 starter lesson 的 lessonTitle、lessonSubtitle。",
+          "create_lesson 必须选择 courseId，并给 lesson.title；可给 subtitle、icon、accent。",
+          "delete_course/delete_lesson/delete_note 必须使用上下文里真实存在的对应 id。只有用户明确要求删除时才允许。",
+          "当用户明确使用“删除”等措辞且能唯一匹配对象时，直接生成删除动作，不要因为对象下没有内容或删除不可撤销而再次询问确认；只有目标不唯一或意图含糊时才澄清。",
+          "update_course 必须给 courseId，并在 course 中给出需要更新的 title/code/term/description。",
+          "update_lesson 必须给 lessonId，并在 lesson 中给出需要更新的 title/subtitle/icon/accent。",
+          "update_note 必须给 noteId。修改正文时，updatedNote.markdown 必须是完整修改后的 Markdown，不是修改说明；也可更新 title、summary。",
+          "move_note 必须给 noteId、courseId、lessonId，且目标章节必须属于目标课程。",
+          "update_preferences 用于全局页面主题、按钮、密度、卡片和布局偏好。",
+          "复杂命令可以拆成多个 operations，例如同时重命名章节并改变颜色。",
+          "如果只是咨询、对象不明确、可能误删，operations 留空，requiresClarification=true，并在 message 中询问用户。",
           "偏好枚举含义：primaryColor sage=绿色清爽，cobalt=蓝色学术，violet=紫色灵感，mono=黑白极简；buttonRadius square=方正，soft=轻圆角，pill=胶囊；buttonStyle solid=实色，soft=浅色柔和，outline=线框；density compact=紧凑，comfortable=标准，airy=宽松；cardStyle elevated=阴影，bordered=边框，flat=平面；lessonLayout grid=卡片网格，list=列表。",
           "章节样式枚举含义：lesson.accent sage=绿色，amber=橙黄色，cobalt=蓝色，rose=粉色/玫红/彩色活泼；lesson.icon book=书本，atom=物理/原子，sparkles=复习/重点，function=公式/函数，image=图像/标注。",
-          "如果用户说“刚才那篇/最新那篇”，优先选择 notes 列表里最靠前的笔记。",
+          "“当前/这篇/这一章”优先使用 currentCourseId、currentLessonId、currentNoteId。",
+          "如果用户说“刚才那篇/最新那篇”，优先选择 notes 列表中 createdAt 最新的笔记。",
           "删除和修改都必须尽量匹配用户指定的标题、主题或当前课程。",
-          "如果用户指定某一章、Lecture、章节卡片、课程按钮，则优先理解为该章节相关操作，而不是全局偏好。",
-          "如果用户说按钮不好看、界面太挤、颜色不好、卡片太重、想要更像 Notion/更清爽/更学术且没有指定章节，优先选择 update_preferences。"
+          "不要猜测不存在的 id，不要用标题代替 id。",
+          "message 要简洁说明你的理解；实际完成结果会由服务端补充。"
         ].join("\n")
       },
       {
@@ -296,6 +360,8 @@ export async function interpretNotebookCommand(input: {
         content: JSON.stringify({
           command: input.command,
           currentCourseId: input.currentCourseId,
+          currentLessonId: input.currentLessonId || null,
+          currentNoteId: input.currentNoteId || null,
           courses: courseContext,
           lessons: lessonContext,
           notes: noteContext,
@@ -305,7 +371,50 @@ export async function interpretNotebookCommand(input: {
     ]
   });
 
-  return commandSchema.parse(parseJsonObject(raw.content));
+  const parsedPlan = commandPlanSchema.safeParse(parseJsonObject(raw.content));
+  if (parsedPlan.success) {
+    return { ...parsedPlan.data, provider: raw.provider.label };
+  }
+
+  const repaired = await createCompletionWithFallback({
+    temperature: 0,
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "system",
+        content:
+          "你是 JSON 操作计划修复器。根据原始命令和上下文修复格式并补齐动作的必要字段，不改变用户意图。每个 operations 元素都必须包含白名单中的 action，并保留真实对象 id。只输出严格 JSON。"
+      },
+      {
+        role: "user",
+        content: JSON.stringify({
+          originalCommand: input.command,
+          currentCourseId: input.currentCourseId,
+          currentLessonId: input.currentLessonId || null,
+          currentNoteId: input.currentNoteId || null,
+          courses: courseContext,
+          lessons: lessonContext,
+          requiredShape: {
+            message: "string",
+            requiresClarification: "boolean",
+            operations: [
+              {
+                action:
+                  "create_course|create_lesson|delete_course|delete_lesson|delete_note|update_course|update_lesson|update_note|move_note|update_preferences"
+              }
+            ]
+          },
+          validationErrors: parsedPlan.error.issues,
+          invalidPlan: raw.content
+        })
+      }
+    ]
+  });
+
+  return {
+    ...commandPlanSchema.parse(parseJsonObject(repaired.content)),
+    provider: repaired.provider.label
+  };
 }
 
 async function createCompletionWithFallback(request: ChatRequest, options?: { requiresVision?: boolean }) {

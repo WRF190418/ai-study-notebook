@@ -10,6 +10,14 @@ const dataDir =
 const dbPath = path.join(dataDir, "app-db.json");
 let writeQueue = Promise.resolve();
 
+function assignDefined<T extends object>(target: T, input: Partial<T>) {
+  for (const [key, value] of Object.entries(input)) {
+    if (value !== undefined) {
+      Object.assign(target, { [key]: value });
+    }
+  }
+}
+
 const emptyDb: AppDb = {
   users: [],
   preferences: [],
@@ -329,7 +337,7 @@ export async function updateCourse(
   return mutateDb((db) => {
     const course = db.courses.find((item) => item.id === courseId && item.userId === userId);
     if (!course) return null;
-    Object.assign(course, input);
+    assignDefined(course, input);
     return course;
   });
 }
@@ -353,7 +361,7 @@ export async function updateLesson(
   return mutateDb((db) => {
     const lesson = db.lessons.find((item) => item.id === lessonId && item.userId === userId);
     if (!lesson) return null;
-    Object.assign(lesson, input);
+    assignDefined(lesson, input);
     return lesson;
   });
 }
@@ -385,12 +393,13 @@ export async function createNote(input: Omit<Note, "id" | "createdAt" | "updated
 export async function updateNote(
   userId: string,
   noteId: string,
-  input: Partial<Pick<Note, "title" | "summary" | "contentMarkdown" | "flashcards" | "mindMap">>
+  input: Partial<Pick<Note, "courseId" | "lessonId" | "title" | "summary" | "contentMarkdown" | "flashcards" | "mindMap">>
 ) {
   return mutateDb((db) => {
     const note = db.notes.find((item) => item.id === noteId && item.userId === userId);
     if (!note) return null;
-    Object.assign(note, input, { updatedAt: new Date().toISOString() });
+    assignDefined(note, input);
+    note.updatedAt = new Date().toISOString();
     return note;
   });
 }

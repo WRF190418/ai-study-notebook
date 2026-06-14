@@ -244,7 +244,7 @@ export default function NotebookApp({
         </header>
 
         <div className={`workspace ${organizerCollapsed ? "organizer-collapsed" : ""}`}>
-          <div>
+          <div className="content-scroll" data-scroll-region="notes">
             {activeLesson ? (
               <LessonDetail
                 course={course}
@@ -272,6 +272,8 @@ export default function NotebookApp({
             <OrganizerPanel
               course={course}
               lessons={lessons}
+              currentLessonId={activeLesson?.id ?? lessonId}
+              currentNoteId={selectedNote?.id ?? ""}
               collapsed={organizerCollapsed}
               onToggleCollapsed={() => setOrganizerCollapsed((value) => !value)}
               onCommandApplied={(payload) => {
@@ -282,7 +284,7 @@ export default function NotebookApp({
                 setLessonId(payload.selectedLessonId || "");
                 setSelectedNoteId(payload.selectedNoteId || "");
                 setActiveLessonId(
-                  payload.action === "create_lesson" || payload.action === "rename_lesson" || payload.action === "update_note"
+                  payload.selectedNoteId || payload.action === "create_lesson" || payload.action === "rename_lesson" || payload.action === "update_note"
                     ? payload.selectedLessonId || null
                     : null
                 );
@@ -574,6 +576,8 @@ function LessonCard({ lesson, active, onClick }: { lesson: Lesson; active: boole
 function OrganizerPanel({
   course,
   lessons,
+  currentLessonId,
+  currentNoteId,
   collapsed,
   onToggleCollapsed,
   onCommandApplied,
@@ -581,6 +585,8 @@ function OrganizerPanel({
 }: {
   course: Course;
   lessons: Lesson[];
+  currentLessonId: string;
+  currentNoteId: string;
   collapsed: boolean;
   onToggleCollapsed: () => void;
   onCommandApplied: (payload: {
@@ -595,6 +601,7 @@ function OrganizerPanel({
       | "update_lesson_style"
       | "update_note"
       | "update_preferences"
+      | "ai_plan"
       | "reply";
     selectedCourseId: string;
     selectedLessonId: string;
@@ -686,25 +693,34 @@ function OrganizerPanel({
     setOrganizeMessage("");
     setError("");
 
-    const response = await fetch("/api/ai/command", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        command: currentCommand,
-        currentCourseId: course.id
-      })
-    });
-    const data = await response.json();
-    setCommandBusy(false);
+    try {
+      const response = await fetch("/api/ai/command", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          command: currentCommand,
+          currentCourseId: course.id,
+          currentLessonId,
+          currentNoteId
+        })
+      });
+      const data = await readJsonResponse(response);
 
-    if (!response.ok) {
-      setCommandMessage(data.error ?? "AI 命令执行失败。");
-      return;
+      if (!response.ok || data?.error) {
+        setCommandMessage(data?.error ?? "AI 命令执行失败。");
+        return;
+      }
+
+      onCommandApplied(data);
+      if (commandRef.current) commandRef.current.value = "";
+      setCommandMessage(
+        data.aiProvider ? `${data.message ?? "命令已处理。"}（由 ${data.aiProvider} 理解并执行）` : data.message ?? "命令已处理。"
+      );
+    } catch {
+      setCommandMessage("AI 命令请求中断，请检查网络后重试。");
+    } finally {
+      setCommandBusy(false);
     }
-
-    onCommandApplied(data);
-    if (commandRef.current) commandRef.current.value = "";
-    setCommandMessage(data.message ?? "命令已处理。");
   }
 
   async function submit(event: FormEvent) {
@@ -792,7 +808,7 @@ function OrganizerPanel({
           />
         </label>
         <div className="status-row">
-          <span className="small-muted">可管理笔记，也可新建左上角可切换的大板块</span>
+          <span className="small-muted">由真实 AI 理解上下文并执行经过校验的操作</span>
           <button className="ghost-button" disabled={commandBusy || !hydrated} type="submit">
             {commandBusy ? "执行中..." : <><Brain size={17} /> 执行命令</>}
           </button>

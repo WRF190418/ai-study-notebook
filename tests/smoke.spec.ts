@@ -31,6 +31,46 @@ test("registers a user and reaches the course workspace", async ({ page }, testI
   await dismissOnboarding(page);
 });
 
+test("scrolls notes and AI sidebar independently on desktop", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 820 });
+  await page.goto("/");
+
+  const email = `scroll-${testInfo.project.name}-${Date.now()}-${Math.random().toString(16).slice(2)}@example.com`;
+  await page.getByLabel("昵称").fill("滚动测试");
+  await page.getByLabel("邮箱").fill(email);
+  await page.getByLabel("密码").fill("12345678");
+  await page.getByRole("button", { name: "进入笔记本" }).click();
+  await expect(page.getByRole("heading", { name: "自然对话基础" })).toBeVisible({ timeout: 30_000 });
+  await dismissOnboarding(page);
+
+  const notes = page.locator(".content-scroll");
+  const organizer = page.locator(".organizer");
+  await expect(notes).toHaveCSS("overflow-y", "auto");
+  await expect(organizer).toHaveCSS("overflow-y", "auto");
+
+  await page.evaluate(() => {
+    for (const selector of [".content-scroll", ".organizer"]) {
+      const region = document.querySelector(selector);
+      const filler = document.createElement("div");
+      filler.style.height = "1600px";
+      filler.dataset.testFiller = "true";
+      region?.appendChild(filler);
+    }
+  });
+
+  await notes.hover();
+  await page.mouse.wheel(0, 700);
+  await expect.poll(() => notes.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  await expect.poll(() => organizer.evaluate((element) => element.scrollTop)).toBe(0);
+
+  const notesScrollTop = await notes.evaluate((element) => element.scrollTop);
+  await organizer.locator(":scope > .panel-heading").hover();
+  await page.mouse.wheel(0, 700);
+  await expect.poll(() => organizer.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  await expect.poll(() => notes.evaluate((element) => element.scrollTop)).toBe(notesScrollTop);
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+});
+
 test("resets a forgotten password with a one-time code", async ({ page }, testInfo) => {
   await page.goto("/");
 
@@ -116,6 +156,32 @@ test("renames a numbered chapter from a direct AI command", async ({ page }, tes
 
   await expect(page.getByText("已将章节重命名为")).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole("heading", { name: "牛顿力学" })).toBeVisible();
+});
+
+test("uses a real AI provider for a compound notebook command", async ({ page }, testInfo) => {
+  await page.goto("/");
+
+  const email = `ai-command-${testInfo.project.name}-${Date.now()}-${Math.random().toString(16).slice(2)}@example.com`;
+  await page.getByLabel("昵称").fill("AI 命令学生");
+  await page.getByLabel("邮箱").fill(email);
+  await page.getByLabel("密码").fill("12345678");
+  await page.getByRole("button", { name: "进入笔记本" }).click();
+
+  await expect(page.getByRole("heading", { name: "自然对话基础" })).toBeVisible({ timeout: 30_000 });
+  await dismissOnboarding(page);
+
+  await page.getByLabel("AI 命令行").fill("把第一章标题改成经典力学导论，同时把这张章节卡片改成蓝色");
+  const commandResponse = page.waitForResponse((response) => response.url().includes("/api/ai/command"));
+  await page.getByRole("button", { name: /执行命令/ }).click();
+  const response = await commandResponse;
+  const data = await response.json();
+
+  expect(response.ok()).toBeTruthy();
+  expect(data.aiProvider).toBeTruthy();
+  expect(data.action).toBe("ai_plan");
+  await expect(page.getByText(/由 .+ 理解并执行/)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("heading", { name: "经典力学导论" })).toBeVisible();
+  await expect(page.locator(".lesson-card").filter({ hasText: "Lecture 1" }).locator(".lesson-art.cobalt")).toBeVisible();
 });
 
 test("changes a numbered chapter card color without renaming it", async ({ page }, testInfo) => {
@@ -290,7 +356,7 @@ test("organizes into a missing explicit second chapter", async ({ page }, testIn
   await dismissOnboarding(page);
   await page.getByLabel("AI 命令行").fill("新建一个体育学习板块");
   await page.getByRole("button", { name: /执行命令/ }).click();
-  await expect(page.getByRole("heading", { name: "体育" })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("heading", { level: 1, name: /体育/ })).toBeVisible({ timeout: 30_000 });
 
   await page.getByLabel("整理要求").fill("整理到第二章");
   await page.getByLabel("原始文字").fill("游泳时遇到了女朋友，记录这个生活场景。");
