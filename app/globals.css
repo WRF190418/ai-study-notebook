@@ -506,6 +506,10 @@ button {
   gap: 16px;
 }
 
+.lesson-grid.single-lesson {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .lesson-card {
   overflow: hidden;
   border: 1px solid rgba(220, 227, 234, 0.95);

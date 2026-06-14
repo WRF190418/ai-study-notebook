@@ -457,7 +457,15 @@ function CourseHome({
         </h2>
       </div>
 
-      <div className={`lesson-grid ${lessonLayout === "list" ? "lesson-list" : ""}`}>
+      <div
+        className={[
+          "lesson-grid",
+          lessonLayout === "list" ? "lesson-list" : "",
+          lessons.length === 1 ? "single-lesson" : ""
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
         {lessons.map((lesson) => (
           <LessonCard key={lesson.id} lesson={lesson} active={lesson.id === activeLessonId} onClick={() => onEnterLesson(lesson)} />
         ))}

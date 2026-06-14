@@ -176,6 +176,14 @@ test("creates a course board from a direct AI command", async ({ page }, testInf
   await expect(page.getByText("已新建板块")).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole("heading", { level: 1, name: createdCourse.title })).toBeVisible();
   await expect(page.getByLabel("选择课程")).toHaveValue(/.+/);
+  const lessonGrid = page.locator(".content-scroll .lesson-grid");
+  const lessonCard = lessonGrid.locator(".lesson-card");
+  await expect(lessonGrid).toHaveClass(/single-lesson/);
+  await expect(lessonCard).toHaveCount(1);
+  const [gridBox, cardBox] = await Promise.all([lessonGrid.boundingBox(), lessonCard.boundingBox()]);
+  expect(gridBox).not.toBeNull();
+  expect(cardBox).not.toBeNull();
+  expect(cardBox!.width / gridBox!.width).toBeGreaterThan(0.95);
 });
 
 test("deletes a chapter card from a direct AI command", async ({ page }, testInfo) => {
