@@ -163,6 +163,8 @@ test("creates a course board from a direct AI command", async ({ page }, testInf
 
   await expect(page.getByRole("heading", { name: "自然对话基础" })).toBeVisible({ timeout: 30_000 });
   await dismissOnboarding(page);
+  const initialWorkspaceBox = await page.locator(".workspace").boundingBox();
+  expect(initialWorkspaceBox).not.toBeNull();
   await page.getByLabel("AI 命令行").fill("新建一个phy1000学习板块");
   const commandResponse = page.waitForResponse((response) => response.url().includes("/api/ai/command"));
   await page.getByRole("button", { name: /执行命令/ }).click();
@@ -176,14 +178,19 @@ test("creates a course board from a direct AI command", async ({ page }, testInf
   await expect(page.getByText("已新建板块")).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole("heading", { level: 1, name: createdCourse.title })).toBeVisible();
   await expect(page.getByLabel("选择课程")).toHaveValue(/.+/);
+  const createdWorkspaceBox = await page.locator(".workspace").boundingBox();
   const lessonGrid = page.locator(".content-scroll .lesson-grid");
   const lessonCard = lessonGrid.locator(".lesson-card");
-  await expect(lessonGrid).toHaveClass(/single-lesson/);
   await expect(lessonCard).toHaveCount(1);
   const [gridBox, cardBox] = await Promise.all([lessonGrid.boundingBox(), lessonCard.boundingBox()]);
+  expect(createdWorkspaceBox).not.toBeNull();
   expect(gridBox).not.toBeNull();
   expect(cardBox).not.toBeNull();
-  expect(cardBox!.width / gridBox!.width).toBeGreaterThan(0.95);
+  expect(Math.abs(createdWorkspaceBox!.width - initialWorkspaceBox!.width)).toBeLessThan(2);
+  if ((page.viewportSize()?.width ?? 0) > 880) {
+    expect(cardBox!.width / gridBox!.width).toBeGreaterThan(0.45);
+    expect(cardBox!.width / gridBox!.width).toBeLessThan(0.55);
+  }
 });
 
 test("deletes a chapter card from a direct AI command", async ({ page }, testInfo) => {
@@ -363,8 +370,14 @@ test("changes a numbered chapter card color without renaming it", async ({ page 
   await expect(page.getByRole("heading", { name: "自然对话基础" })).toBeVisible({ timeout: 30_000 });
   await dismissOnboarding(page);
   await page.getByLabel("AI 命令行").fill("新建一个phy1000学习板块");
+  const createCourseResponse = page.waitForResponse((response) => response.url().includes("/api/ai/command"));
   await page.getByRole("button", { name: /执行命令/ }).click();
-  await expect(page.getByRole("heading", { name: "PHY1000" })).toBeVisible({ timeout: 30_000 });
+  const createCourseData = await (await createCourseResponse).json();
+  const createdCourse = createCourseData.workspace.courses.find(
+    (course: { id: string }) => course.id === createCourseData.selectedCourseId
+  );
+  expect(createdCourse.code.toUpperCase()).toContain("PHY1000");
+  await expect(page.getByRole("heading", { name: createdCourse.title })).toBeVisible({ timeout: 30_000 });
 
   await page.getByLabel("AI 命令行").fill("第一章课程按钮颜色改为粉色");
   await page.getByRole("button", { name: /执行命令/ }).click();

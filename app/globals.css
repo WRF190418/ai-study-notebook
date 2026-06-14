@@ -414,6 +414,7 @@ button {
 
 .workspace {
   display: grid;
+  width: 100%;
   grid-template-columns: minmax(0, 1fr) 430px;
   min-height: 0;
   flex: 1 1 auto;
@@ -504,10 +505,6 @@ button {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
-}
-
-.lesson-grid.single-lesson {
-  grid-template-columns: minmax(0, 1fr);
 }
 
 .lesson-card {
