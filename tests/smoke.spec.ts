@@ -555,3 +555,39 @@ test("organizes into a missing explicit second chapter", async ({ page }, testIn
     await expect(page.getByRole("heading", { name: "第一章" })).toBeHidden();
   }
 });
+
+test("creates a well-named new chapter when the user requests a new chapter", async ({ page }, testInfo) => {
+  await page.goto("/");
+
+  const email = `ai-new-chapter-${testInfo.project.name}-${Date.now()}-${Math.random().toString(16).slice(2)}@example.com`;
+  await page.getByLabel("昵称").fill("新章节学生");
+  await page.getByLabel("邮箱").fill(email);
+  await page.getByLabel("密码").fill("12345678");
+  await page.getByRole("button", { name: "进入笔记本" }).click();
+
+  await expect(page.getByRole("heading", { name: "自然对话基础" })).toBeVisible({ timeout: 30_000 });
+  await dismissOnboarding(page);
+  const initialWorkspace = await page.evaluate(async () => {
+    const response = await fetch("/api/workspace");
+    return response.json();
+  });
+  const courseId = initialWorkspace.courses[0].id;
+  const initialLessons = initialWorkspace.lessons.filter((lesson: { courseId: string }) => lesson.courseId === courseId);
+  expect(initialLessons).toHaveLength(4);
+
+  await page.getByLabel("整理要求").fill("整理到新的一章");
+  await page
+    .getByLabel("原始文字")
+    .fill("DNA 通过双螺旋结构储存遗传信息，碱基互补配对是复制与遗传稳定性的基础。");
+  const organizeResponse = page.waitForResponse((response) => response.url().includes("/api/ai/organize"));
+  await page.getByRole("button", { name: /开始整理/ }).click();
+  const response = await organizeResponse;
+  const data = await response.json();
+
+  expect(response.ok()).toBeTruthy();
+  expect(data.lesson.order).toBe(5);
+  expect(initialLessons.some((lesson: { id: string }) => lesson.id === data.lesson.id)).toBeFalsy();
+  expect(data.note.lessonId).toBe(data.lesson.id);
+  expect(data.lesson.title).not.toMatch(/^(?:第一章|新的一章|新的章节|新章节)$/);
+  await expect(page.getByRole("heading", { level: 1, name: data.lesson.title })).toBeVisible({ timeout: 30_000 });
+});

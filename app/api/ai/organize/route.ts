@@ -114,7 +114,7 @@ async function handleOrganize(request: Request) {
       userId: user.id,
       courseId: course.id,
       lessons,
-      targetLesson: explicitTargetLesson ?? result.targetLesson,
+      targetLesson: mergeTargetLesson(explicitTargetLesson, result.targetLesson),
       noteTitle: result.title
     });
 
@@ -153,7 +153,7 @@ async function handleOrganize(request: Request) {
         userId: user.id,
         courseId: course.id,
         lessons,
-        targetLesson: explicitTargetLesson ?? fallback.targetLesson,
+        targetLesson: mergeTargetLesson(explicitTargetLesson, fallback.targetLesson),
         noteTitle: fallback.title
       });
 
@@ -318,9 +318,9 @@ async function resolveTargetLesson({
     if (matched) return matched;
   }
 
-  if (targetLesson?.mode === "new" && targetLesson.title) {
+  if (targetLesson?.mode === "new") {
     return createLesson(userId, courseId, {
-      title: targetLesson.title.slice(0, 80),
+      title: (targetLesson.title?.trim() || noteTitle.trim() || "AI 整理章节").slice(0, 80),
       subtitle: (targetLesson.subtitle || "AI-created chapter").slice(0, 120),
       icon: targetLesson.icon,
       accent: targetLesson.accent
@@ -340,6 +340,24 @@ async function resolveTargetLesson({
 
 function canCreateFallback(text: string, imageDataUrls: string[]) {
   return Boolean(text.trim() || imageDataUrls.length);
+}
+
+function mergeTargetLesson(
+  explicitTarget: AiOrganizeResult["targetLesson"],
+  suggestedTarget: AiOrganizeResult["targetLesson"]
+): AiOrganizeResult["targetLesson"] {
+  if (!explicitTarget) return suggestedTarget;
+  if (explicitTarget.mode !== "new" || explicitTarget.title?.trim()) return explicitTarget;
+
+  return {
+    ...suggestedTarget,
+    ...explicitTarget,
+    mode: "new",
+    title: suggestedTarget?.title,
+    subtitle: suggestedTarget?.subtitle || explicitTarget.subtitle,
+    icon: suggestedTarget?.icon || explicitTarget.icon,
+    accent: suggestedTarget?.accent || explicitTarget.accent
+  };
 }
 
 function buildFallbackOrganizeResult({
@@ -447,6 +465,17 @@ function firstMeaningfulLine(value: string) {
 }
 
 function inferLocalTargetLesson(targetInstruction: string, lessons: Lesson[], title: string): AiOrganizeResult["targetLesson"] {
+  if (requestsNewLesson(targetInstruction)) {
+    return {
+      mode: "new",
+      title: extractNamedNewLessonTitle(targetInstruction) || title,
+      subtitle: "Local fallback chapter",
+      icon: inferIconByText(title),
+      accent: inferAccentByText(title),
+      reason: "用户明确要求新建章节。"
+    };
+  }
+
   const matched = findLessonByText(targetInstruction, lessons) ?? findLessonByText(title, lessons);
   if (matched) {
     return {
@@ -495,6 +524,26 @@ function extractRequestedLessonTitle(instruction: string) {
     .replace(/(?:章节|小节|课时|笔记栏|卡片)$/, "")
     .replace(/[。.!！?？]$/, "")
     .trim();
+}
+
+function requestsNewLesson(instruction: string) {
+  return (
+    /(?:新建|新增|创建|新开|新设)\s*(?:(?:一个|一篇|一节|一章)\s*)?(?:章节|章|小节|课时|笔记栏|板块)?/i.test(instruction) ||
+    /(?:一个\s*)?新的?\s*(?:一\s*)?(?:章节|章|小节|课时|笔记栏|板块)/i.test(instruction) ||
+    /(?:全新|另外|另一个)\s*(?:的\s*)?(?:章节|章|小节|课时|笔记栏|板块)/i.test(instruction)
+  );
+}
+
+function extractNamedNewLessonTitle(instruction: string) {
+  const quoted = instruction.match(/[“"《【](.{1,80}?)[”"》】]/)?.[1]?.trim();
+  if (quoted) return quoted;
+
+  const match = instruction.match(
+    /(?:新建|新增|创建|新开|新设)\s*(?:一个\s*)?(.+?)(?:章节|章|小节|课时|笔记栏|板块)(?:[。.!！?？]|$)/i
+  )?.[1];
+  if (!match) return "";
+  const title = match.replace(/^(?:新的?|全新|另外|另一个)\s*/, "").trim();
+  return /^(?:一|一个)?$/.test(title) ? "" : title;
 }
 
 function parseLessonOrder(text: string) {
@@ -551,6 +600,19 @@ function explainAiFailure(error: unknown) {
 function inferExplicitTargetLesson(targetInstruction: string, lessons: Lesson[]): AiOrganizeResult["targetLesson"] {
   const instruction = targetInstruction.trim();
   if (!instruction) return undefined;
+
+  if (requestsNewLesson(instruction)) {
+    const requestedTitle = extractNamedNewLessonTitle(instruction);
+    return {
+      mode: "new",
+      title: requestedTitle || undefined,
+      subtitle: "AI-created chapter",
+      icon: requestedTitle ? inferIconByText(requestedTitle) : undefined,
+      accent: requestedTitle ? inferAccentByText(requestedTitle) : undefined,
+      reason: "用户明确要求新建章节。"
+    };
+  }
+
   if (!/(整理到|放到|归档到|存到|保存到|放进|存进|第|lecture)/i.test(instruction)) return undefined;
 
   const order = parseLessonOrder(instruction);

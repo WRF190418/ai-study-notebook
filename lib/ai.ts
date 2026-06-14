@@ -85,6 +85,7 @@ export async function organizeWithBuiltInAi(input: OrganizeInput): Promise<AiOrg
     "同时你必须判断这篇笔记应该归档到哪个课程章节。",
     "targetLesson 字段规则：如果已有章节匹配，输出 {\"mode\":\"existing\",\"lessonId\":\"已有章节 id\",\"reason\":\"原因\"}。",
     "如果已有章节都不适合，输出 {\"mode\":\"new\",\"title\":\"新章节中文标题\",\"subtitle\":\"简短英文或说明副标题\",\"icon\":\"book|atom|sparkles|function|image\",\"accent\":\"sage|amber|cobalt|rose\",\"reason\":\"原因\"}。",
+    "如果用户说“整理到新的一章”“新建章节”“放到一个新的章节”等，无论已有章节是否匹配，都必须输出 mode=new，并根据材料主题取一个具体、简洁的章节名；不要把“新的一章”误解成第一章。",
     "用户有整理要求时优先满足；用户没有明确要求时，根据材料主题和已有章节语义判断。",
     `当前课程：${input.courseTitle}`,
     `上传文件：${input.fileNames?.join("、") || "无"}`,
