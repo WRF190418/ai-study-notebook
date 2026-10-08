@@ -2,9 +2,10 @@ import JSZip from "jszip";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { recognizeImageText } from "@/lib/ocr";
+import { extractPptxMaterials, type CoursewareImage } from "@/lib/pptx";
 
 const MAX_FILE_BYTES = 15 * 1024 * 1024;
-const MAX_TOTAL_BYTES = 30 * 1024 * 1024;
+const MAX_TOTAL_BYTES = 350 * 1024 * 1024;
 const MAX_FILES = 8;
 const MAX_IMAGE_FILES = 4;
 const MAX_EXTRACTED_CHARS = 60_000;
@@ -22,6 +23,8 @@ export type ParsedMaterials = {
   extractedText: string;
   imageDataUrls: string[];
   fileNames: string[];
+  coursewareImages: CoursewareImage[];
+  warnings: string[];
 };
 
 export class MaterialParseError extends Error {
@@ -38,16 +41,19 @@ export async function parseUploadedMaterials(files: File[]): Promise<ParsedMater
 
   const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
   if (totalBytes > MAX_TOTAL_BYTES) {
-    throw new MaterialParseError("上传文件总大小不能超过 30 MB。");
+    throw new MaterialParseError("上传文件总大小不能超过 350 MB。");
   }
 
   const textSections: string[] = [];
   const imageDataUrls: string[] = [];
+  const coursewareImages: CoursewareImage[] = [];
+  const warnings: string[] = [];
 
   for (const file of files) {
     if (file.size === 0) throw new MaterialParseError(`文件“${file.name}”是空文件。`);
-    if (file.size > MAX_FILE_BYTES) {
-      throw new MaterialParseError(`文件“${file.name}”超过 15 MB，请压缩或拆分后重试。`);
+    const pptx = getExtension(file.name) === ".pptx";
+    if (file.size > (pptx ? 300 * 1024 * 1024 : MAX_FILE_BYTES)) {
+      throw new MaterialParseError(`文件“${file.name}”超过 ${pptx ? 300 : 15} MB，请压缩或拆分后重试。`);
     }
 
     const extension = getExtension(file.name);
@@ -73,7 +79,15 @@ export async function parseUploadedMaterials(files: File[]): Promise<ParsedMater
 
     let extracted: string;
     try {
-      extracted = await extractDocumentText(buffer, extension, file.name);
+      if (pptx) {
+        const material = await extractPptxMaterials(buffer, file.name);
+        const fileIndex = files.indexOf(file) + 1;
+        extracted = material.text.replace(/slide-image-(\d+)/g, `file-${fileIndex}-image-$1`);
+        coursewareImages.push(...material.images.map((image) => ({ ...image, key: image.key.replace("slide-", `file-${fileIndex}-`) })));
+        warnings.push(...material.warnings);
+      } else {
+        extracted = await extractDocumentText(buffer, extension, file.name);
+      }
     } catch (error) {
       if (error instanceof MaterialParseError) throw error;
       console.error(`Document extraction failed for ${file.name}.`, error);
@@ -89,7 +103,9 @@ export async function parseUploadedMaterials(files: File[]): Promise<ParsedMater
   return {
     extractedText,
     imageDataUrls,
-    fileNames: files.map((file) => file.name)
+    fileNames: files.map((file) => file.name),
+    coursewareImages,
+    warnings
   };
 }
 

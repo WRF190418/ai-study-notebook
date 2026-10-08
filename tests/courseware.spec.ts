@@ -1,0 +1,72 @@
+import { test, expect } from "@playwright/test";
+import JSZip from "jszip";
+import sharp from "sharp";
+import { extractPptxMaterials } from "../lib/pptx";
+import { createNote } from "../lib/db";
+
+async function fixturePptx() {
+  const zip = new JSZip();
+  zip.file("ppt/presentation.xml", '<p:presentation><p:sldIdLst><p:sldId r:id="first"/><p:sldId r:id="second"/></p:sldIdLst></p:presentation>');
+  zip.file("ppt/_rels/presentation.xml.rels", '<Relationships><Relationship Id="first" Target="slides/slide9.xml"/><Relationship Id="second" Target="slides/slide2.xml"/></Relationships>');
+  const picture = '<p:pic><p:nvPicPr><p:cNvPr descr="树突 &amp; 轴突"/></p:nvPicPr><p:blipFill><a:blip r:embed="image"/><a:srcRect l="25000" r="25000"/></p:blipFill><p:spPr><a:xfrm rot="5400000"/></p:spPr></p:pic>';
+  zip.file("ppt/slides/slide9.xml", `<p:sld><p:cSld><p:spTree><p:sp><a:p><a:r><a:t>神经元结构</a:t></a:r></a:p></p:sp>${picture}</p:spTree></p:cSld></p:sld>`);
+  zip.file("ppt/slides/slide2.xml", '<p:sld><p:cSld><p:spTree><p:sp><a:p><a:r><a:t>动作电位</a:t></a:r></a:p></p:sp><p:pic><p:blipFill><a:blip r:embed="image"/></p:blipFill></p:pic><p:pic><p:blipFill><a:blip r:embed="external"/></p:blipFill></p:pic></p:spTree></p:cSld></p:sld>');
+  for (const number of [9, 2]) zip.file(`ppt/slides/_rels/slide${number}.xml.rels`, '<Relationships><Relationship Id="image" Target="../media/image.png"/><Relationship Id="external" Target="https://example.com/private.png" TargetMode="External"/></Relationships>');
+  zip.file("ppt/media/image.png", await sharp({ create: { width: 320, height: 180, channels: 3, background: "#f4bd5a" } }).png().toBuffer());
+  return zip.generateAsync({ type: "nodebuffer" });
+}
+
+test("PPTX keeps presentation order, crop, rotation and source metadata", async () => {
+  const material = await extractPptxMaterials(await fixturePptx(), "神经科学.pptx");
+  expect(material.text.indexOf("神经元结构")).toBeLessThan(material.text.indexOf("动作电位"));
+  expect(material.images).toHaveLength(2);
+  expect(material.images[0]).toMatchObject({ sourceFile: "神经科学.pptx", slideNumber: 1, width: 180, height: 160, alt: "树突 & 轴突" });
+  expect(material.images[1]).toMatchObject({ slideNumber: 2, width: 320, height: 180 });
+  expect(material.warnings).toEqual([]);
+});
+
+test("imports PPTX without AI, inserts an image, previews it and isolates accounts", async ({ page, browser }, testInfo) => {
+  let aiRequests = 0;
+  await page.route("**/api/ai/**", (route) => { aiRequests++; return route.abort(); });
+  const register = await page.request.post("/api/auth/register", { data: { name: "课件学生", email: `courseware-${testInfo.project.name}-${Date.now()}@example.com`, password: "12345678" } });
+  expect(register.ok()).toBeTruthy();
+  const workspace = await (await page.request.get("/api/workspace")).json();
+  const course = workspace.courses[0];
+  const lesson = workspace.lessons.find((item: { courseId: string; order: number }) => item.courseId === course.id && item.order === 1);
+  const note = await createNote({ userId: course.userId, courseId: course.id, lessonId: lesson.id, title: "课件原图测试", sourceType: "file", sourceText: "结构", contentMarkdown: "# 课件原图测试\n\n<!-- courseware-enrichment -->\n\n## 神经元\n\n树突接收输入，轴突传导信号。\n\n<!-- courseware-appendix -->\n\n### 第 1 页：结构\n\n原始课件。", summary: "神经科学", flashcards: [], mindMap: [] });
+  await page.goto("/");
+  await page.getByRole("dialog", { name: "新手指导" }).getByRole("button", { name: "跳过" }).click();
+  await page.locator(".lesson-card").filter({ hasText: "Lecture 1" }).click();
+  await expect(page.locator(".note-reader")).toBeVisible();
+  await expect(page.locator(".note-reader")).not.toContainText("<!-- courseware-enrichment -->");
+  await page.getByRole("button", { name: "课件图片", exact: true }).click();
+  await page.getByLabel("导入 PPTX 原图").setInputFiles({ name: "神经科学.pptx", mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation", buffer: await fixturePptx() });
+  await expect(page.getByText("已导入 2 张课件图片。")).toBeVisible({ timeout: 30_000 });
+  await page.locator(".courseware-thumbnail").first().click();
+  await page.locator(".courseware-insert-fields").getByLabel("插入位置").selectOption("神经元");
+  await page.locator(".courseware-insert-fields").getByLabel("图片说明").fill("神经元接收与输出");
+  await page.locator(".courseware-insert-fields").getByRole("button", { name: "插入图片" }).click();
+  const image = page.locator(".note-reader .markdown img").first();
+  await expect(image).toBeVisible();
+  await expect(image).toHaveJSProperty("naturalWidth", 180);
+  await expect(page.locator(".note-image-caption")).toContainText("第 1 页");
+  const url = await image.getAttribute("src");
+  await page.getByRole("button", { name: /放大图片/ }).click();
+  await expect(page.getByRole("dialog", { name: "图片预览" })).toBeVisible();
+  await page.getByRole("button", { name: "关闭图片预览" }).click();
+  await expect(page.getByRole("dialog", { name: "图片预览" })).toHaveCount(0);
+  await page.locator(".courseware-appendix summary").click();
+  await expect(page.getByRole("heading", { name: "第 1 页：结构" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBeTruthy();
+  await page.screenshot({ path: `test-results/courseware-${testInfo.project.name}.png`, fullPage: true });
+  await page.reload();
+  await page.locator(".lesson-card").filter({ hasText: "Lecture 1" }).click();
+  await expect(page.locator(".note-reader .markdown img")).toBeVisible();
+  const anonymous = await browser.newContext();
+  expect((await anonymous.request.get(`http://127.0.0.1:3100${url}`)).status()).toBe(401);
+  await anonymous.request.post("http://127.0.0.1:3100/api/auth/register", { data: { name: "另一位学生", email: `other-${Date.now()}@example.com`, password: "12345678" } });
+  expect((await anonymous.request.get(`http://127.0.0.1:3100${url}`)).status()).toBe(404);
+  expect((await anonymous.request.get(`http://127.0.0.1:3100/api/notes/${note.id}/images`)).status()).toBe(404);
+  await anonymous.close();
+  expect(aiRequests).toBe(0);
+});

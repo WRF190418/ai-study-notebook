@@ -1,4 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
+import path from "node:path";
+
+process.env.APP_DATA_DIR ||= path.join(process.cwd(), "data", "playwright");
 
 export default defineConfig({
   testDir: "./tests",
@@ -15,6 +18,7 @@ export default defineConfig({
     command: "npx next dev -p 3100",
     url: "http://127.0.0.1:3100",
     reuseExistingServer: false,
-    timeout: 120_000
+    timeout: 120_000,
+    env: { NEXT_DEV_DIR: ".next-playwright", APP_DATA_DIR: process.env.APP_DATA_DIR }
   }
 });

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
-import { getWorkspace } from "@/lib/db";
+import { findMediaAsset, findNoteById, getWorkspace, insertImageIntoNote, viewDb } from "@/lib/db";
 import { attachImageToNote, ImageUploadError, isImageFile } from "@/lib/media";
 
 const metadataSchema = z.object({
@@ -9,6 +9,37 @@ const metadataSchema = z.object({
   afterHeading: z.string().max(160).default(""),
   alt: z.string().max(200).default("")
 });
+
+export async function GET(_request: Request, context: { params: Promise<{ noteId: string }> }) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "未登录。" }, { status: 401 });
+  const { noteId } = await context.params;
+  if (!await findNoteById(user.id, noteId)) return NextResponse.json({ error: "笔记不存在。" }, { status: 404 });
+  const assets = await viewDb((db) => db.mediaAssets.filter((asset) => asset.userId === user.id && asset.noteId === noteId));
+  return NextResponse.json({ assets });
+}
+
+export async function PATCH(request: Request, context: { params: Promise<{ noteId: string }> }) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "未登录。" }, { status: 401 });
+  const { noteId } = await context.params;
+  const parsed = metadataSchema.extend({ assetId: z.string() }).safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: "图片插入参数不正确。" }, { status: 400 });
+  const asset = await findMediaAsset(user.id, parsed.data.assetId);
+  if (!asset || asset.noteId !== noteId) return NextResponse.json({ error: "图片不存在。" }, { status: 404 });
+  if (parsed.data.placement === "after_heading" && !parsed.data.afterHeading.trim()) {
+    return NextResponse.json({ error: "请选择插入位置。" }, { status: 400 });
+  }
+  try {
+    const alt = `${parsed.data.alt || asset.alt || "课件插图"}${asset.sourceFile ? ` · ${asset.sourceFile} 第 ${asset.slideNumber} 页` : ""}`;
+    const note = await insertImageIntoNote(user.id, noteId, { ...parsed.data, alt, imageUrl: `/api/media/${asset.id}` });
+    if (!note) return NextResponse.json({ error: "笔记不存在。" }, { status: 404 });
+    return NextResponse.json({ note, workspace: await getWorkspace(user.id), message: "图片已插入笔记。" });
+  } catch (error) {
+    const message = error instanceof Error && error.message === "NOTE_IMAGE_HEADING_NOT_FOUND" ? "插入位置已不存在，请重新选择。" : "图片插入失败，请稍后重试。";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+}
 
 export async function POST(request: Request, context: { params: Promise<{ noteId: string }> }) {
   const user = await getCurrentUser();

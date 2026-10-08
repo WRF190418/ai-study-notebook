@@ -20,6 +20,7 @@
     "@tesseract.js-data/eng": "^1.0.0",
     "@types/bcryptjs": "^2.4.6",
     "bcryptjs": "^2.4.3",
+    "fast-xml-parser": "^5.11.2",
     "jose": "^5.10.0",
     "jszip": "^3.10.1",
     "lucide-react": "^0.468.0",
@@ -33,6 +34,7 @@
     "rehype-katex": "^7.0.1",
     "remark-gfm": "^4.0.0",
     "remark-math": "^6.0.0",
+    "sharp": "^0.35.5",
     "tesseract.js": "^7.0.0",
     "zod": "^3.24.1"
   },

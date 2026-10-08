@@ -3,6 +3,7 @@ import path from "node:path";
 import { nanoid } from "nanoid";
 import { createMediaAsset, deleteMediaAsset, findNoteById, insertImageIntoNote } from "@/lib/db";
 import type { MediaAsset } from "@/lib/types";
+import type { CoursewareImage } from "@/lib/pptx";
 
 const dataDir =
   process.env.APP_DATA_DIR ||
@@ -27,7 +28,7 @@ export class ImageUploadError extends Error {
   }
 }
 
-export async function saveNoteImage(input: { userId: string; noteId: string; file: File }) {
+export async function saveNoteImage(input: { userId: string; noteId: string; file: File; source?: Partial<Pick<MediaAsset, "sourceFile" | "slideNumber" | "slideText" | "alt" | "width" | "height">> }) {
   validateImage(input.file);
   const mimeType = input.file.type as SupportedImageType;
   const id = nanoid();
@@ -46,10 +47,29 @@ export async function saveNoteImage(input: { userId: string; noteId: string; fil
       fileName: cleanFileName(input.file.name),
       mimeType,
       size: buffer.byteLength,
-      storageName
+      storageName,
+      ...input.source
     });
   } catch (error) {
     await unlink(path.join(mediaDir, storageName)).catch(() => undefined);
+    throw error;
+  }
+}
+
+export async function saveCoursewareImages(userId: string, noteId: string, images: CoursewareImage[]) {
+  const assets: { key: string; asset: MediaAsset }[] = [];
+  try {
+    for (const image of images) {
+      const file = new File([new Uint8Array(image.buffer)], image.fileName, { type: image.mimeType });
+      const asset = await saveNoteImage({ userId, noteId, file, source: {
+        sourceFile: image.sourceFile, slideNumber: image.slideNumber, slideText: image.slideText,
+        alt: image.alt, width: image.width, height: image.height
+      } });
+      assets.push({ key: image.key, asset });
+    }
+    return assets;
+  } catch (error) {
+    for (const { asset } of assets) await removeNoteImage(asset);
     throw error;
   }
 }

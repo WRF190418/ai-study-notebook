@@ -309,19 +309,28 @@ export async function createLesson(
   input: {
     title: string;
     subtitle?: string;
+    order?: number;
     icon?: Lesson["icon"];
     accent?: string;
   }
 ) {
   return mutateDb((db) => {
     const courseLessons = db.lessons.filter((lesson) => lesson.userId === userId && lesson.courseId === courseId);
+    const maxOrder = Math.max(0, ...courseLessons.map((item) => item.order));
+    const requestedOrder = Number.isFinite(input.order) ? Math.floor(input.order ?? 0) : 0;
+    const order = requestedOrder > 0 ? Math.min(requestedOrder, maxOrder + 1) : maxOrder + 1;
+    if (requestedOrder > 0) {
+      for (const item of courseLessons) {
+        if (item.order >= order) item.order += 1;
+      }
+    }
     const lesson: Lesson = {
       id: nanoid(),
       userId,
       courseId,
       title: input.title,
       subtitle: input.subtitle || "AI-created chapter",
-      order: Math.max(0, ...courseLessons.map((item) => item.order)) + 1,
+      order,
       icon: input.icon ?? "book",
       accent: input.accent ?? "sage",
       createdAt: new Date().toISOString()
@@ -433,6 +442,9 @@ export async function findNoteById(userId: string, noteId: string) {
 
 export async function createMediaAsset(input: Omit<MediaAsset, "createdAt">) {
   return mutateDb((db) => {
+    if (!db.notes.some((note) => note.id === input.noteId && note.userId === input.userId)) {
+      throw new Error("NOTE_NOT_FOUND");
+    }
     const asset: MediaAsset = {
       ...input,
       createdAt: new Date().toISOString()

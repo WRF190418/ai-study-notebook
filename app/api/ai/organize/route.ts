@@ -6,6 +6,8 @@ import { createLesson, createNote, viewDb } from "@/lib/db";
 import { organizeWithBuiltInAi } from "@/lib/ai";
 import { MaterialParseError, parseUploadedMaterials } from "@/lib/courseware";
 import { attachImageToNote } from "@/lib/media";
+import { retainCoursewareImages } from "@/lib/courseware-notes";
+import { imageInfo, type CoursewareImage } from "@/lib/pptx";
 import type { AiOrganizeResult, Lesson } from "@/lib/types";
 
 const metadataSchema = z.object({
@@ -104,6 +106,7 @@ async function handleOrganize(request: Request) {
       text: input.text,
       imageDataUrls: input.imageDataUrls,
       fileNames: input.fileNames,
+      coursewareImages: input.keepOriginalImages ? input.coursewareImages.map(imageInfo) : [],
       courseTitle: course.title,
       targetInstruction: input.targetInstruction,
       lessons: lessons.map(({ id, title, subtitle, order }) => ({ id, title, subtitle, order })),
@@ -137,7 +140,8 @@ async function handleOrganize(request: Request) {
       enabled: input.keepOriginalImages
     });
 
-    return NextResponse.json({ note: retained.note, lesson, warning: retained.warning });
+    const courseware = await retainCoursewareImages(user.id, retained.note, input.coursewareImages, input.keepOriginalImages);
+    return NextResponse.json({ note: courseware.note, lesson, warning: [retained.warning, courseware.warning, ...input.materialWarnings].filter(Boolean).join(" ") });
   } catch (error) {
     if (canCreateFallback(input.text, input.imageDataUrls)) {
       const fallback = buildFallbackOrganizeResult({
@@ -175,15 +179,16 @@ async function handleOrganize(request: Request) {
         files: input.imageFiles,
         enabled: input.keepOriginalImages
       });
+      const courseware = await retainCoursewareImages(user.id, retained.note, input.coursewareImages, input.keepOriginalImages);
 
       console.warn("AI organize failed; saved local fallback note.", error);
       return NextResponse.json({
-        note: retained.note,
+        note: courseware.note,
         lesson,
         fallback: true,
         warning: [
           `AI 暂时不可用，已先保存为本地草稿。原因：${explainAiFailure(error)}`,
-          retained.warning
+          retained.warning, courseware.warning, ...input.materialWarnings
         ].filter(Boolean).join(" ")
       });
     }
@@ -236,7 +241,9 @@ async function parseOrganizeRequest(request: Request) {
       text,
       imageDataUrls: materials.imageDataUrls,
       fileNames: materials.fileNames,
-      imageFiles: files.filter((file) => file.type.startsWith("image/"))
+      imageFiles: files.filter((file) => file.type.startsWith("image/")),
+      coursewareImages: materials.coursewareImages,
+      materialWarnings: materials.warnings
     };
   }
 
@@ -246,7 +253,9 @@ async function parseOrganizeRequest(request: Request) {
     ...parsed.data,
     imageDataUrls: parsed.data.imageDataUrl ? [parsed.data.imageDataUrl] : [],
     fileNames: [] as string[],
-    imageFiles: [] as File[]
+    imageFiles: [] as File[],
+    coursewareImages: [] as CoursewareImage[],
+    materialWarnings: [] as string[]
   };
 }
 
@@ -322,6 +331,7 @@ async function resolveTargetLesson({
     return createLesson(userId, courseId, {
       title: (targetLesson.title?.trim() || noteTitle.trim() || "AI 整理章节").slice(0, 80),
       subtitle: (targetLesson.subtitle || "AI-created chapter").slice(0, 120),
+      order: targetLesson.order,
       icon: targetLesson.icon,
       accent: targetLesson.accent
     });
@@ -355,6 +365,7 @@ function mergeTargetLesson(
     mode: "new",
     title: suggestedTarget?.title,
     subtitle: suggestedTarget?.subtitle || explicitTarget.subtitle,
+    order: suggestedTarget?.order || explicitTarget.order,
     icon: suggestedTarget?.icon || explicitTarget.icon,
     accent: suggestedTarget?.accent || explicitTarget.accent
   };

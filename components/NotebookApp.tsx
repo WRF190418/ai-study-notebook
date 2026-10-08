@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import type { Course, Lesson, MindMapNode, Note, User, UserPreferences } from "@/lib/types";
 import MarkdownView from "@/components/MarkdownView";
+import CoursewareImages from "@/components/CoursewareImages";
 
 type Workspace = {
   courses: Course[];
@@ -492,7 +493,7 @@ function LessonDetail({
 
       <section className={`lesson-detail-hero ${lesson.accent}`}>
         <div>
-          <span className="lesson-detail-kicker">Lecture {lesson.order}</span>
+          <span className="lesson-detail-kicker">{lessonLabel(lesson)}</span>
           <h1>{lesson.title}</h1>
           <p>
             {lesson.subtitle}
@@ -549,6 +550,7 @@ function LessonDetail({
                 onWorkspaceUpdated={onWorkspaceUpdated}
               />
             </div>
+            <CoursewareImages key={selectedNote.id} note={selectedNote} onUpdate={onWorkspaceUpdated} />
             <MarkdownView content={selectedNote.contentMarkdown} />
           </section>
           <LearningArtifacts note={selectedNote} />
@@ -672,6 +674,10 @@ function NoteImageInsert({
   );
 }
 
+function lessonLabel(lesson: Lesson) {
+  return lesson.title.match(/^(?:Lecture|Tutorial|Chapter)\s+\d+[a-z]?(?=\s|[:：]|$)/i)?.[0] ?? `Lecture ${lesson.order}`;
+}
+
 function LessonCard({ lesson, active, onClick }: { lesson: Lesson; active: boolean; onClick: () => void }) {
   const Icon = lesson.icon === "atom" ? Atom : lesson.icon === "function" ? FunctionSquare : lesson.icon === "sparkles" ? Sparkles : BookOpen;
   return (
@@ -682,7 +688,7 @@ function LessonCard({ lesson, active, onClick }: { lesson: Lesson; active: boole
       onClick={onClick}
     >
       <div className={`lesson-art ${lesson.accent}`}>
-        <span className="lesson-badge">Lecture {lesson.order}</span>
+        <span className="lesson-badge">{lessonLabel(lesson)}</span>
         <span className="lesson-icon">
           <Icon size={34} />
         </span>
@@ -1118,7 +1124,7 @@ function OrganizerPanel({
           />
         </label>
 
-        {selectedFiles.some((file) => file.type.startsWith("image/")) ? (
+        {selectedFiles.some((file) => file.type.startsWith("image/") || /\.pptx$/i.test(file.name)) ? (
           <label className="keep-images-option">
             <input
               checked={keepOriginalImages}
@@ -1126,8 +1132,7 @@ function OrganizerPanel({
               type="checkbox"
             />
             <span>
-              <strong>同时把原图放入整理后的笔记</strong>
-              <small>默认开启；图片会保存在笔记正文结尾，并可长期查看。</small>
+              <strong>保留原图与课件图片</strong>
             </span>
           </label>
         ) : null}

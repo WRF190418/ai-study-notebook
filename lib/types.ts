@@ -90,6 +90,12 @@ export type MediaAsset = {
   mimeType: "image/png" | "image/jpeg" | "image/webp" | "image/gif";
   size: number;
   storageName: string;
+  sourceFile?: string;
+  slideNumber?: number;
+  slideText?: string;
+  alt?: string;
+  width?: number;
+  height?: number;
   createdAt: string;
 };
 
@@ -114,6 +120,7 @@ export type AiOrganizeResult = {
     lessonId?: string;
     title?: string;
     subtitle?: string;
+    order?: number;
     icon?: Lesson["icon"];
     accent?: string;
     reason?: string;
