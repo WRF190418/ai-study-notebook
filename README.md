@@ -64,17 +64,23 @@ lib/
 
 当前 MVP 使用 `data/app-db.json` 做本地持久化，并在写入层做了串行队列，方便本机快速体验多人注册。正式上线建议把 `lib/db.ts` 替换为 PostgreSQL + Prisma，文件和截图进入对象存储，例如 S3、R2 或 OSS。
 
-## Railway 部署
+## 临时公网访问
 
-项目根目录包含 `railway.json`。GitHub Actions 会在 `main` 分支检查通过后，通过 Railway Project Token 自动部署到现有 Web Service。
+项目不再自动部署到 Railway。需要从公网访问时，在已安装 `cloudflared` 的 Windows 电脑上运行：
 
-1. 创建 Railway Web Service。
-2. 配置 `.env.example` 中使用到的 AI Key 与 `AUTH_SECRET`。
-3. 为 Web Service 添加 Volume，挂载路径设为 `/app/data`。
-4. 在 Networking 中生成固定的 `*.up.railway.app` 域名。
-5. 在 GitHub Actions Secret 中设置 Railway Project Token：`RAILWAY_TOKEN`。
+```bash
+npm run demo:public
+```
 
-服务健康检查地址为 `/api/health`。应用也支持通过 `APP_DATA_DIR` 指定其他持久化目录。
+命令会启动本地 Next.js 开发服务，然后生成一个新的 `*.trycloudflare.com` 临时网址，并写入被 Git 忽略的 `public-demo-url.txt`。健康检查地址为 `/api/health`。
+
+临时网址存续期间电脑必须保持开机和联网。使用完成后运行：
+
+```bash
+npm run demo:stop
+```
+
+笔记仍保存在本地 `data/` 目录中，不会上传到 GitHub。应用也支持通过 `APP_DATA_DIR` 指定其他持久化目录。
 
 ## 验收
 
