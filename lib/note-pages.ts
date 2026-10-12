@@ -31,7 +31,7 @@ export function parsePageHeading(value: string) {
 
 export function extractNotePages(markdown: string): NotePageSection[] {
   const main = markdown.split(COURSEWARE_APPENDIX_MARKER)[0] ?? markdown;
-  const headings = [...main.matchAll(/^###[ \t]+(.+?)\s*#*\s*$/gm)]
+  const headings = [...main.matchAll(/^#{2,3}[ \t]+(.+?)\s*#*\s*$/gm)]
     .map((match) => {
       const page = parsePageHeading(match[1]);
       if (!page || match.index === undefined) return null;

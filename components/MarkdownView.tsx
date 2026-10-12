@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Maximize2, Star, X } from "lucide-react";
+import { Maximize2, MessageSquareText, Star, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
@@ -13,8 +13,12 @@ import { pageAnchorId, parsePageHeading, type NotePageSection } from "@/lib/note
 type PageStars = {
   noteId: string;
   pages: NotePageSection[];
+  pageNotesByKey: Map<string, string>;
   starredPageKeys: Set<string>;
   targetPageKey?: string;
+  autoOpenNoteKey?: string;
+  onCloseNoteEditor: (pageKey: string) => void;
+  onSaveNote: (page: { key: string; pageNumber: number }, note: string) => void;
   onToggle: (page: { key: string; pageNumber: number }) => void;
 };
 
@@ -61,39 +65,127 @@ export default function MarkdownView({
       <ReactMarkdown skipHtml components={{
         img: ({ src, alt, title }) => <NoteImage src={typeof src === "string" ? src : undefined} alt={alt || "笔记插图"} caption={title || alt || ""} />,
         table: ({ children }) => <div className="markdown-table-scroll" tabIndex={0} role="region" aria-label="笔记表格"><table>{children}</table></div>,
-        h3: ({ children, node }) => {
-          const parsed = pageStars ? parsePageHeading(reactNodeText(children)) : null;
-          if (!parsed || !pageStars) return <h3>{children}</h3>;
-
-          const page = pageStars.pages.find((item) => item.sourceStart === node?.position?.start.offset);
-          if (!page) return <h3>{children}</h3>;
-          const pageKey = page.key;
-          const starred = pageStars.starredPageKeys.has(pageKey);
-          const targeted = pageStars.targetPageKey === pageKey;
-          return (
-            <h3
-              className={`note-page-heading${targeted ? " page-jump-target" : ""}`}
-              id={pageAnchorId(pageStars.noteId, pageKey)}
-              tabIndex={-1}
-            >
-              <span>{children}</span>
-              <button
-                aria-label={`${starred ? "取消加星" : "加入加星列表"}：第${parsed.pageNumber}页`}
-                aria-pressed={starred}
-                className={`page-star-button${starred ? " starred" : ""}`}
-                onClick={() => pageStars.onToggle({ key: pageKey, pageNumber: parsed.pageNumber })}
-                title={starred ? "取消加星" : "加入加星列表"}
-                type="button"
-              >
-                <Star fill={starred ? "currentColor" : "none"} size={21} strokeWidth={starred ? 2 : 1.8} />
-              </button>
-            </h3>
-          );
-        }
+        h2: ({ children, node }) => <NotePageHeading level={2} pageStars={pageStars} sourceStart={node?.position?.start.offset}>{children}</NotePageHeading>,
+        h3: ({ children, node }) => <NotePageHeading level={3} pageStars={pageStars} sourceStart={node?.position?.start.offset}>{children}</NotePageHeading>
       }} remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
         {normalizeMath(content, compact)}
       </ReactMarkdown>
     </article>
+  );
+}
+
+function NotePageHeading({
+  children,
+  level,
+  pageStars,
+  sourceStart
+}: {
+  children: ReactNode;
+  level: 2 | 3;
+  pageStars?: PageStars;
+  sourceStart?: number;
+}) {
+  const parsed = pageStars ? parsePageHeading(reactNodeText(children)) : null;
+  const page = parsed && pageStars ? pageStars.pages.find((item) => item.sourceStart === sourceStart) : undefined;
+  const pageKey = page?.key ?? "";
+  const starred = Boolean(pageStars && pageKey && pageStars.starredPageKeys.has(pageKey));
+  const savedNote = pageStars?.pageNotesByKey.get(pageKey) ?? "";
+  const targeted = Boolean(pageStars && pageKey && pageStars.targetPageKey === pageKey);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [draft, setDraft] = useState(savedNote);
+  const Heading = level === 2 ? "h2" : "h3";
+
+  useEffect(() => {
+    if (!editorOpen) setDraft(savedNote);
+  }, [editorOpen, savedNote]);
+
+  useEffect(() => {
+    if (starred && pageStars?.autoOpenNoteKey === pageKey) {
+      setDraft(savedNote);
+      setEditorOpen(true);
+    } else if (!starred) {
+      setEditorOpen(false);
+    }
+  }, [pageKey, pageStars?.autoOpenNoteKey, savedNote, starred]);
+
+  if (!parsed || !pageStars || !page) return <Heading>{children}</Heading>;
+  const pageReference = { key: page.key, pageNumber: parsed.pageNumber };
+
+  function saveNote() {
+    pageStars?.onSaveNote(pageReference, draft.trim());
+    pageStars?.onCloseNoteEditor(pageKey);
+    setEditorOpen(false);
+  }
+
+  function closeEditor() {
+    pageStars?.onCloseNoteEditor(pageKey);
+    setEditorOpen(false);
+  }
+
+  return (
+    <Heading
+      className={`note-page-heading${starred ? " starred-page-heading" : ""}${targeted ? " page-jump-target" : ""}`}
+      id={pageAnchorId(pageStars.noteId, pageKey)}
+      tabIndex={-1}
+    >
+      <span>{children}</span>
+      <span className="page-heading-actions">
+        {starred ? (
+          <button
+            aria-label={`${savedNote ? "编辑" : "添加"}页备注：第${parsed.pageNumber}页`}
+            className={`page-note-button${savedNote ? " has-note" : ""}`}
+            onClick={() => {
+              if (editorOpen) {
+                closeEditor();
+              } else {
+                setDraft(savedNote);
+                setEditorOpen(true);
+              }
+            }}
+            title={savedNote ? "编辑页备注" : "添加页备注"}
+            type="button"
+          >
+            <MessageSquareText size={17} />
+            {savedNote ? <span className="page-note-indicator" /> : null}
+          </button>
+        ) : null}
+        <button
+          aria-label={`${starred ? "取消加星" : "加入加星列表"}：第${parsed.pageNumber}页`}
+          aria-pressed={starred}
+          className={`page-star-button${starred ? " starred" : ""}`}
+          onClick={() => pageStars.onToggle(pageReference)}
+          title={starred ? "取消加星" : "加入加星列表"}
+          type="button"
+        >
+          <Star fill={starred ? "currentColor" : "none"} size={20} strokeWidth={starred ? 2 : 1.8} />
+        </button>
+      </span>
+      {editorOpen ? (
+        <span aria-label={`第${parsed.pageNumber}页备注编辑器`} className="page-note-editor" role="dialog">
+          <span className="page-note-editor-title">
+            <strong>页备注</strong>
+            <small>记录加星目的、易错点或复习提醒</small>
+          </span>
+          <textarea
+            aria-label={`第${parsed.pageNumber}页备注内容`}
+            autoFocus
+            maxLength={500}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") closeEditor();
+              if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) saveNote();
+            }}
+            placeholder="例如：考试重点；注意符号方向；二刷时重做例题……"
+            value={draft}
+          />
+          <span className="page-note-editor-footer">
+            <small>{draft.length}/500</small>
+            <button className="page-note-cancel" onClick={closeEditor} type="button">取消</button>
+            <button className="page-note-save" onClick={saveNote} type="button">保存备注</button>
+          </span>
+        </span>
+      ) : null}
+    </Heading>
   );
 }
 

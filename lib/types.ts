@@ -87,6 +87,7 @@ export type NoteStar = {
   noteId: string;
   pageKey: string;
   pageNumber: number;
+  note?: string;
   createdAt: string;
 };
 

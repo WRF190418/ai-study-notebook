@@ -1470,6 +1470,17 @@ button {
   font-size: 14px;
 }
 
+.starred-page-memo {
+  display: block;
+  overflow: hidden;
+  margin-top: 6px;
+  color: #9a641f;
+  font-size: 12px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .starred-page-link small {
   margin-top: 6px;
   color: #8b7b66;
@@ -1760,15 +1771,26 @@ button {
   position: relative;
   scroll-margin-top: 24px;
   min-height: 39px;
-  padding: 6px 44px 6px 0;
+  padding-right: 44px;
   border-radius: 9px;
   transition: background 180ms ease, box-shadow 180ms ease;
 }
 
-.page-star-button {
+.markdown .note-page-heading.starred-page-heading {
+  padding-right: 84px;
+}
+
+.page-heading-actions {
   position: absolute;
-  top: 2px;
   right: 2px;
+  top: 50%;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transform: translateY(-50%);
+}
+
+.page-star-button {
   display: grid;
   width: 36px;
   height: 36px;
@@ -1778,6 +1800,53 @@ button {
   background: transparent;
   color: #a9b0ba;
   transition: color 140ms ease, background 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+.page-note-button {
+  position: relative;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid rgba(63, 143, 122, 0.2);
+  border-radius: 9px;
+  padding: 0;
+  background: linear-gradient(145deg, #f9fcfb, #edf6f2);
+  color: #5f8379;
+  box-shadow: 0 4px 12px rgba(45, 93, 79, 0.07);
+  transition: color 140ms ease, background 140ms ease, border-color 140ms ease, transform 140ms ease;
+  animation: page-note-button-in 170ms ease-out both;
+}
+
+.page-note-button:hover,
+.page-note-button:focus-visible,
+.page-note-button.has-note {
+  border-color: rgba(208, 139, 43, 0.3);
+  background: linear-gradient(145deg, #fffaf0, #fff1cf);
+  color: #b87522;
+  outline: 0;
+}
+
+.page-note-button:hover,
+.page-note-button:focus-visible {
+  transform: translateY(-1px);
+}
+
+.page-note-indicator {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  border: 1px solid white;
+  border-radius: 50%;
+  background: #d28b2b;
+  box-shadow: 0 1px 3px rgba(128, 77, 15, 0.28);
+}
+
+@keyframes page-note-button-in {
+  from { opacity: 0; transform: scale(0.82); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 .page-star-button:hover,
@@ -1791,6 +1860,98 @@ button {
 
 .page-star-button.starred {
   color: #d28b2b;
+}
+
+.page-note-editor {
+  position: absolute;
+  z-index: 35;
+  top: calc(50% + 25px);
+  right: 0;
+  display: block;
+  width: min(350px, calc(100vw - 80px));
+  border: 1px solid rgba(190, 204, 201, 0.95);
+  border-radius: 12px;
+  padding: 13px;
+  background: rgba(255, 255, 255, 0.985);
+  box-shadow: 0 18px 46px rgba(23, 32, 51, 0.18);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: 0;
+  backdrop-filter: blur(18px);
+}
+
+.page-note-editor-title {
+  display: block;
+  margin-bottom: 9px;
+}
+
+.page-note-editor-title strong,
+.page-note-editor-title small {
+  display: block;
+}
+
+.page-note-editor-title strong {
+  font-size: 14px;
+}
+
+.page-note-editor-title small {
+  margin-top: 2px;
+  color: #7a8494;
+  font-size: 11px;
+}
+
+.page-note-editor textarea {
+  display: block;
+  width: 100%;
+  min-height: 92px;
+  resize: vertical;
+  border: 1px solid #d9e2df;
+  border-radius: 9px;
+  padding: 10px 11px;
+  background: #fbfdfc;
+  color: #2f394a;
+  line-height: 1.55;
+  outline: 0;
+}
+
+.page-note-editor textarea:focus {
+  border-color: rgba(63, 143, 122, 0.62);
+  box-shadow: 0 0 0 3px rgba(63, 143, 122, 0.1);
+}
+
+.page-note-editor-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.page-note-editor-footer small {
+  margin-right: auto;
+  color: #98a2b3;
+  font-size: 11px;
+}
+
+.page-note-editor-footer button {
+  border-radius: 7px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.page-note-cancel {
+  border: 1px solid #dce3e5;
+  background: white;
+  color: #667085;
+}
+
+.page-note-save {
+  border: 1px solid #2f806b;
+  background: #2f806b;
+  color: white;
 }
 
 .markdown .note-page-heading.page-jump-target {

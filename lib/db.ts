@@ -448,7 +448,7 @@ export async function findNoteById(userId: string, noteId: string) {
 
 export async function saveNoteStar(
   userId: string,
-  input: Pick<NoteStar, "noteId" | "pageKey" | "pageNumber">
+  input: Pick<NoteStar, "noteId" | "pageKey" | "pageNumber"> & { note?: string }
 ) {
   return mutateDb((db) => {
     const note = db.notes.find((item) => item.id === input.noteId && item.userId === userId);
@@ -457,13 +457,17 @@ export async function saveNoteStar(
     const existing = db.noteStars.find(
       (item) => item.userId === userId && item.noteId === input.noteId && item.pageKey === input.pageKey
     );
-    if (existing) return existing;
+    if (existing) {
+      if (input.note !== undefined) existing.note = input.note.trim();
+      return existing;
+    }
 
     const star: NoteStar = {
       userId,
       noteId: input.noteId,
       pageKey: input.pageKey,
       pageNumber: input.pageNumber,
+      note: input.note?.trim() || undefined,
       createdAt: new Date().toISOString()
     };
     db.noteStars.push(star);

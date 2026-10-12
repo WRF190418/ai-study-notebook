@@ -6,7 +6,8 @@ import { removeNoteStar, saveNoteStar } from "@/lib/db";
 const starSchema = z.object({
   noteId: z.string().min(1).max(100),
   pageKey: z.string().regex(/^page-\d+-\d+$/).max(80),
-  pageNumber: z.number().int().positive().max(100000)
+  pageNumber: z.number().int().positive().max(100000),
+  note: z.string().max(500).optional()
 });
 
 const removeSchema = starSchema.pick({ noteId: true, pageKey: true });

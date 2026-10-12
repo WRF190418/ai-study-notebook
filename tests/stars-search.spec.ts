@@ -2,6 +2,10 @@ import { expect, test } from "@playwright/test";
 import { createCourseWithStarterLesson, createNote } from "../lib/db";
 
 test("searches page content globally and persists beautiful page stars", async ({ page }, testInfo) => {
+  const consoleErrors: string[] = [];
+  page.on("console", (message) => {
+    if (message.type() === "error") consoleErrors.push(message.text());
+  });
   const email = `stars-search-${testInfo.project.name}-${Date.now()}@example.com`;
   const register = await page.request.post("/api/auth/register", {
     data: { name: "检索测试学生", email, password: "12345678" }
@@ -35,7 +39,7 @@ test("searches page content globally and persists beautiful page stars", async (
       "",
       filler,
       "",
-      "### 第7页｜标量三重积与体积",
+      "## 第7页｜标量三重积与体积",
       "",
       "独特检索词：平行六面体体积。标量三重积可以判断三个向量是否共面。",
       "",
@@ -75,10 +79,22 @@ test("searches page content globally and persists beautiful page stars", async (
   await results.getByRole("button", { name: /第7页/ }).click();
   await expect(pageHeading).toBeVisible();
 
+  await expect(page.getByRole("button", { name: "添加页备注：第7页" })).toHaveCount(0);
   await page.getByRole("button", { name: "加入加星列表：第7页" }).click();
   const starPanel = page.getByRole("region", { name: `${note.title}的加星页面` });
   await expect(starPanel).toContainText("1 个复习重点");
   await expect(starPanel).toContainText("标量三重积与体积");
+  await expect(page.getByRole("button", { name: "添加页备注：第7页" })).toBeVisible();
+  const noteEditor = page.getByRole("dialog", { name: "第7页备注编辑器" });
+  await expect(noteEditor).toBeVisible();
+  await noteEditor.getByLabel("第7页备注内容").fill("考试重点：注意向量顺序与体积的绝对值。");
+  await page.screenshot({ path: `test-results/page-note-editor-${testInfo.project.name}.png`, fullPage: false });
+  const noteSaveResponse = page.waitForResponse(
+    (response) => response.url().includes("/api/stars") && response.request().method() === "PUT"
+  );
+  await noteEditor.getByRole("button", { name: "保存备注" }).click();
+  expect((await noteSaveResponse).ok()).toBeTruthy();
+  await expect(starPanel).toContainText("备注：考试重点：注意向量顺序与体积的绝对值。");
 
   await expect(page.getByRole("button", { name: "返回加星列表" })).toBeVisible();
   await page.getByRole("button", { name: "返回加星列表" }).click();
@@ -91,7 +107,14 @@ test("searches page content globally and persists beautiful page stars", async (
 
   const persisted = await (await page.request.get("/api/workspace")).json();
   expect(persisted.noteStars).toEqual(
-    expect.arrayContaining([expect.objectContaining({ noteId: note.id, pageKey: "page-7-1", pageNumber: 7 })])
+    expect.arrayContaining([
+      expect.objectContaining({
+        noteId: note.id,
+        pageKey: "page-7-1",
+        pageNumber: 7,
+        note: "考试重点：注意向量顺序与体积的绝对值。"
+      })
+    ])
   );
 
   await page.reload();
@@ -101,4 +124,6 @@ test("searches page content globally and persists beautiful page stars", async (
   await expect(
     page.getByRole("region", { name: `${note.title}的加星页面` }).getByRole("button", { name: "取消加星：第7页" })
   ).toBeVisible();
+  await expect(page.getByRole("button", { name: "编辑页备注：第7页" })).toBeVisible();
+  expect(consoleErrors.filter((message) => message.includes("same key"))).toEqual([]);
 });

@@ -291,6 +291,41 @@ export default function NotebookApp({
     }
   }
 
+  async function savePageStarNote(noteId: string, page: { key: string; pageNumber: number }, note: string) {
+    const existing = workspace.noteStars.find((item) => item.noteId === noteId && item.pageKey === page.key);
+    const optimisticStar: NoteStar = {
+      userId: initialUser.id,
+      noteId,
+      pageKey: page.key,
+      pageNumber: page.pageNumber,
+      note: note.trim(),
+      createdAt: existing?.createdAt ?? new Date().toISOString()
+    };
+    setStarMessage("");
+    setWorkspace((current) => ({
+      ...current,
+      noteStars: [...current.noteStars.filter((item) => !(item.noteId === noteId && item.pageKey === page.key)), optimisticStar]
+    }));
+
+    try {
+      const response = await fetch("/api/stars", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ noteId, pageKey: page.key, pageNumber: page.pageNumber, note: note.trim() })
+      });
+      if (!response.ok) throw new Error("STAR_NOTE_SAVE_FAILED");
+    } catch {
+      setWorkspace((current) => ({
+        ...current,
+        noteStars: [
+          ...current.noteStars.filter((item) => !(item.noteId === noteId && item.pageKey === page.key)),
+          ...(existing ? [existing] : [])
+        ]
+      }));
+      setStarMessage("页备注没有保存成功，请稍后重试。");
+    }
+  }
+
   function closeOnboarding() {
     setOnboardingOpen(false);
     if (!onboardingCompletedAt) {
@@ -448,6 +483,7 @@ export default function NotebookApp({
                 }}
                 onSelectNote={setSelectedNoteId}
                 onNavigateToPage={navigateToLocatedPage}
+                onSavePageStarNote={savePageStarNote}
                 onTogglePageStar={togglePageStar}
                 onJumpHandled={() => setPendingJump(null)}
                 onWorkspaceUpdated={setWorkspace}
@@ -747,6 +783,7 @@ function LessonDetail({
   onBack,
   onSelectNote,
   onNavigateToPage,
+  onSavePageStarNote,
   onTogglePageStar,
   onJumpHandled,
   onWorkspaceUpdated
@@ -761,6 +798,7 @@ function LessonDetail({
   onBack: () => void;
   onSelectNote: (id: string) => void;
   onNavigateToPage: (target: SearchIndexItem | { noteId: string; pageKey: string }) => void;
+  onSavePageStarNote: (noteId: string, page: { key: string; pageNumber: number }, note: string) => void | Promise<void>;
   onTogglePageStar: (noteId: string, page: { key: string; pageNumber: number }) => void | Promise<void>;
   onJumpHandled: () => void;
   onWorkspaceUpdated: (workspace: Workspace) => void;
@@ -774,7 +812,12 @@ function LessonDetail({
     () => new Set(selectedNoteStars.map((star) => star.pageKey)),
     [selectedNoteStars]
   );
+  const pageNotesByKey = useMemo(
+    () => new Map(selectedNoteStars.map((star) => [star.pageKey, star.note ?? ""])),
+    [selectedNoteStars]
+  );
   const [targetPageKey, setTargetPageKey] = useState<string>();
+  const [autoOpenNoteKey, setAutoOpenNoteKey] = useState<string>();
 
   useEffect(() => {
     if (!selectedNote || pendingJump?.noteId !== selectedNote.id) return;
@@ -860,7 +903,7 @@ function LessonDetail({
               />
             </div>
             <StarredPagesPanel
-              key={selectedNote.id}
+              key={`stars-${selectedNote.id}`}
               note={selectedNote}
               onNavigate={(pageKey) => onNavigateToPage({ noteId: selectedNote.id, pageKey })}
               onToggle={(page) => onTogglePageStar(selectedNote.id, page)}
@@ -869,15 +912,28 @@ function LessonDetail({
               targetPageKey={targetPageKey}
             />
             {starMessage ? <div className="star-save-message" role="status">{starMessage}</div> : null}
-            <CoursewareImages key={selectedNote.id} note={selectedNote} onUpdate={onWorkspaceUpdated} />
+            <CoursewareImages key={`courseware-${selectedNote.id}`} note={selectedNote} onUpdate={onWorkspaceUpdated} />
             <MarkdownView
               content={selectedNote.contentMarkdown}
               pageStars={{
                 noteId: selectedNote.id,
                 pages,
+                pageNotesByKey,
                 starredPageKeys,
                 targetPageKey,
-                onToggle: (page) => void onTogglePageStar(selectedNote.id, page)
+                autoOpenNoteKey,
+                onCloseNoteEditor: (pageKey) => {
+                  if (autoOpenNoteKey === pageKey) setAutoOpenNoteKey(undefined);
+                },
+                onSaveNote: (page, note) => void onSavePageStarNote(selectedNote.id, page, note),
+                onToggle: (page) => {
+                  if (starredPageKeys.has(page.key)) {
+                    if (autoOpenNoteKey === page.key) setAutoOpenNoteKey(undefined);
+                  } else {
+                    setAutoOpenNoteKey(page.key);
+                  }
+                  void onTogglePageStar(selectedNote.id, page);
+                }
               }}
             />
           </section>
@@ -970,6 +1026,7 @@ function StarredPagesPanel({
                         第{star.pageNumber}页{page && page.occurrence > 1 ? ` · 第${page.occurrence}处` : ""}
                       </span>
                       <strong>{page?.title ?? "原页面已不存在"}</strong>
+                      {star.note ? <span className="starred-page-memo">备注：{star.note}</span> : null}
                       <small>{page?.excerpt ?? "笔记更新后未找到这一个页面，你可以移除该星标。"}</small>
                     </button>
                     <button
