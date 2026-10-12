@@ -82,6 +82,14 @@ export type Note = {
   updatedAt: string;
 };
 
+export type NoteStar = {
+  userId: string;
+  noteId: string;
+  pageKey: string;
+  pageNumber: number;
+  createdAt: string;
+};
+
 export type MediaAsset = {
   id: string;
   userId: string;
@@ -106,6 +114,7 @@ export type AppDb = {
   courses: Course[];
   lessons: Lesson[];
   notes: Note[];
+  noteStars: NoteStar[];
   mediaAssets: MediaAsset[];
 };
 

@@ -10,5 +10,6 @@ test-results
 *.tsbuildinfo
 cloudflared-tunnel.log
 tunnel-dev.log
+local-notebook.log
 public-demo-url.txt
 github-recovery-codes.txt

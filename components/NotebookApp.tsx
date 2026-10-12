@@ -1,13 +1,17 @@
 "use client";
 
 import { ChangeEvent, ClipboardEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import {
   Atom,
   BookOpen,
   Brain,
   CalendarDays,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  CornerUpLeft,
   FileText,
   FunctionSquare,
   HelpCircle,
@@ -17,18 +21,54 @@ import {
   Network,
   Search,
   Sparkles,
+  Star,
   Upload,
   X
 } from "lucide-react";
-import type { Course, Lesson, MindMapNode, Note, User, UserPreferences } from "@/lib/types";
+import type { Course, Lesson, MindMapNode, Note, NoteStar, User, UserPreferences } from "@/lib/types";
 import MarkdownView from "@/components/MarkdownView";
 import CoursewareImages from "@/components/CoursewareImages";
+import { extractNotePages, makeExcerpt, markdownToPlainText, pageAnchorId, type NotePageSection } from "@/lib/note-pages";
 
 type Workspace = {
   courses: Course[];
   lessons: Lesson[];
   notes: Note[];
+  noteStars: NoteStar[];
   preferences: UserPreferences;
+};
+
+type SearchIndexItem = {
+  noteId: string;
+  courseId: string;
+  lessonId: string;
+  pageKey?: string;
+  pageNumber?: number;
+  pageTitle: string;
+  courseTitle: string;
+  courseCode: string;
+  lessonTitle: string;
+  noteTitle: string;
+  plainText: string;
+  haystack: string;
+};
+
+type SearchResult = SearchIndexItem & { excerpt: string; score: number };
+
+type PageJump = {
+  noteId: string;
+  pageKey?: string;
+};
+
+type NavigationSnapshot = {
+  selectedTerm: string;
+  courseId: string;
+  lessonId: string;
+  activeLessonId: string | null;
+  selectedNoteId: string;
+  query: string;
+  searchOpen: boolean;
+  scrollTop: number;
 };
 
 type SourceType = "text" | "outline" | "image" | "file";
@@ -67,11 +107,17 @@ export default function NotebookApp({
   const [activeLessonId, setActiveLessonId] = useState<string | null>(null);
   const [selectedNoteId, setSelectedNoteId] = useState(initialWorkspace.notes[0]?.id ?? "");
   const [query, setQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchCourseId, setSearchCourseId] = useState("");
+  const [pendingJump, setPendingJump] = useState<PageJump | null>(null);
+  const [starMessage, setStarMessage] = useState("");
   const [organizerCollapsed, setOrganizerCollapsed] = useState(false);
   const [appHydrated, setAppHydrated] = useState(false);
   const [onboardingCompletedAt, setOnboardingCompletedAt] = useState(initialUser.onboardingCompletedAt ?? "");
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
+  const contentScrollRef = useRef<HTMLDivElement>(null);
+  const searchAreaRef = useRef<HTMLDivElement>(null);
 
   const terms = useMemo(() => Array.from(new Set(workspace.courses.map((item) => item.term).filter(Boolean))), [workspace.courses]);
   const termCourses = useMemo(
@@ -83,14 +129,51 @@ export default function NotebookApp({
   const activeLesson = lessons.find((lesson) => lesson.id === activeLessonId) ?? null;
   const notes = workspace.notes.filter((note) => note.courseId === course?.id);
   const visibleNotes = activeLesson ? notes.filter((note) => note.lessonId === activeLesson.id) : notes;
-  const filteredNotes = visibleNotes.filter((note) => `${note.title} ${note.summary}`.toLowerCase().includes(query.toLowerCase()));
-  const selectedNote = filteredNotes.find((note) => note.id === selectedNoteId) ?? filteredNotes[0];
+  const selectedNote = visibleNotes.find((note) => note.id === selectedNoteId) ?? visibleNotes[0];
+  const searchIndex = useMemo(
+    () => buildSearchIndex(workspace.courses, workspace.lessons, workspace.notes),
+    [workspace.courses, workspace.lessons, workspace.notes]
+  );
+  const searchResults = useMemo(() => searchNotes(searchIndex, query), [query, searchIndex]);
+  const visibleSearchResults = searchCourseId
+    ? searchResults.filter((result) => result.courseId === searchCourseId)
+    : searchResults;
 
   useEffect(() => {
     setAppHydrated(true);
     if (!initialUser.onboardingCompletedAt) {
       setOnboardingOpen(true);
     }
+  }, []);
+
+  useEffect(() => {
+    function closeSearchOnOutsideClick(event: MouseEvent) {
+      if (searchAreaRef.current && !searchAreaRef.current.contains(event.target as Node)) {
+        setSearchOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", closeSearchOnOutsideClick);
+    return () => document.removeEventListener("mousedown", closeSearchOnOutsideClick);
+  }, []);
+
+  useEffect(() => {
+    function restoreNavigation(event: PopStateEvent) {
+      const snapshot = event.state?.studyNoteSnapshot as NavigationSnapshot | undefined;
+      if (!snapshot) return;
+      setSelectedTerm(snapshot.selectedTerm);
+      setCourseId(snapshot.courseId);
+      setLessonId(snapshot.lessonId);
+      setActiveLessonId(snapshot.activeLessonId);
+      setSelectedNoteId(snapshot.selectedNoteId);
+      setQuery(snapshot.query);
+      setSearchOpen(snapshot.searchOpen);
+      setPendingJump(null);
+      window.setTimeout(() => {
+        if (contentScrollRef.current) contentScrollRef.current.scrollTop = snapshot.scrollTop;
+      }, 0);
+    }
+    window.addEventListener("popstate", restoreNavigation);
+    return () => window.removeEventListener("popstate", restoreNavigation);
   }, []);
 
   useEffect(() => {
@@ -144,6 +227,68 @@ export default function NotebookApp({
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
     window.location.reload();
+  }
+
+  function navigateToLocatedPage(target: SearchIndexItem | { noteId: string; pageKey: string }) {
+    const targetNote = workspace.notes.find((note) => note.id === target.noteId);
+    if (!targetNote) return;
+    const targetCourse = workspace.courses.find((item) => item.id === targetNote.courseId);
+    const snapshot: NavigationSnapshot = {
+      selectedTerm,
+      courseId: course?.id ?? courseId,
+      lessonId,
+      activeLessonId,
+      selectedNoteId: selectedNote?.id ?? selectedNoteId,
+      query,
+      searchOpen,
+      scrollTop: contentScrollRef.current?.scrollTop ?? 0
+    };
+    window.history.replaceState({ ...window.history.state, studyNoteSnapshot: snapshot }, "");
+    const hash = target.pageKey ? pageAnchorId(targetNote.id, target.pageKey) : `note-${targetNote.id}`;
+    window.history.pushState({ studyNotePage: true }, "", `#${hash}`);
+
+    if (targetCourse) setSelectedTerm(targetCourse.term);
+    setCourseId(targetNote.courseId);
+    setLessonId(targetNote.lessonId);
+    setActiveLessonId(targetNote.lessonId);
+    setSelectedNoteId(targetNote.id);
+    setSearchOpen(false);
+    setPendingJump({ noteId: targetNote.id, pageKey: target.pageKey });
+  }
+
+  async function togglePageStar(noteId: string, page: { key: string; pageNumber: number }) {
+    const existing = workspace.noteStars.find((item) => item.noteId === noteId && item.pageKey === page.key);
+    const optimisticStar: NoteStar = {
+      userId: initialUser.id,
+      noteId,
+      pageKey: page.key,
+      pageNumber: page.pageNumber,
+      createdAt: new Date().toISOString()
+    };
+    setStarMessage("");
+    setWorkspace((current) => ({
+      ...current,
+      noteStars: existing
+        ? current.noteStars.filter((item) => !(item.noteId === noteId && item.pageKey === page.key))
+        : [...current.noteStars, optimisticStar]
+    }));
+
+    try {
+      const response = await fetch("/api/stars", {
+        method: existing ? "DELETE" : "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ noteId, pageKey: page.key, pageNumber: page.pageNumber })
+      });
+      if (!response.ok) throw new Error("STAR_SAVE_FAILED");
+    } catch {
+      setWorkspace((current) => ({
+        ...current,
+        noteStars: existing
+          ? [...current.noteStars.filter((item) => !(item.noteId === noteId && item.pageKey === page.key)), existing]
+          : current.noteStars.filter((item) => !(item.noteId === noteId && item.pageKey === page.key))
+      }));
+      setStarMessage("星标没有保存成功，请稍后重试。");
+    }
   }
 
   function closeOnboarding() {
@@ -239,25 +384,72 @@ export default function NotebookApp({
               ))}
             </select>
           </div>
-          <label className="search-box">
-            <Search size={18} />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索笔记、公式或知识点" />
-          </label>
+          <div className="search-area" ref={searchAreaRef}>
+            <div className={`search-box${searchOpen && query.trim() ? " active" : ""}`}>
+              <Search size={18} />
+              <input
+                aria-label="搜索全部笔记"
+                autoComplete="off"
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setSearchOpen(true);
+                }}
+                onFocus={() => setSearchOpen(true)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") setSearchOpen(false);
+                  if (event.key === "Enter" && visibleSearchResults[0]) navigateToLocatedPage(visibleSearchResults[0]);
+                }}
+                placeholder="搜索笔记、公式或知识点"
+                value={query}
+              />
+              {query ? (
+                <button
+                  aria-label="清除搜索"
+                  className="search-clear"
+                  onClick={() => {
+                    setQuery("");
+                    setSearchOpen(false);
+                    setSearchCourseId("");
+                  }}
+                  type="button"
+                >
+                  <X size={16} />
+                </button>
+              ) : null}
+            </div>
+            {searchOpen && query.trim() ? (
+              <SearchResultsPanel
+                courseFilter={searchCourseId}
+                courses={workspace.courses}
+                onCourseFilter={setSearchCourseId}
+                onOpenResult={navigateToLocatedPage}
+                query={query}
+                results={visibleSearchResults}
+                totalResults={searchResults.length}
+              />
+            ) : null}
+          </div>
         </header>
 
         <div className={`workspace ${organizerCollapsed ? "organizer-collapsed" : ""}`}>
-          <div className="content-scroll" data-scroll-region="notes">
+          <div className="content-scroll" data-scroll-region="notes" ref={contentScrollRef}>
             {activeLesson ? (
               <LessonDetail
                 course={course}
                 lesson={activeLesson}
-                notes={filteredNotes}
+                notes={visibleNotes}
                 selectedNote={selectedNote}
+                noteStars={workspace.noteStars}
+                pendingJump={pendingJump}
+                starMessage={starMessage}
                 onBack={() => {
                   setActiveLessonId(null);
                   setSelectedNoteId("");
                 }}
                 onSelectNote={setSelectedNoteId}
+                onNavigateToPage={navigateToLocatedPage}
+                onTogglePageStar={togglePageStar}
+                onJumpHandled={() => setPendingJump(null)}
                 onWorkspaceUpdated={setWorkspace}
               />
             ) : (
@@ -317,6 +509,83 @@ export default function NotebookApp({
       ) : null}
     </main>
   );
+}
+
+function SearchResultsPanel({
+  courseFilter,
+  courses,
+  onCourseFilter,
+  onOpenResult,
+  query,
+  results,
+  totalResults
+}: {
+  courseFilter: string;
+  courses: Course[];
+  onCourseFilter: (courseId: string) => void;
+  onOpenResult: (result: SearchResult) => void;
+  query: string;
+  results: SearchResult[];
+  totalResults: number;
+}) {
+  const shownResults = results.slice(0, 80);
+  return (
+    <section aria-label="笔记搜索结果" className="search-results-panel">
+      <div className="search-results-header">
+        <div>
+          <span className="search-results-kicker">全文搜索</span>
+          <strong>{courseFilter ? `${results.length} 条结果` : `${totalResults} 条结果`}</strong>
+        </div>
+        <label>
+          <span className="sr-only">筛选课程</span>
+          <select onChange={(event) => onCourseFilter(event.target.value)} value={courseFilter}>
+            <option value="">全部课程</option>
+            {courses.map((course) => (
+              <option key={course.id} value={course.id}>{course.code} · {course.title}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="search-results-list">
+        {shownResults.length ? shownResults.map((result) => (
+          <button className="search-result-card" key={`${result.noteId}-${result.pageKey ?? "note"}`} onClick={() => onOpenResult(result)} type="button">
+            <div className="search-result-title">
+              <span>{result.pageNumber ? `第${result.pageNumber}页` : "整篇笔记"}</span>
+              <strong>{result.pageTitle}</strong>
+              <ChevronRight size={17} />
+            </div>
+            <p><HighlightedText query={query} text={result.excerpt} /></p>
+            <div className="search-result-path">
+              <span className="search-course-code">{result.courseCode}</span>
+              <span>{result.courseTitle}</span>
+              <ChevronRight size={13} />
+              <span>{result.lessonTitle}</span>
+              <ChevronRight size={13} />
+              <span>{result.noteTitle}</span>
+            </div>
+          </button>
+        )) : (
+          <div className="search-empty">
+            <Search size={24} />
+            <strong>没有找到相关内容</strong>
+            <span>换一个关键词，或切换到“全部课程”后再试。</span>
+          </div>
+        )}
+      </div>
+      {results.length > shownResults.length ? (
+        <div className="search-results-limit">结果较多，当前显示相关度最高的前 {shownResults.length} 项。</div>
+      ) : null}
+    </section>
+  );
+}
+
+function HighlightedText({ text, query }: { text: string; query: string }) {
+  const tokens = Array.from(new Set(query.trim().split(/\s+/).filter(Boolean))).sort((a, b) => b.length - a.length);
+  if (!tokens.length) return <>{text}</>;
+  const pattern = new RegExp(`(${tokens.map(escapeRegExp).join("|")})`, "giu");
+  const tokenSet = new Set(tokens.map((token) => token.toLocaleLowerCase()));
+  return <>{text.split(pattern).map((part, index) => tokenSet.has(part.toLocaleLowerCase()) ? <mark key={`${part}-${index}`}>{part}</mark> : part)}</>;
 }
 
 const onboardingSteps = [
@@ -472,18 +741,58 @@ function LessonDetail({
   lesson,
   notes,
   selectedNote,
+  noteStars,
+  pendingJump,
+  starMessage,
   onBack,
   onSelectNote,
+  onNavigateToPage,
+  onTogglePageStar,
+  onJumpHandled,
   onWorkspaceUpdated
 }: {
   course?: Course;
   lesson: Lesson;
   notes: Note[];
   selectedNote?: Note;
+  noteStars: NoteStar[];
+  pendingJump: PageJump | null;
+  starMessage: string;
   onBack: () => void;
   onSelectNote: (id: string) => void;
+  onNavigateToPage: (target: SearchIndexItem | { noteId: string; pageKey: string }) => void;
+  onTogglePageStar: (noteId: string, page: { key: string; pageNumber: number }) => void | Promise<void>;
+  onJumpHandled: () => void;
   onWorkspaceUpdated: (workspace: Workspace) => void;
 }) {
+  const pages = useMemo(
+    () => (selectedNote ? extractNotePages(selectedNote.contentMarkdown) : []),
+    [selectedNote]
+  );
+  const selectedNoteStars = selectedNote ? noteStars.filter((star) => star.noteId === selectedNote.id) : [];
+  const starredPageKeys = useMemo(
+    () => new Set(selectedNoteStars.map((star) => star.pageKey)),
+    [selectedNoteStars]
+  );
+  const [targetPageKey, setTargetPageKey] = useState<string>();
+
+  useEffect(() => {
+    if (!selectedNote || pendingJump?.noteId !== selectedNote.id) return;
+    const timer = window.setTimeout(() => {
+      if (pendingJump.pageKey) {
+        const element = document.getElementById(pageAnchorId(selectedNote.id, pendingJump.pageKey));
+        element?.scrollIntoView({ behavior: "smooth", block: "start" });
+        element?.focus({ preventScroll: true });
+        setTargetPageKey(pendingJump.pageKey);
+        window.setTimeout(() => setTargetPageKey(undefined), 1800);
+      } else {
+        document.getElementById(`note-${selectedNote.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      onJumpHandled();
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [onJumpHandled, pendingJump, selectedNote]);
+
   return (
     <>
       <button className="back-button" onClick={onBack} type="button">
@@ -538,7 +847,7 @@ function LessonDetail({
 
       {selectedNote ? (
         <>
-          <section className="note-reader">
+          <section className="note-reader" id={`note-${selectedNote.id}`}>
             <div className="panel-heading">
               <div>
                 <h2>{selectedNote.title}</h2>
@@ -550,11 +859,156 @@ function LessonDetail({
                 onWorkspaceUpdated={onWorkspaceUpdated}
               />
             </div>
+            <StarredPagesPanel
+              key={selectedNote.id}
+              note={selectedNote}
+              onNavigate={(pageKey) => onNavigateToPage({ noteId: selectedNote.id, pageKey })}
+              onToggle={(page) => onTogglePageStar(selectedNote.id, page)}
+              pages={pages}
+              stars={selectedNoteStars}
+              targetPageKey={targetPageKey}
+            />
+            {starMessage ? <div className="star-save-message" role="status">{starMessage}</div> : null}
             <CoursewareImages key={selectedNote.id} note={selectedNote} onUpdate={onWorkspaceUpdated} />
-            <MarkdownView content={selectedNote.contentMarkdown} />
+            <MarkdownView
+              content={selectedNote.contentMarkdown}
+              pageStars={{
+                noteId: selectedNote.id,
+                pages,
+                starredPageKeys,
+                targetPageKey,
+                onToggle: (page) => void onTogglePageStar(selectedNote.id, page)
+              }}
+            />
           </section>
           <LearningArtifacts note={selectedNote} />
         </>
+      ) : null}
+    </>
+  );
+}
+
+function StarredPagesPanel({
+  note,
+  onNavigate,
+  onToggle,
+  pages,
+  stars,
+  targetPageKey
+}: {
+  note: Note;
+  onNavigate: (pageKey: string) => void;
+  onToggle: (page: { key: string; pageNumber: number }) => void | Promise<void>;
+  pages: NotePageSection[];
+  stars: NoteStar[];
+  targetPageKey?: string;
+}) {
+  const [expanded, setExpanded] = useState(true);
+  const [showAll, setShowAll] = useState(false);
+  const [showReturn, setShowReturn] = useState(false);
+  const panelRef = useRef<HTMLElement>(null);
+  const headingRef = useRef<HTMLButtonElement>(null);
+  const items = stars
+    .map((star) => ({ star, page: pages.find((page) => page.key === star.pageKey) }))
+    .sort((left, right) => (left.page?.order ?? Number.MAX_SAFE_INTEGER) - (right.page?.order ?? Number.MAX_SAFE_INTEGER));
+  const shownItems = showAll ? items : items.slice(0, 8);
+
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel || !items.length) {
+      setShowReturn(false);
+      return;
+    }
+    const scrollRegion = panel.closest("[data-scroll-region='notes']");
+    const root = scrollRegion && getComputedStyle(scrollRegion).overflowY === "auto" ? scrollRegion : null;
+    const observer = new IntersectionObserver(
+      ([entry]) => setShowReturn(!entry.isIntersecting),
+      { root, threshold: 0.06 }
+    );
+    observer.observe(panel);
+    return () => observer.disconnect();
+  }, [items.length]);
+
+  function returnToPanel() {
+    setExpanded(true);
+    panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.setTimeout(() => headingRef.current?.focus({ preventScroll: true }), 350);
+  }
+
+  return (
+    <>
+      <section aria-label={`${note.title}的加星页面`} className="starred-pages-panel" ref={panelRef}>
+        <button
+          aria-expanded={expanded}
+          className="starred-pages-heading"
+          onClick={() => setExpanded((value) => !value)}
+          ref={headingRef}
+          type="button"
+        >
+          <span className="starred-pages-icon"><Star fill="currentColor" size={17} /></span>
+          <span>
+            <strong>加星页面</strong>
+            <small>{items.length ? `${items.length} 个复习重点` : "收藏重点页面，复习更快捷"}</small>
+          </span>
+          <span className="starred-pages-count">{items.length}</span>
+          {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+        </button>
+
+        {expanded ? (
+          <div className="starred-pages-body">
+            {shownItems.length ? (
+              <div className="starred-pages-grid">
+                {shownItems.map(({ star, page }) => (
+                  <div className={`starred-page-card${targetPageKey === star.pageKey ? " active" : ""}`} key={star.pageKey}>
+                    <button
+                      className="starred-page-link"
+                      disabled={!page}
+                      onClick={() => page && onNavigate(page.key)}
+                      type="button"
+                    >
+                      <span className="starred-page-number">
+                        第{star.pageNumber}页{page && page.occurrence > 1 ? ` · 第${page.occurrence}处` : ""}
+                      </span>
+                      <strong>{page?.title ?? "原页面已不存在"}</strong>
+                      <small>{page?.excerpt ?? "笔记更新后未找到这一个页面，你可以移除该星标。"}</small>
+                    </button>
+                    <button
+                      aria-label={`取消加星：第${star.pageNumber}页`}
+                      className="starred-page-remove"
+                      onClick={() => void onToggle({ key: star.pageKey, pageNumber: star.pageNumber })}
+                      title="取消加星"
+                      type="button"
+                    >
+                      <Star fill="currentColor" size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="starred-pages-empty">
+                <span><Star size={19} /></span>
+                <div>
+                  <strong>还没有加星页面</strong>
+                  <p>阅读时点击“第N页”标题右侧的空心星，即可把重点收进这里。</p>
+                </div>
+              </div>
+            )}
+            {items.length > 8 ? (
+              <button className="starred-pages-more" onClick={() => setShowAll((value) => !value)} type="button">
+                {showAll ? "收起多余项目" : `显示剩余 ${items.length - 8} 页`}
+                {showAll ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      </section>
+
+      {showReturn ? (
+        <button className="return-to-stars" onClick={returnToPanel} type="button">
+          <CornerUpLeft size={17} />
+          <Star fill="currentColor" size={15} />
+          返回加星列表
+        </button>
       ) : null}
     </>
   );
@@ -1271,6 +1725,79 @@ function MindMapItem({ node }: { node: MindMapNode }) {
       ) : null}
     </li>
   );
+}
+
+function buildSearchIndex(courses: Course[], lessons: Lesson[], notes: Note[]): SearchIndexItem[] {
+  const courseMap = new Map(courses.map((course) => [course.id, course]));
+  const lessonMap = new Map(lessons.map((lesson) => [lesson.id, lesson]));
+  const index: SearchIndexItem[] = [];
+
+  for (const note of notes) {
+    const course = courseMap.get(note.courseId);
+    const lesson = lessonMap.get(note.lessonId);
+    if (!course || !lesson) continue;
+    const pages = extractNotePages(note.contentMarkdown);
+    const mainMarkdown = note.contentMarkdown.split("\n<!-- courseware-appendix -->\n")[0] ?? note.contentMarkdown;
+    const overviewText = pages.length ? markdownToPlainText(mainMarkdown.slice(0, pages[0].sourceStart)) : "";
+    const pageEntries = pages.map((page) => ({
+          pageKey: page.key,
+          pageNumber: page.pageNumber,
+          pageTitle: page.title,
+          plainText: page.plainText
+        }));
+    const entries = pages.length
+      ? [
+          ...(overviewText ? [{ pageKey: undefined, pageNumber: undefined, pageTitle: "笔记概览", plainText: overviewText }] : []),
+          ...pageEntries
+        ]
+      : [{ pageKey: undefined, pageNumber: undefined, pageTitle: note.title, plainText: markdownToPlainText(note.contentMarkdown) }];
+
+    for (const entry of entries) {
+      const metadata = `${course.code} ${course.title} ${lesson.title} ${lesson.subtitle} ${note.title} ${note.summary} ${entry.pageTitle}`;
+      index.push({
+        noteId: note.id,
+        courseId: course.id,
+        lessonId: lesson.id,
+        pageKey: entry.pageKey,
+        pageNumber: entry.pageNumber,
+        pageTitle: entry.pageTitle,
+        courseTitle: course.title,
+        courseCode: course.code,
+        lessonTitle: lesson.title,
+        noteTitle: note.title,
+        plainText: entry.plainText,
+        haystack: `${metadata} ${entry.plainText}`.toLocaleLowerCase()
+      });
+    }
+  }
+  return index;
+}
+
+function searchNotes(index: SearchIndexItem[], query: string): SearchResult[] {
+  const normalized = query.trim().toLocaleLowerCase();
+  if (!normalized) return [];
+  const tokens = normalized.split(/\s+/).filter(Boolean);
+
+  return index
+    .filter((item) => tokens.every((token) => item.haystack.includes(token)))
+    .map((item) => {
+      const titleText = `${item.pageTitle} ${item.noteTitle}`.toLocaleLowerCase();
+      const pathText = `${item.courseCode} ${item.courseTitle} ${item.lessonTitle}`.toLocaleLowerCase();
+      const bodyIndex = item.plainText.toLocaleLowerCase().indexOf(normalized);
+      let score = 0;
+      if (item.pageTitle.toLocaleLowerCase().includes(normalized)) score += 90;
+      if (item.noteTitle.toLocaleLowerCase().includes(normalized)) score += 65;
+      if (titleText.includes(normalized)) score += 30;
+      if (pathText.includes(normalized)) score += 22;
+      if (bodyIndex >= 0) score += Math.max(12, 45 - Math.min(30, Math.floor(bodyIndex / 120)));
+      score += tokens.reduce((sum, token) => sum + (titleText.includes(token) ? 8 : 0), 0);
+      return { ...item, excerpt: makeExcerpt(item.plainText, normalized, 165), score };
+    })
+    .sort((left, right) => right.score - left.score || left.courseCode.localeCompare(right.courseCode) || (left.pageNumber ?? 0) - (right.pageNumber ?? 0));
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function formatFileSize(bytes: number) {

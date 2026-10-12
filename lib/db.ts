@@ -1,7 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { nanoid } from "nanoid";
-import type { AppDb, Course, Lesson, MediaAsset, Note, PasswordReset, User, UserPreferences } from "@/lib/types";
+import type { AppDb, Course, Lesson, MediaAsset, Note, NoteStar, PasswordReset, User, UserPreferences } from "@/lib/types";
 
 const dataDir =
   process.env.APP_DATA_DIR ||
@@ -25,6 +25,7 @@ const emptyDb: AppDb = {
   courses: [],
   lessons: [],
   notes: [],
+  noteStars: [],
   mediaAssets: []
 };
 
@@ -58,6 +59,7 @@ async function readDb(): Promise<AppDb> {
   db.preferences ??= [];
   db.passwordResets ??= [];
   db.mediaAssets ??= [];
+  db.noteStars ??= [];
   for (const user of db.users) {
     if (!db.preferences.some((item) => item.userId === user.id)) {
       db.preferences.push(defaultPreferences(user.id));
@@ -221,8 +223,9 @@ export async function getWorkspace(userId: string) {
     const courses = db.courses.filter((course) => course.userId === userId);
     const lessons = db.lessons.filter((lesson) => lesson.userId === userId);
     const notes = db.notes.filter((note) => note.userId === userId);
+    const noteStars = db.noteStars.filter((star) => star.userId === userId);
     const preferences = db.preferences.find((item) => item.userId === userId) ?? defaultPreferences(userId);
-    return { courses, lessons, notes, preferences };
+    return { courses, lessons, notes, noteStars, preferences };
   });
 }
 
@@ -363,6 +366,7 @@ export async function deleteCourse(userId: string, courseId: string) {
     );
     db.lessons = db.lessons.filter((lesson) => !(lesson.userId === userId && lesson.courseId === courseId));
     db.notes = db.notes.filter((note) => !(note.userId === userId && note.courseId === courseId));
+    db.noteStars = db.noteStars.filter((star) => !removedNoteIds.has(star.noteId));
     const removedMediaAssets = db.mediaAssets.filter((asset) => removedNoteIds.has(asset.noteId));
     db.mediaAssets = db.mediaAssets.filter((asset) => !removedNoteIds.has(asset.noteId));
     return { course, removedMediaAssets };
@@ -391,6 +395,7 @@ export async function deleteLesson(userId: string, lessonId: string) {
       db.notes.filter((note) => note.userId === userId && note.lessonId === lessonId).map((note) => note.id)
     );
     db.notes = db.notes.filter((note) => !(note.userId === userId && note.lessonId === lessonId));
+    db.noteStars = db.noteStars.filter((star) => !removedNoteIds.has(star.noteId));
     const removedMediaAssets = db.mediaAssets.filter((asset) => removedNoteIds.has(asset.noteId));
     db.mediaAssets = db.mediaAssets.filter((asset) => !removedNoteIds.has(asset.noteId));
     return { lesson, removedMediaAssets };
@@ -430,6 +435,7 @@ export async function deleteNote(userId: string, noteId: string) {
     const index = db.notes.findIndex((item) => item.id === noteId && item.userId === userId);
     if (index === -1) return null;
     const [note] = db.notes.splice(index, 1);
+    db.noteStars = db.noteStars.filter((star) => !(star.userId === userId && star.noteId === noteId));
     const removedMediaAssets = db.mediaAssets.filter((asset) => asset.userId === userId && asset.noteId === noteId);
     db.mediaAssets = db.mediaAssets.filter((asset) => !(asset.userId === userId && asset.noteId === noteId));
     return { note, removedMediaAssets };
@@ -438,6 +444,42 @@ export async function deleteNote(userId: string, noteId: string) {
 
 export async function findNoteById(userId: string, noteId: string) {
   return viewDb((db) => db.notes.find((note) => note.id === noteId && note.userId === userId) ?? null);
+}
+
+export async function saveNoteStar(
+  userId: string,
+  input: Pick<NoteStar, "noteId" | "pageKey" | "pageNumber">
+) {
+  return mutateDb((db) => {
+    const note = db.notes.find((item) => item.id === input.noteId && item.userId === userId);
+    if (!note) return null;
+
+    const existing = db.noteStars.find(
+      (item) => item.userId === userId && item.noteId === input.noteId && item.pageKey === input.pageKey
+    );
+    if (existing) return existing;
+
+    const star: NoteStar = {
+      userId,
+      noteId: input.noteId,
+      pageKey: input.pageKey,
+      pageNumber: input.pageNumber,
+      createdAt: new Date().toISOString()
+    };
+    db.noteStars.push(star);
+    return star;
+  });
+}
+
+export async function removeNoteStar(userId: string, noteId: string, pageKey: string) {
+  return mutateDb((db) => {
+    const index = db.noteStars.findIndex(
+      (item) => item.userId === userId && item.noteId === noteId && item.pageKey === pageKey
+    );
+    if (index === -1) return false;
+    db.noteStars.splice(index, 1);
+    return true;
+  });
 }
 
 export async function createMediaAsset(input: Omit<MediaAsset, "createdAt">) {
