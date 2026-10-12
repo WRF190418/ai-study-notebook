@@ -830,6 +830,67 @@ button {
   font-weight: 800;
 }
 
+.quick-back-slot {
+  position: sticky;
+  top: 14px;
+  z-index: 60;
+  width: max-content;
+  height: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.quick-back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 46px;
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--line));
+  border-radius: 14px;
+  padding: 5px 15px 5px 6px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 12px 30px rgba(39, 65, 61, 0.16), 0 2px 7px rgba(39, 65, 61, 0.08);
+  color: var(--primary-ink);
+  font-weight: 850;
+  opacity: 0;
+  transform: translateY(-10px) scale(0.97);
+  transition:
+    opacity 150ms ease,
+    transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 150ms ease;
+  backdrop-filter: blur(14px) saturate(1.2);
+}
+
+.quick-back-slot.visible {
+  pointer-events: auto;
+  visibility: visible;
+}
+
+.quick-back-slot.visible .quick-back-button {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.quick-back-button:hover {
+  box-shadow: 0 15px 34px rgba(39, 65, 61, 0.2), 0 3px 8px rgba(39, 65, 61, 0.1);
+  transform: translateY(-1px) scale(1);
+}
+
+.quick-back-button:focus-visible {
+  outline: 3px solid rgba(55, 137, 116, 0.24);
+  outline-offset: 3px;
+}
+
+.quick-back-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--primary-soft);
+  color: var(--primary-ink);
+}
+
 .lesson-detail-hero {
   display: flex;
   align-items: end;
@@ -2141,7 +2202,8 @@ button {
 .app-shell .ghost-button,
 .app-shell .icon-button,
 .app-shell .nav-item,
-.app-shell .back-button {
+.app-shell .back-button,
+.app-shell .quick-back-button {
   border-radius: var(--button-radius-value);
 }
 

@@ -818,6 +818,52 @@ function LessonDetail({
   );
   const [targetPageKey, setTargetPageKey] = useState<string>();
   const [autoOpenNoteKey, setAutoOpenNoteKey] = useState<string>();
+  const [showQuickBack, setShowQuickBack] = useState(false);
+
+  useEffect(() => {
+    const scrollRegion = document.querySelector<HTMLElement>('[data-scroll-region="notes"]');
+    if (!scrollRegion) return;
+
+    let lastScrollTop = scrollRegion.scrollTop;
+    let lastScrollAt = performance.now();
+    let upwardWindowStartedAt = lastScrollAt;
+    let upwardDistance = 0;
+
+    const resetUpwardWindow = (now: number) => {
+      upwardWindowStartedAt = now;
+      upwardDistance = 0;
+    };
+
+    const handleScroll = () => {
+      const now = performance.now();
+      const scrollTop = scrollRegion.scrollTop;
+      const delta = scrollTop - lastScrollTop;
+      const elapsed = Math.max(now - lastScrollAt, 8);
+
+      if (scrollTop < 160) {
+        setShowQuickBack(false);
+        resetUpwardWindow(now);
+      } else if (delta > 2) {
+        setShowQuickBack(false);
+        resetUpwardWindow(now);
+      } else if (delta < -2) {
+        if (now - upwardWindowStartedAt > 180) resetUpwardWindow(now);
+        upwardDistance += Math.abs(delta);
+
+        const upwardSpeed = Math.abs(delta) / elapsed;
+        const isFastGesture = upwardSpeed >= 0.68 && Math.abs(delta) >= 12;
+        const isQuickSequence = upwardDistance >= 56 && now - upwardWindowStartedAt <= 180;
+
+        if (isFastGesture || isQuickSequence) setShowQuickBack(true);
+      }
+
+      lastScrollTop = scrollTop;
+      lastScrollAt = now;
+    };
+
+    scrollRegion.addEventListener("scroll", handleScroll, { passive: true });
+    return () => scrollRegion.removeEventListener("scroll", handleScroll);
+  }, [lesson.id]);
 
   useEffect(() => {
     if (!selectedNote || pendingJump?.noteId !== selectedNote.id) return;
@@ -838,6 +884,21 @@ function LessonDetail({
 
   return (
     <>
+      <div className={`quick-back-slot ${showQuickBack ? "visible" : ""}`}>
+        <button
+          className="quick-back-button"
+          onClick={onBack}
+          type="button"
+          aria-label="快速返回课程章节"
+          tabIndex={showQuickBack ? 0 : -1}
+        >
+          <span className="quick-back-icon" aria-hidden="true">
+            <ChevronLeft size={18} />
+          </span>
+          返回课程章节
+        </button>
+      </div>
+
       <button className="back-button" onClick={onBack} type="button">
         <ChevronLeft size={18} />
         返回课程章节
