@@ -1532,29 +1532,45 @@ button {
 .focus-reader-toolbar {
   position: fixed;
   z-index: 180;
-  top: 10px;
+  top: 0;
   left: 50%;
   display: flex;
-  width: 168px;
-  min-height: 44px;
+  width: 160px;
+  min-height: 28px;
   align-items: center;
   justify-content: center;
   gap: 0;
   overflow: hidden;
-  border: 1px solid rgba(210, 220, 217, 0.88);
-  border-radius: 15px;
-  padding: 7px 13px;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 12px 30px rgba(23, 32, 51, 0.14), 0 2px 8px rgba(23, 32, 51, 0.06);
+  border: 1px solid transparent;
+  border-radius: 0 0 15px 15px;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
   transform: translateX(-50%);
-  backdrop-filter: blur(18px) saturate(1.2);
+  backdrop-filter: none;
   transition:
     width 220ms ease,
     min-height 220ms ease,
     gap 220ms ease,
     border-radius 220ms ease,
     padding 220ms ease,
+    background 160ms ease,
+    border-color 160ms ease,
     box-shadow 220ms ease;
+}
+
+.focus-reader-toolbar::after {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  width: 42px;
+  height: 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 55%, #8e9995);
+  content: "";
+  opacity: 0.24;
+  transform: translateX(-50%);
+  transition: opacity 120ms ease;
 }
 
 .focus-reader-toolbar:hover,
@@ -1565,10 +1581,19 @@ button {
   justify-content: space-between;
   gap: 20px;
   overflow: visible;
+  border-color: rgba(210, 220, 217, 0.88);
   border-radius: 18px;
   padding: 8px 9px 8px 16px;
+  background: rgba(255, 255, 255, 0.92);
   box-shadow: 0 18px 46px rgba(23, 32, 51, 0.16), 0 3px 10px rgba(23, 32, 51, 0.07);
   outline: 0;
+  backdrop-filter: blur(18px) saturate(1.2);
+}
+
+.focus-reader-toolbar:hover::after,
+.focus-reader-toolbar:focus-visible::after,
+.focus-reader-toolbar:has(button:focus-visible)::after {
+  opacity: 0;
 }
 
 .focus-reader-status,
@@ -1579,8 +1604,27 @@ button {
 }
 
 .focus-reader-status {
+  width: 0;
+  max-width: 0;
   min-width: 0;
   gap: 10px;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(-3px);
+  visibility: hidden;
+  transition: max-width 200ms ease, opacity 120ms ease, transform 200ms ease, visibility 0s linear 200ms;
+}
+
+.focus-reader-toolbar:hover .focus-reader-status,
+.focus-reader-toolbar:focus-visible .focus-reader-status,
+.focus-reader-toolbar:has(button:focus-visible) .focus-reader-status {
+  width: auto;
+  max-width: 360px;
+  overflow: visible;
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+  transition-delay: 0s;
 }
 
 .focus-reader-status > span:last-child {
@@ -1763,10 +1807,18 @@ button {
 }
 
 .app-shell.focus-mode.focus-dark .focus-reader-toolbar {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: #e8eeeb;
+}
+
+.app-shell.focus-mode.focus-dark .focus-reader-toolbar:hover,
+.app-shell.focus-mode.focus-dark .focus-reader-toolbar:focus-visible,
+.app-shell.focus-mode.focus-dark .focus-reader-toolbar:has(button:focus-visible) {
   border-color: rgba(75, 91, 85, 0.9);
   background: rgba(20, 27, 25, 0.93);
   box-shadow: 0 20px 54px rgba(0, 0, 0, 0.42);
-  color: #e8eeeb;
 }
 
 .app-shell.focus-mode.focus-dark .focus-reader-toolbar button.focus-reader-back,
@@ -2860,8 +2912,22 @@ button {
     min-height: 58px;
     gap: 8px;
     overflow: visible;
+    border-color: rgba(210, 220, 217, 0.88);
     padding: 8px 9px;
     padding-left: 9px;
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 18px 46px rgba(23, 32, 51, 0.16), 0 3px 10px rgba(23, 32, 51, 0.07);
+    backdrop-filter: blur(18px) saturate(1.2);
+  }
+
+  .focus-reader-toolbar::after {
+    display: none;
+  }
+
+  .app-shell.focus-mode.focus-dark .focus-reader-toolbar {
+    border-color: rgba(75, 91, 85, 0.9);
+    background: rgba(20, 27, 25, 0.93);
+    box-shadow: 0 20px 54px rgba(0, 0, 0, 0.42);
   }
 
   .focus-reader-status {

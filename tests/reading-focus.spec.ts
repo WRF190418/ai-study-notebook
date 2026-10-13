@@ -55,7 +55,7 @@ test("remembers the last page and provides a focused reading mode", async ({ pag
   await focusButton.click();
   const focusToolbar = page.getByRole("toolbar", { name: "专注阅读工具栏" });
   await expect(focusToolbar).toBeVisible();
-  expect((await focusToolbar.boundingBox())?.width).toBeLessThan(220);
+  expect((await focusToolbar.boundingBox())?.width).toBeLessThan(190);
   await expect(page.locator(".sidebar")).toBeHidden();
   await expect(page.locator(".topbar")).toBeHidden();
   await expect(page.locator(".organizer")).toBeHidden();
@@ -65,8 +65,8 @@ test("remembers the last page and provides a focused reading mode", async ({ pag
   await expect(page.locator(".app-shell")).toHaveClass(/focus-dark/);
   await expect(page.getByRole("button", { name: "切换为浅色阅读" })).toBeVisible();
   await page.mouse.move(20, 400);
-  await expect.poll(async () => (await focusToolbar.boundingBox())?.width ?? 999).toBeLessThan(220);
-  expect((await focusToolbar.boundingBox())?.height).toBeLessThan(60);
+  await expect.poll(async () => (await focusToolbar.boundingBox())?.width ?? 999).toBeLessThan(190);
+  expect((await focusToolbar.boundingBox())?.height).toBeLessThan(34);
   await page.screenshot({ path: `test-results/focus-reading-dark-${testInfo.project.name}.png`, fullPage: false });
 
   await page.keyboard.press("Escape");
