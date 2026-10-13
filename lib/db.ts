@@ -1,7 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { nanoid } from "nanoid";
-import type { AppDb, Course, Lesson, MediaAsset, Note, NoteStar, PasswordReset, User, UserPreferences } from "@/lib/types";
+import type { AppDb, Course, Lesson, MediaAsset, Note, NoteReadingProgress, NoteStar, PasswordReset, User, UserPreferences } from "@/lib/types";
 
 const dataDir =
   process.env.APP_DATA_DIR ||
@@ -26,6 +26,7 @@ const emptyDb: AppDb = {
   lessons: [],
   notes: [],
   noteStars: [],
+  readingProgress: [],
   mediaAssets: []
 };
 
@@ -60,6 +61,7 @@ async function readDb(): Promise<AppDb> {
   db.passwordResets ??= [];
   db.mediaAssets ??= [];
   db.noteStars ??= [];
+  db.readingProgress ??= [];
   for (const user of db.users) {
     if (!db.preferences.some((item) => item.userId === user.id)) {
       db.preferences.push(defaultPreferences(user.id));
@@ -224,8 +226,9 @@ export async function getWorkspace(userId: string) {
     const lessons = db.lessons.filter((lesson) => lesson.userId === userId);
     const notes = db.notes.filter((note) => note.userId === userId);
     const noteStars = db.noteStars.filter((star) => star.userId === userId);
+    const readingProgress = db.readingProgress.filter((progress) => progress.userId === userId);
     const preferences = db.preferences.find((item) => item.userId === userId) ?? defaultPreferences(userId);
-    return { courses, lessons, notes, noteStars, preferences };
+    return { courses, lessons, notes, noteStars, readingProgress, preferences };
   });
 }
 
@@ -367,6 +370,7 @@ export async function deleteCourse(userId: string, courseId: string) {
     db.lessons = db.lessons.filter((lesson) => !(lesson.userId === userId && lesson.courseId === courseId));
     db.notes = db.notes.filter((note) => !(note.userId === userId && note.courseId === courseId));
     db.noteStars = db.noteStars.filter((star) => !removedNoteIds.has(star.noteId));
+    db.readingProgress = db.readingProgress.filter((progress) => !removedNoteIds.has(progress.noteId));
     const removedMediaAssets = db.mediaAssets.filter((asset) => removedNoteIds.has(asset.noteId));
     db.mediaAssets = db.mediaAssets.filter((asset) => !removedNoteIds.has(asset.noteId));
     return { course, removedMediaAssets };
@@ -396,6 +400,7 @@ export async function deleteLesson(userId: string, lessonId: string) {
     );
     db.notes = db.notes.filter((note) => !(note.userId === userId && note.lessonId === lessonId));
     db.noteStars = db.noteStars.filter((star) => !removedNoteIds.has(star.noteId));
+    db.readingProgress = db.readingProgress.filter((progress) => !removedNoteIds.has(progress.noteId));
     const removedMediaAssets = db.mediaAssets.filter((asset) => removedNoteIds.has(asset.noteId));
     db.mediaAssets = db.mediaAssets.filter((asset) => !removedNoteIds.has(asset.noteId));
     return { lesson, removedMediaAssets };
@@ -436,6 +441,7 @@ export async function deleteNote(userId: string, noteId: string) {
     if (index === -1) return null;
     const [note] = db.notes.splice(index, 1);
     db.noteStars = db.noteStars.filter((star) => !(star.userId === userId && star.noteId === noteId));
+    db.readingProgress = db.readingProgress.filter((progress) => !(progress.userId === userId && progress.noteId === noteId));
     const removedMediaAssets = db.mediaAssets.filter((asset) => asset.userId === userId && asset.noteId === noteId);
     db.mediaAssets = db.mediaAssets.filter((asset) => !(asset.userId === userId && asset.noteId === noteId));
     return { note, removedMediaAssets };
@@ -444,6 +450,29 @@ export async function deleteNote(userId: string, noteId: string) {
 
 export async function findNoteById(userId: string, noteId: string) {
   return viewDb((db) => db.notes.find((note) => note.id === noteId && note.userId === userId) ?? null);
+}
+
+export async function saveReadingProgress(
+  userId: string,
+  input: Pick<NoteReadingProgress, "noteId" | "pageKey" | "pageNumber">
+) {
+  return mutateDb((db) => {
+    const note = db.notes.find((item) => item.id === input.noteId && item.userId === userId);
+    if (!note) return null;
+
+    const updatedAt = new Date().toISOString();
+    const existing = db.readingProgress.find(
+      (progress) => progress.userId === userId && progress.noteId === input.noteId
+    );
+    if (existing) {
+      Object.assign(existing, input, { updatedAt });
+      return existing;
+    }
+
+    const progress: NoteReadingProgress = { userId, ...input, updatedAt };
+    db.readingProgress.push(progress);
+    return progress;
+  });
 }
 
 export async function saveNoteStar(

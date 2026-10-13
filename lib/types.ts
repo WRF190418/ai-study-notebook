@@ -91,6 +91,14 @@ export type NoteStar = {
   createdAt: string;
 };
 
+export type NoteReadingProgress = {
+  userId: string;
+  noteId: string;
+  pageKey: string;
+  pageNumber: number;
+  updatedAt: string;
+};
+
 export type MediaAsset = {
   id: string;
   userId: string;
@@ -116,6 +124,7 @@ export type AppDb = {
   lessons: Lesson[];
   notes: Note[];
   noteStars: NoteStar[];
+  readingProgress: NoteReadingProgress[];
   mediaAssets: MediaAsset[];
 };
 

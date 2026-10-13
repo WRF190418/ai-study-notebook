@@ -1004,6 +1004,32 @@ button {
   line-height: 1.5;
 }
 
+.note-reader-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 9px;
+}
+
+.focus-mode-button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--line));
+  border-radius: 9px;
+  padding: 0 13px;
+  background: var(--primary-soft);
+  color: var(--primary-ink);
+  font-weight: 850;
+  transition: transform 150ms ease, box-shadow 150ms ease, background 150ms ease;
+}
+
+.focus-mode-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 9px 20px rgba(23, 32, 51, 0.09);
+}
+
 .collapse-button {
   width: 42px;
   padding: 0;
@@ -1395,6 +1421,210 @@ button {
 .note-reader {
   margin-top: 22px;
   padding: 26px;
+}
+
+.continue-reading-card {
+  display: grid;
+  width: 100%;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin: -2px 0 20px;
+  border: 1px solid color-mix(in srgb, var(--primary) 19%, var(--line));
+  border-radius: 12px;
+  padding: 12px 14px;
+  background:
+    radial-gradient(circle at 96% 0%, color-mix(in srgb, var(--primary-soft) 72%, transparent), transparent 42%),
+    rgba(250, 253, 252, 0.92);
+  color: var(--ink);
+  text-align: left;
+  transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.continue-reading-card:hover {
+  border-color: color-mix(in srgb, var(--primary) 38%, var(--line));
+  box-shadow: 0 10px 26px rgba(23, 32, 51, 0.08);
+  transform: translateY(-1px);
+}
+
+.continue-reading-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 11px;
+  background: var(--primary-soft);
+  color: var(--primary-ink);
+}
+
+.continue-reading-card small,
+.continue-reading-card strong {
+  display: block;
+}
+
+.continue-reading-card small {
+  margin-bottom: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.continue-reading-card strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.continue-reading-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--primary-ink);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.focus-reader-toolbar {
+  position: fixed;
+  z-index: 180;
+  top: 16px;
+  left: 50%;
+  display: flex;
+  width: min(780px, calc(100vw - 48px));
+  min-height: 58px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border: 1px solid rgba(210, 220, 217, 0.88);
+  border-radius: 18px;
+  padding: 8px 9px 8px 16px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 18px 46px rgba(23, 32, 51, 0.16), 0 3px 10px rgba(23, 32, 51, 0.07);
+  transform: translateX(-50%);
+  backdrop-filter: blur(18px) saturate(1.2);
+}
+
+.focus-reader-status,
+.focus-reader-toolbar-actions,
+.focus-reader-toolbar button {
+  display: inline-flex;
+  align-items: center;
+}
+
+.focus-reader-status {
+  min-width: 0;
+  gap: 10px;
+}
+
+.focus-reader-status > span:last-child {
+  min-width: 0;
+}
+
+.focus-reader-status strong,
+.focus-reader-status small {
+  display: block;
+}
+
+.focus-reader-status small {
+  max-width: 330px;
+  overflow: hidden;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.focus-reader-dot {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 0 5px var(--primary-soft);
+}
+
+.focus-reader-toolbar-actions {
+  flex: 0 0 auto;
+  gap: 7px;
+}
+
+.focus-reader-toolbar button {
+  min-height: 40px;
+  gap: 7px;
+  border: 0;
+  border-radius: 11px;
+  padding: 0 12px;
+  background: var(--primary);
+  color: white;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.focus-reader-toolbar button.focus-reader-back {
+  background: #eef2f1;
+  color: #40505d;
+}
+
+.focus-reader-toolbar kbd {
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 5px;
+  padding: 2px 5px;
+  background: rgba(255, 255, 255, 0.13);
+  color: rgba(255, 255, 255, 0.85);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.app-shell.focus-mode {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.app-shell.focus-mode .sidebar,
+.app-shell.focus-mode .topbar,
+.app-shell.focus-mode .organizer,
+.app-shell.focus-mode .content-scroll > .back-button,
+.app-shell.focus-mode .content-scroll > .lesson-detail-hero,
+.app-shell.focus-mode .content-scroll > .section-title,
+.app-shell.focus-mode .content-scroll > .notes-list,
+.app-shell.focus-mode .content-scroll > .artifact-grid,
+.app-shell.focus-mode .quick-back-slot,
+.app-shell.focus-mode .note-reader-actions,
+.app-shell.focus-mode .continue-reading-card,
+.app-shell.focus-mode .courseware-images {
+  display: none;
+}
+
+.app-shell.focus-mode .main {
+  padding: 0;
+  background:
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--primary-soft) 64%, transparent), transparent 34%),
+    #f3f6f4;
+}
+
+.app-shell.focus-mode .workspace,
+.app-shell.focus-mode .workspace.organizer-collapsed {
+  display: block;
+  max-width: none;
+}
+
+.app-shell.focus-mode .content-scroll {
+  height: 100dvh;
+  padding: 92px max(24px, calc((100vw - 1120px) / 2)) 64px;
+  scroll-padding-top: 92px;
+}
+
+.app-shell.focus-mode .note-reader {
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: clamp(30px, 4vw, 52px);
+  box-shadow: 0 22px 58px rgba(23, 32, 51, 0.09);
+}
+
+.app-shell.focus-mode .note-page-heading {
+  scroll-margin-top: 92px;
 }
 
 .starred-pages-panel {
@@ -2203,7 +2433,9 @@ button {
 .app-shell .icon-button,
 .app-shell .nav-item,
 .app-shell .back-button,
-.app-shell .quick-back-button {
+.app-shell .quick-back-button,
+.app-shell .focus-mode-button,
+.app-shell .focus-reader-toolbar button {
   border-radius: var(--button-radius-value);
 }
 
@@ -2363,6 +2595,30 @@ button {
 
   .app-shell .lesson-grid.lesson-list .lesson-card {
     grid-template-columns: 1fr;
+  }
+
+  .focus-reader-toolbar {
+    width: calc(100vw - 24px);
+    gap: 8px;
+    padding-left: 9px;
+  }
+
+  .focus-reader-status {
+    display: none;
+  }
+
+  .focus-reader-toolbar-actions {
+    width: 100%;
+  }
+
+  .focus-reader-toolbar button {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .app-shell.focus-mode .content-scroll {
+    padding-right: 12px;
+    padding-left: 12px;
   }
 
   .sidebar {

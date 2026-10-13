@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronUp,
+  Clock3,
   CornerUpLeft,
   FileText,
   FunctionSquare,
@@ -18,6 +19,8 @@ import {
   ImagePlus,
   Library,
   LogOut,
+  Maximize2,
+  Minimize2,
   Network,
   Search,
   Sparkles,
@@ -25,7 +28,7 @@ import {
   Upload,
   X
 } from "lucide-react";
-import type { Course, Lesson, MindMapNode, Note, NoteStar, User, UserPreferences } from "@/lib/types";
+import type { Course, Lesson, MindMapNode, Note, NoteReadingProgress, NoteStar, User, UserPreferences } from "@/lib/types";
 import MarkdownView from "@/components/MarkdownView";
 import CoursewareImages from "@/components/CoursewareImages";
 import { extractNotePages, makeExcerpt, markdownToPlainText, pageAnchorId, type NotePageSection } from "@/lib/note-pages";
@@ -35,6 +38,7 @@ type Workspace = {
   lessons: Lesson[];
   notes: Note[];
   noteStars: NoteStar[];
+  readingProgress: NoteReadingProgress[];
   preferences: UserPreferences;
 };
 
@@ -112,6 +116,7 @@ export default function NotebookApp({
   const [pendingJump, setPendingJump] = useState<PageJump | null>(null);
   const [starMessage, setStarMessage] = useState("");
   const [organizerCollapsed, setOrganizerCollapsed] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
   const [appHydrated, setAppHydrated] = useState(false);
   const [onboardingCompletedAt, setOnboardingCompletedAt] = useState(initialUser.onboardingCompletedAt ?? "");
   const [onboardingOpen, setOnboardingOpen] = useState(false);
@@ -157,6 +162,15 @@ export default function NotebookApp({
   }, []);
 
   useEffect(() => {
+    if (!focusMode) return;
+    const exitFocusMode = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setFocusMode(false);
+    };
+    window.addEventListener("keydown", exitFocusMode);
+    return () => window.removeEventListener("keydown", exitFocusMode);
+  }, [focusMode]);
+
+  useEffect(() => {
     function restoreNavigation(event: PopStateEvent) {
       const snapshot = event.state?.studyNoteSnapshot as NavigationSnapshot | undefined;
       if (!snapshot) return;
@@ -200,6 +214,7 @@ export default function NotebookApp({
     setLessonId(firstLesson?.id ?? "");
     setActiveLessonId(null);
     setSelectedNoteId("");
+    setFocusMode(false);
   }
 
   function chooseTerm(nextTerm: string) {
@@ -215,6 +230,7 @@ export default function NotebookApp({
     }
     setActiveLessonId(null);
     setSelectedNoteId("");
+    setFocusMode(false);
   }
 
   function enterLesson(lesson: Lesson) {
@@ -222,6 +238,7 @@ export default function NotebookApp({
     setActiveLessonId(lesson.id);
     const firstNote = workspace.notes.find((note) => note.lessonId === lesson.id);
     setSelectedNoteId(firstNote?.id ?? "");
+    setFocusMode(false);
   }
 
   async function logout() {
@@ -326,6 +343,29 @@ export default function NotebookApp({
     }
   }
 
+  function saveReadingProgress(noteId: string, page: { key: string; pageNumber: number }) {
+    const progress: NoteReadingProgress = {
+      userId: initialUser.id,
+      noteId,
+      pageKey: page.key,
+      pageNumber: page.pageNumber,
+      updatedAt: new Date().toISOString()
+    };
+    setWorkspace((current) => ({
+      ...current,
+      readingProgress: [
+        ...current.readingProgress.filter((item) => item.noteId !== noteId),
+        progress
+      ]
+    }));
+    void fetch("/api/reading-progress", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ noteId, pageKey: page.key, pageNumber: page.pageNumber }),
+      keepalive: true
+    });
+  }
+
   function closeOnboarding() {
     setOnboardingOpen(false);
     if (!onboardingCompletedAt) {
@@ -344,7 +384,7 @@ export default function NotebookApp({
 
   return (
     <main
-      className="app-shell"
+      className={`app-shell${focusMode ? " focus-mode" : ""}`}
       data-primary={workspace.preferences.primaryColor}
       data-button-radius={workspace.preferences.buttonRadius}
       data-button-style={workspace.preferences.buttonStyle}
@@ -475,12 +515,17 @@ export default function NotebookApp({
                 notes={visibleNotes}
                 selectedNote={selectedNote}
                 noteStars={workspace.noteStars}
+                readingProgress={workspace.readingProgress.find((progress) => progress.noteId === selectedNote?.id)}
                 pendingJump={pendingJump}
                 starMessage={starMessage}
+                focusMode={focusMode}
                 onBack={() => {
+                  setFocusMode(false);
                   setActiveLessonId(null);
                   setSelectedNoteId("");
                 }}
+                onToggleFocusMode={() => setFocusMode((value) => !value)}
+                onReadingProgress={saveReadingProgress}
                 onSelectNote={setSelectedNoteId}
                 onNavigateToPage={navigateToLocatedPage}
                 onSavePageStarNote={savePageStarNote}
@@ -778,9 +823,13 @@ function LessonDetail({
   notes,
   selectedNote,
   noteStars,
+  readingProgress,
   pendingJump,
   starMessage,
+  focusMode,
   onBack,
+  onToggleFocusMode,
+  onReadingProgress,
   onSelectNote,
   onNavigateToPage,
   onSavePageStarNote,
@@ -793,9 +842,13 @@ function LessonDetail({
   notes: Note[];
   selectedNote?: Note;
   noteStars: NoteStar[];
+  readingProgress?: NoteReadingProgress;
   pendingJump: PageJump | null;
   starMessage: string;
+  focusMode: boolean;
   onBack: () => void;
+  onToggleFocusMode: () => void;
+  onReadingProgress: (noteId: string, page: { key: string; pageNumber: number }) => void;
   onSelectNote: (id: string) => void;
   onNavigateToPage: (target: SearchIndexItem | { noteId: string; pageKey: string }) => void;
   onSavePageStarNote: (noteId: string, page: { key: string; pageNumber: number }, note: string) => void | Promise<void>;
@@ -819,6 +872,84 @@ function LessonDetail({
   const [targetPageKey, setTargetPageKey] = useState<string>();
   const [autoOpenNoteKey, setAutoOpenNoteKey] = useState<string>();
   const [showQuickBack, setShowQuickBack] = useState(false);
+  const [currentReadingPage, setCurrentReadingPage] = useState<NotePageSection>();
+  const onReadingProgressRef = useRef(onReadingProgress);
+  const resumePage = readingProgress
+    ? pages.find((page) => page.key === readingProgress.pageKey && page.pageNumber === readingProgress.pageNumber)
+    : undefined;
+
+  useEffect(() => {
+    onReadingProgressRef.current = onReadingProgress;
+  }, [onReadingProgress]);
+
+  useEffect(() => {
+    const scrollRegion = document.querySelector<HTMLElement>('[data-scroll-region="notes"]');
+    if (!scrollRegion || !selectedNote || !pages.length) {
+      setCurrentReadingPage(undefined);
+      return;
+    }
+
+    let animationFrame = 0;
+    let saveTimer = 0;
+    let currentPageKey = "";
+    let savedPageKey = "";
+    let pendingPage: NotePageSection | undefined;
+
+    const persistPendingPage = () => {
+      if (!pendingPage || pendingPage.key === savedPageKey) return;
+      savedPageKey = pendingPage.key;
+      onReadingProgressRef.current(selectedNote.id, pendingPage);
+    };
+
+    const detectCurrentPage = () => {
+      const readingLine = scrollRegion.getBoundingClientRect().top + Math.min(220, scrollRegion.clientHeight * 0.28);
+      let activePage: NotePageSection | undefined;
+
+      for (const page of pages) {
+        const heading = document.getElementById(pageAnchorId(selectedNote.id, page.key));
+        if (!heading) continue;
+        if (heading.getBoundingClientRect().top <= readingLine) activePage = page;
+        else break;
+      }
+
+      return activePage;
+    };
+
+    const updateCurrentPage = () => {
+      animationFrame = 0;
+      const activePage = detectCurrentPage();
+
+      if (!activePage || activePage.key === currentPageKey) return;
+      currentPageKey = activePage.key;
+      pendingPage = activePage;
+      setCurrentReadingPage(activePage);
+      window.clearTimeout(saveTimer);
+      saveTimer = window.setTimeout(persistPendingPage, 650);
+    };
+
+    const captureAndPersistCurrentPage = () => {
+      const activePage = detectCurrentPage();
+      if (activePage) pendingPage = activePage;
+      persistPendingPage();
+    };
+
+    const scheduleUpdate = () => {
+      if (!animationFrame) animationFrame = window.requestAnimationFrame(updateCurrentPage);
+    };
+
+    scheduleUpdate();
+    scrollRegion.addEventListener("scroll", scheduleUpdate, { passive: true });
+    window.addEventListener("resize", scheduleUpdate);
+    window.addEventListener("pagehide", captureAndPersistCurrentPage);
+    return () => {
+      scrollRegion.removeEventListener("scroll", scheduleUpdate);
+      window.removeEventListener("resize", scheduleUpdate);
+      window.removeEventListener("pagehide", captureAndPersistCurrentPage);
+      window.cancelAnimationFrame(animationFrame);
+      window.clearTimeout(saveTimer);
+      captureAndPersistCurrentPage();
+    };
+  }, [pages, selectedNote]);
 
   useEffect(() => {
     const scrollRegion = document.querySelector<HTMLElement>('[data-scroll-region="notes"]');
@@ -884,6 +1015,29 @@ function LessonDetail({
 
   return (
     <>
+      {focusMode ? (
+        <div className="focus-reader-toolbar" role="toolbar" aria-label="专注阅读工具栏">
+          <span className="focus-reader-status">
+            <span className="focus-reader-dot" aria-hidden="true" />
+            <span>
+              <strong>专注阅读</strong>
+              <small>{currentReadingPage ? `正在阅读第 ${currentReadingPage.pageNumber} 页` : selectedNote?.title}</small>
+            </span>
+          </span>
+          <span className="focus-reader-toolbar-actions">
+            <button className="focus-reader-back" onClick={onBack} type="button">
+              <ChevronLeft size={17} />
+              返回章节
+            </button>
+            <button aria-label="退出专注阅读" onClick={onToggleFocusMode} type="button">
+              <Minimize2 size={17} />
+              退出专注
+              <kbd>Esc</kbd>
+            </button>
+          </span>
+        </div>
+      ) : null}
+
       <div className={`quick-back-slot ${showQuickBack ? "visible" : ""}`}>
         <button
           className="quick-back-button"
@@ -957,12 +1111,32 @@ function LessonDetail({
                 <h2>{selectedNote.title}</h2>
                 <p>{selectedNote.summary}</p>
               </div>
-              <NoteImageInsert
-                key={selectedNote.id}
-                note={selectedNote}
-                onWorkspaceUpdated={onWorkspaceUpdated}
-              />
+              <div className="note-reader-actions">
+                <button className="focus-mode-button" onClick={onToggleFocusMode} type="button">
+                  {focusMode ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
+                  {focusMode ? "退出专注" : "专注阅读"}
+                </button>
+                <NoteImageInsert
+                  key={selectedNote.id}
+                  note={selectedNote}
+                  onWorkspaceUpdated={onWorkspaceUpdated}
+                />
+              </div>
             </div>
+            {resumePage ? (
+              <button
+                className="continue-reading-card"
+                onClick={() => onNavigateToPage({ noteId: selectedNote.id, pageKey: resumePage.key })}
+                type="button"
+              >
+                <span className="continue-reading-icon" aria-hidden="true"><Clock3 size={19} /></span>
+                <span>
+                  <small>上次阅读位置</small>
+                  <strong>第 {resumePage.pageNumber} 页 · {resumePage.title}</strong>
+                </span>
+                <span className="continue-reading-action">继续阅读 <ChevronRight size={16} /></span>
+              </button>
+            ) : null}
             <StarredPagesPanel
               key={`stars-${selectedNote.id}`}
               note={selectedNote}
