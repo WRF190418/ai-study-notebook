@@ -48,17 +48,26 @@ test("remembers the last page and provides a focused reading mode", async ({ pag
   await page.getByRole("button", { name: /连续阅读章节/ }).click();
 
   const focusButton = page.getByRole("button", { name: "专注阅读" });
+  await expect(focusButton).toBeInViewport();
   await focusButton.click();
   await expect(page.getByRole("toolbar", { name: "专注阅读工具栏" })).toBeVisible();
   await expect(page.locator(".sidebar")).toBeHidden();
   await expect(page.locator(".topbar")).toBeHidden();
   await expect(page.locator(".organizer")).toBeHidden();
+  await page.getByRole("button", { name: "切换为深色阅读" }).click();
+  await expect(page.locator(".app-shell")).toHaveClass(/focus-dark/);
+  await expect(page.getByRole("button", { name: "切换为浅色阅读" })).toBeVisible();
+  await page.screenshot({ path: `test-results/focus-reading-dark-${testInfo.project.name}.png`, fullPage: false });
 
   await page.keyboard.press("Escape");
   await expect(page.getByRole("toolbar", { name: "专注阅读工具栏" })).toBeHidden();
   await expect(page.locator(".sidebar")).toBeVisible();
 
+  await page.locator('[data-scroll-region="notes"]').evaluate((element) => element.scrollTo({ top: 900 }));
+  await expect(focusButton).toBeInViewport();
+
   await focusButton.click();
+  await expect(page.locator(".app-shell")).toHaveClass(/focus-dark/);
   const thirdPage = page.getByRole("heading", { name: /第3页.*重点结论/ });
   const progressSaved = page.waitForResponse(
     (response) =>
@@ -66,7 +75,11 @@ test("remembers the last page and provides a focused reading mode", async ({ pag
       response.request().method() === "PUT" &&
       response.request().postData()?.includes('"pageNumber":3') === true
   );
-  await thirdPage.evaluate((element) => element.scrollIntoView({ block: "start" }));
+  await thirdPage.evaluate((element) => {
+    const scrollRegion = element.closest('[data-scroll-region="notes"]') as HTMLElement;
+    const distance = element.getBoundingClientRect().top - scrollRegion.getBoundingClientRect().top - 120;
+    scrollRegion.scrollTop += distance;
+  });
   await expect(page.getByText("正在阅读第 3 页")).toBeVisible();
   await page.screenshot({ path: `test-results/focus-reading-${testInfo.project.name}.png`, fullPage: false });
 

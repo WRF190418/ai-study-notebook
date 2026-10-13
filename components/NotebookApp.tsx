@@ -21,10 +21,12 @@ import {
   LogOut,
   Maximize2,
   Minimize2,
+  Moon,
   Network,
   Search,
   Sparkles,
   Star,
+  Sun,
   Upload,
   X
 } from "lucide-react";
@@ -117,6 +119,7 @@ export default function NotebookApp({
   const [starMessage, setStarMessage] = useState("");
   const [organizerCollapsed, setOrganizerCollapsed] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
+  const [focusDarkMode, setFocusDarkMode] = useState(false);
   const [appHydrated, setAppHydrated] = useState(false);
   const [onboardingCompletedAt, setOnboardingCompletedAt] = useState(initialUser.onboardingCompletedAt ?? "");
   const [onboardingOpen, setOnboardingOpen] = useState(false);
@@ -146,10 +149,19 @@ export default function NotebookApp({
 
   useEffect(() => {
     setAppHydrated(true);
+    setFocusDarkMode(window.localStorage.getItem(`study-note-focus-theme:${initialUser.id}`) === "dark");
     if (!initialUser.onboardingCompletedAt) {
       setOnboardingOpen(true);
     }
   }, []);
+
+  function toggleFocusDarkMode() {
+    setFocusDarkMode((current) => {
+      const next = !current;
+      window.localStorage.setItem(`study-note-focus-theme:${initialUser.id}`, next ? "dark" : "light");
+      return next;
+    });
+  }
 
   useEffect(() => {
     function closeSearchOnOutsideClick(event: MouseEvent) {
@@ -384,7 +396,7 @@ export default function NotebookApp({
 
   return (
     <main
-      className={`app-shell${focusMode ? " focus-mode" : ""}`}
+      className={`app-shell${focusMode ? " focus-mode" : ""}${focusMode && focusDarkMode ? " focus-dark" : ""}`}
       data-primary={workspace.preferences.primaryColor}
       data-button-radius={workspace.preferences.buttonRadius}
       data-button-style={workspace.preferences.buttonStyle}
@@ -519,12 +531,14 @@ export default function NotebookApp({
                 pendingJump={pendingJump}
                 starMessage={starMessage}
                 focusMode={focusMode}
+                focusDarkMode={focusDarkMode}
                 onBack={() => {
                   setFocusMode(false);
                   setActiveLessonId(null);
                   setSelectedNoteId("");
                 }}
                 onToggleFocusMode={() => setFocusMode((value) => !value)}
+                onToggleFocusDarkMode={toggleFocusDarkMode}
                 onReadingProgress={saveReadingProgress}
                 onSelectNote={setSelectedNoteId}
                 onNavigateToPage={navigateToLocatedPage}
@@ -827,8 +841,10 @@ function LessonDetail({
   pendingJump,
   starMessage,
   focusMode,
+  focusDarkMode,
   onBack,
   onToggleFocusMode,
+  onToggleFocusDarkMode,
   onReadingProgress,
   onSelectNote,
   onNavigateToPage,
@@ -846,8 +862,10 @@ function LessonDetail({
   pendingJump: PageJump | null;
   starMessage: string;
   focusMode: boolean;
+  focusDarkMode: boolean;
   onBack: () => void;
   onToggleFocusMode: () => void;
+  onToggleFocusDarkMode: () => void;
   onReadingProgress: (noteId: string, page: { key: string; pageNumber: number }) => void;
   onSelectNote: (id: string) => void;
   onNavigateToPage: (target: SearchIndexItem | { noteId: string; pageKey: string }) => void;
@@ -1015,6 +1033,15 @@ function LessonDetail({
 
   return (
     <>
+      {selectedNote ? (
+        <div className="side-focus-slot">
+          <button className="side-focus-button" onClick={onToggleFocusMode} type="button">
+            <Maximize2 size={18} />
+            <span>专注阅读</span>
+          </button>
+        </div>
+      ) : null}
+
       {focusMode ? (
         <div className="focus-reader-toolbar" role="toolbar" aria-label="专注阅读工具栏">
           <span className="focus-reader-status">
@@ -1025,6 +1052,15 @@ function LessonDetail({
             </span>
           </span>
           <span className="focus-reader-toolbar-actions">
+            <button
+              aria-label={focusDarkMode ? "切换为浅色阅读" : "切换为深色阅读"}
+              className="focus-theme-toggle"
+              onClick={onToggleFocusDarkMode}
+              type="button"
+            >
+              {focusDarkMode ? <Sun size={17} /> : <Moon size={17} />}
+              {focusDarkMode ? "浅色" : "深色"}
+            </button>
             <button className="focus-reader-back" onClick={onBack} type="button">
               <ChevronLeft size={17} />
               返回章节
@@ -1112,10 +1148,6 @@ function LessonDetail({
                 <p>{selectedNote.summary}</p>
               </div>
               <div className="note-reader-actions">
-                <button className="focus-mode-button" onClick={onToggleFocusMode} type="button">
-                  {focusMode ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
-                  {focusMode ? "退出专注" : "专注阅读"}
-                </button>
                 <NoteImageInsert
                   key={selectedNote.id}
                   note={selectedNote}

@@ -1,14 +1,26 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Maximize2, MessageSquareText, Star, X } from "lucide-react";
+import { Check, Copy, LoaderCircle, Maximize2, MessageSquareText, ScanText, Star, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { pageAnchorId, parsePageHeading, type NotePageSection } from "@/lib/note-pages";
+
+type EnglishOcrLayout = {
+  width: number;
+  height: number;
+  words: Array<{
+    text: string;
+    confidence: number;
+    bbox: { x0: number; y0: number; x1: number; y1: number };
+  }>;
+};
+
+const englishOcrCache = new Map<string, EnglishOcrLayout>();
 
 type PageStars = {
   noteId: string;
@@ -63,7 +75,7 @@ export default function MarkdownView({
   return (
     <article className={`markdown ${compact ? "markdown-compact" : ""}`}>
       <ReactMarkdown skipHtml components={{
-        img: ({ src, alt, title }) => <NoteImage src={typeof src === "string" ? src : undefined} alt={alt || "笔记插图"} caption={title || alt || ""} />,
+        img: MarkdownNoteImage,
         table: ({ children }) => <div className="markdown-table-scroll" tabIndex={0} role="region" aria-label="笔记表格"><table>{children}</table></div>,
         h2: ({ children, node }) => <NotePageHeading level={2} pageStars={pageStars} sourceStart={node?.position?.start.offset}>{children}</NotePageHeading>,
         h3: ({ children, node }) => <NotePageHeading level={3} pageStars={pageStars} sourceStart={node?.position?.start.offset}>{children}</NotePageHeading>
@@ -72,6 +84,10 @@ export default function MarkdownView({
       </ReactMarkdown>
     </article>
   );
+}
+
+function MarkdownNoteImage({ src, alt, title }: ComponentPropsWithoutRef<"img">) {
+  return <NoteImage src={typeof src === "string" ? src : undefined} alt={alt || "笔记插图"} caption={title || alt || ""} />;
 }
 
 function NotePageHeading({
@@ -201,18 +217,149 @@ function reactNodeText(node: ReactNode): string {
 function NoteImage({ src, alt, caption }: { src?: string; alt: string; caption: string }) {
   const [expanded, setExpanded] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [ocrLayout, setOcrLayout] = useState<EnglishOcrLayout>();
+  const [ocrBusy, setOcrBusy] = useState(false);
+  const [ocrActive, setOcrActive] = useState(false);
+  const [ocrError, setOcrError] = useState("");
+  const [selectedText, setSelectedText] = useState("");
+  const [copied, setCopied] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
-  useEffect(() => { setFailed(false); }, [src]);
+  const ocrLayer = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    setFailed(false);
+    setOcrLayout(src ? englishOcrCache.get(src) : undefined);
+    setOcrActive(false);
+    setOcrError("");
+    setSelectedText("");
+    setCopied(false);
+  }, [src]);
   useEffect(() => { if (expanded) dialog.current?.showModal(); }, [expanded]);
-  if (!src) return null;
+  const imageSrc = src ?? "";
+  if (!imageSrc) return null;
+
+  async function toggleOcr() {
+    if (ocrLayout) {
+      setOcrActive((value) => !value);
+      setSelectedText("");
+      setCopied(false);
+      return;
+    }
+
+    setOcrBusy(true);
+    setOcrError("");
+    try {
+      const imageResponse = await fetch(imageSrc);
+      if (!imageResponse.ok) throw new Error("IMAGE_FETCH_FAILED");
+      const image = await imageResponse.blob();
+      const form = new FormData();
+      form.set("image", image, `note-image.${image.type.split("/")[1] || "png"}`);
+      const response = await fetch("/api/ocr/english", { method: "POST", body: form });
+      const data = await response.json();
+      if (!response.ok || !data.layout) throw new Error(data.error || "OCR_FAILED");
+      const layout = data.layout as EnglishOcrLayout;
+      if (!layout.words.length) {
+        setOcrError("没有识别到清晰的英文文字。");
+        return;
+      }
+      englishOcrCache.set(imageSrc, layout);
+      setOcrLayout(layout);
+      setOcrActive(true);
+    } catch (error) {
+      setOcrError(error instanceof Error && /[\u4e00-\u9fff]/.test(error.message) ? error.message : "英文识别失败，请稍后重试。");
+    } finally {
+      setOcrBusy(false);
+    }
+  }
+
+  function captureSelectedText() {
+    window.setTimeout(() => {
+      const selection = window.getSelection();
+      if (!selection || selection.isCollapsed || !ocrLayer.current?.contains(selection.anchorNode)) return;
+      const text = selection.toString().replace(/\s+/g, " ").trim();
+      if (text) {
+        setSelectedText(text);
+        setCopied(false);
+      }
+    }, 0);
+  }
+
+  async function copySelectedText() {
+    if (!selectedText) return;
+    try {
+      await navigator.clipboard.writeText(selectedText);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setOcrError("复制失败，请使用右键菜单中的“复制”。");
+    }
+  }
+
   return (
     <span className="note-figure" role="figure" aria-label={caption || alt}>
       {failed ? <span className="image-unavailable">图片暂时无法读取：{alt}</span> : (
-        <button className="note-image-button" type="button" aria-label={`放大图片：${alt}`} title="放大图片" onClick={() => setExpanded(true)}>
-          <img src={src} alt={alt} loading="lazy" onError={() => setFailed(true)} />
-          <span className="note-image-zoom"><Maximize2 size={17} /></span>
-        </button>
+        <span className={`note-image-stage${ocrActive ? " selecting-text" : ""}`}>
+          <button className="note-image-button" type="button" aria-label={`放大图片：${alt}`} title="放大图片" onClick={() => setExpanded(true)}>
+            <img src={src} alt={alt} loading="lazy" onError={() => setFailed(true)} />
+          </button>
+          {ocrActive && ocrLayout ? (
+            <span
+              aria-label="可选择的图片英文文字"
+              className="ocr-text-layer"
+              onMouseUp={captureSelectedText}
+              ref={ocrLayer}
+            >
+              {ocrLayout.words.map((word, index) => {
+                const width = ((word.bbox.x1 - word.bbox.x0) / ocrLayout.width) * 100;
+                const height = ((word.bbox.y1 - word.bbox.y0) / ocrLayout.height) * 100;
+                return (
+                  <span
+                    className="ocr-word"
+                    key={`${word.bbox.x0}-${word.bbox.y0}-${index}`}
+                    style={{
+                      left: `${(word.bbox.x0 / ocrLayout.width) * 100}%`,
+                      top: `${(word.bbox.y0 / ocrLayout.height) * 100}%`,
+                      width: `${width}%`,
+                      height: `${height}%`,
+                      fontSize: `${Math.max(height, 1.2)}cqh`
+                    }}
+                  >
+                    {word.text}{" "}
+                  </span>
+                );
+              })}
+            </span>
+          ) : null}
+          <span className="note-image-tools">
+            <button
+              aria-label={`${ocrActive ? "关闭文字选择" : "识别并选择英文"}：${alt}`}
+              aria-pressed={ocrActive}
+              className={`note-image-ocr${ocrActive ? " active" : ""}`}
+              disabled={ocrBusy}
+              onClick={() => void toggleOcr()}
+              title={ocrActive ? "关闭文字选择" : "识别并选择英文"}
+              type="button"
+            >
+              {ocrBusy ? <LoaderCircle className="spin" size={17} /> : <ScanText size={17} />}
+              <span>{ocrBusy ? "识别中" : ocrActive ? "选择中" : "选择文字"}</span>
+            </button>
+            <button aria-label={`放大图片：${alt}`} className="note-image-zoom" onClick={() => setExpanded(true)} title="放大图片" type="button">
+              <Maximize2 size={17} />
+            </button>
+          </span>
+          {ocrActive ? (
+            <span className="ocr-selection-bar">
+              <span>{selectedText ? `已选择：${selectedText.slice(0, 54)}${selectedText.length > 54 ? "…" : ""}` : "拖动选择英文，可直接右键复制"}</span>
+              {selectedText ? (
+                <button onClick={() => void copySelectedText()} type="button">
+                  {copied ? <Check size={15} /> : <Copy size={15} />}
+                  {copied ? "已复制" : "复制"}
+                </button>
+              ) : null}
+            </span>
+          ) : null}
+        </span>
       )}
+      {ocrError ? <span className="ocr-error" role="status">{ocrError}</span> : null}
       {caption ? <span className="note-image-caption">{caption}</span> : null}
       {expanded ? createPortal(
         <dialog className="image-lightbox" ref={dialog} aria-label="图片预览" onClose={() => setExpanded(false)} onClick={(event) => {

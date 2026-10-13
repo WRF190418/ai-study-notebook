@@ -1011,25 +1011,6 @@ button {
   gap: 9px;
 }
 
-.focus-mode-button {
-  display: inline-flex;
-  min-height: 40px;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--line));
-  border-radius: 9px;
-  padding: 0 13px;
-  background: var(--primary-soft);
-  color: var(--primary-ink);
-  font-weight: 850;
-  transition: transform 150ms ease, box-shadow 150ms ease, background 150ms ease;
-}
-
-.focus-mode-button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 9px 20px rgba(23, 32, 51, 0.09);
-}
-
 .collapse-button {
   width: 42px;
   padding: 0;
@@ -1484,6 +1465,59 @@ button {
   font-weight: 850;
 }
 
+.side-focus-slot {
+  position: sticky;
+  top: 50%;
+  z-index: 70;
+  display: flex;
+  width: 100%;
+  height: 0;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.side-focus-button {
+  display: inline-flex;
+  min-height: 46px;
+  align-items: center;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--primary) 25%, var(--line));
+  border-radius: 15px 0 0 15px;
+  padding: 0 14px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 13px 32px rgba(23, 32, 51, 0.16), 0 2px 7px rgba(23, 32, 51, 0.07);
+  color: var(--primary-ink);
+  font-weight: 850;
+  pointer-events: auto;
+  transform: translateY(-50%);
+  backdrop-filter: blur(16px) saturate(1.2);
+  transition: border-radius 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.side-focus-button span {
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  white-space: nowrap;
+  transition: max-width 190ms ease, margin-left 190ms ease, opacity 140ms ease;
+}
+
+.side-focus-button:hover,
+.side-focus-button:focus-visible {
+  border-radius: 15px 0 0 15px;
+  box-shadow: 0 16px 38px rgba(23, 32, 51, 0.2), 0 3px 9px rgba(23, 32, 51, 0.08);
+  outline: 0;
+  transform: translateY(-50%) translateX(-2px);
+}
+
+.side-focus-button:hover span,
+.side-focus-button:focus-visible span {
+  max-width: 90px;
+  margin-left: 8px;
+  opacity: 1;
+}
+
 .focus-reader-toolbar {
   position: fixed;
   z-index: 180;
@@ -1566,6 +1600,11 @@ button {
   color: #40505d;
 }
 
+.focus-reader-toolbar button.focus-theme-toggle {
+  background: var(--primary-soft);
+  color: var(--primary-ink);
+}
+
 .focus-reader-toolbar kbd {
   border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 5px;
@@ -1590,6 +1629,7 @@ button {
 .app-shell.focus-mode .content-scroll > .notes-list,
 .app-shell.focus-mode .content-scroll > .artifact-grid,
 .app-shell.focus-mode .quick-back-slot,
+.app-shell.focus-mode .side-focus-slot,
 .app-shell.focus-mode .note-reader-actions,
 .app-shell.focus-mode .continue-reading-card,
 .app-shell.focus-mode .courseware-images {
@@ -1625,6 +1665,140 @@ button {
 
 .app-shell.focus-mode .note-page-heading {
   scroll-margin-top: 92px;
+}
+
+.app-shell.focus-mode.focus-dark {
+  color-scheme: dark;
+  --ink: #e8eeeb;
+  --muted: #9eaaa5;
+  --line: #34413d;
+  --paper: #151c1a;
+  --wash: #0d1211;
+  --primary-soft: color-mix(in srgb, var(--primary) 24%, #19211f);
+  --primary-ink: color-mix(in srgb, var(--primary) 46%, #f4faf7);
+}
+
+.app-shell.focus-mode.focus-dark .main {
+  background:
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--primary) 13%, transparent), transparent 36%),
+    #0d1211;
+}
+
+.app-shell.focus-mode.focus-dark .note-reader {
+  border-color: #2c3935;
+  background: rgba(20, 27, 25, 0.97);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.34);
+}
+
+.app-shell.focus-mode.focus-dark .focus-reader-toolbar {
+  border-color: rgba(75, 91, 85, 0.9);
+  background: rgba(20, 27, 25, 0.93);
+  box-shadow: 0 20px 54px rgba(0, 0, 0, 0.42);
+  color: #e8eeeb;
+}
+
+.app-shell.focus-mode.focus-dark .focus-reader-toolbar button.focus-reader-back,
+.app-shell.focus-mode.focus-dark .focus-reader-toolbar button.focus-theme-toggle {
+  background: #27332f;
+  color: #e1e9e5;
+}
+
+.app-shell.focus-mode.focus-dark .markdown {
+  color: #dfe6e2;
+}
+
+.app-shell.focus-mode.focus-dark .markdown h1,
+.app-shell.focus-mode.focus-dark .markdown h2,
+.app-shell.focus-mode.focus-dark .markdown h3,
+.app-shell.focus-mode.focus-dark .panel-heading h2 {
+  color: #f1f5f3;
+}
+
+.app-shell.focus-mode.focus-dark .markdown a {
+  color: #8bcbb8;
+}
+
+.app-shell.focus-mode.focus-dark .markdown blockquote {
+  border-left-color: var(--primary);
+  background: #1c2925;
+  color: #becbc6;
+}
+
+.app-shell.focus-mode.focus-dark .markdown th {
+  background: #27332f;
+}
+
+.app-shell.focus-mode.focus-dark .markdown th,
+.app-shell.focus-mode.focus-dark .markdown td {
+  border-color: #3a4743;
+}
+
+.app-shell.focus-mode.focus-dark .markdown code {
+  background: #27332f;
+  color: #e7eeeb;
+}
+
+.app-shell.focus-mode.focus-dark .starred-pages-panel {
+  border-color: rgba(207, 153, 60, 0.32);
+  background:
+    radial-gradient(circle at 92% 0%, rgba(180, 124, 36, 0.13), transparent 34%),
+    linear-gradient(145deg, #211e17, #191b18);
+  box-shadow: none;
+}
+
+.app-shell.focus-mode.focus-dark .starred-pages-heading {
+  color: #eadfc9;
+}
+
+.app-shell.focus-mode.focus-dark .starred-pages-heading small,
+.app-shell.focus-mode.focus-dark .starred-pages-empty p {
+  color: #aa9d86;
+}
+
+.app-shell.focus-mode.focus-dark .starred-pages-empty strong {
+  color: #dfd3bd;
+}
+
+.app-shell.focus-mode.focus-dark .starred-pages-body {
+  border-top-color: rgba(207, 153, 60, 0.2);
+}
+
+.app-shell.focus-mode.focus-dark .starred-page-card,
+.app-shell.focus-mode.focus-dark .starred-pages-count {
+  border-color: rgba(207, 153, 60, 0.26);
+  background: rgba(39, 36, 28, 0.9);
+}
+
+.app-shell.focus-mode.focus-dark .page-note-button {
+  border-color: #41504b;
+  background: #26322e;
+  color: #9ab7ae;
+}
+
+.app-shell.focus-mode.focus-dark .page-star-button {
+  color: #77827e;
+}
+
+.app-shell.focus-mode.focus-dark .page-star-button:hover,
+.app-shell.focus-mode.focus-dark .page-star-button:focus-visible {
+  background: #30291d;
+}
+
+.app-shell.focus-mode.focus-dark .page-note-editor,
+.app-shell.focus-mode.focus-dark .page-note-editor textarea {
+  border-color: #3a4843;
+  background: #1b2421;
+  color: #e2e9e6;
+}
+
+.app-shell.focus-mode.focus-dark .note-image-caption {
+  color: #929e99;
+}
+
+.app-shell.focus-mode.focus-dark .ocr-selection-bar {
+  border-color: #43504c;
+  background: rgba(25, 33, 30, 0.95);
+  color: #c4cfca;
 }
 
 .starred-pages-panel {
@@ -1940,9 +2114,22 @@ button {
 }
 
 .note-figure { display: block; margin: 24px 0; text-align: center; }
+.note-image-stage { position: relative; display: inline-block; max-width: 100%; overflow: hidden; border-radius: 8px; line-height: 0; vertical-align: top; }
 .note-image-button { display: block; position: relative; max-width: 100%; margin: 0 auto; padding: 0; border: 0; background: transparent; cursor: zoom-in; }
 .note-image-button img { margin: 0; }
-.note-image-zoom { position: absolute; right: 10px; top: 10px; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 4px; background: rgba(255,255,255,.94); color: #2e544d; box-shadow: 0 1px 5px #0002; }
+.note-image-tools { position: absolute; z-index: 8; right: 10px; top: 10px; display: flex; align-items: center; gap: 7px; line-height: normal; }
+.note-image-zoom,
+.note-image-ocr { display: inline-flex; min-height: 34px; align-items: center; justify-content: center; gap: 6px; border: 1px solid rgba(205,216,213,.92); border-radius: 8px; padding: 0 9px; background: rgba(255,255,255,.94); color: #2e544d; box-shadow: 0 2px 8px #0002; font-size: 12px; font-weight: 850; backdrop-filter: blur(10px); }
+.note-image-zoom { width: 34px; padding: 0; }
+.note-image-ocr.active { border-color: color-mix(in srgb, var(--primary) 38%, #d8e0de); background: var(--primary); color: white; }
+.note-image-ocr:disabled { cursor: wait; opacity: .82; }
+.ocr-text-layer { position: absolute; z-index: 5; inset: 0; overflow: hidden; cursor: text; line-height: 1; text-align: left; user-select: text; container-type: size; }
+.ocr-word { position: absolute; display: block; min-width: 2px; overflow: visible; color: transparent; font-family: Arial, sans-serif; line-height: 1; white-space: pre; user-select: text; }
+.ocr-word::selection { background: rgba(60, 122, 232, .42); color: transparent; }
+.ocr-selection-bar { position: absolute; z-index: 9; right: 10px; bottom: 10px; left: 10px; display: flex; min-height: 40px; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid rgba(205,216,213,.9); border-radius: 10px; padding: 7px 8px 7px 12px; background: rgba(255,255,255,.94); box-shadow: 0 8px 24px rgba(23,32,51,.16); color: #4d5b68; font-size: 12px; line-height: 1.35; text-align: left; backdrop-filter: blur(12px); }
+.ocr-selection-bar > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ocr-selection-bar button { display: inline-flex; min-height: 30px; flex: 0 0 auto; align-items: center; gap: 5px; border: 0; border-radius: 7px; padding: 0 9px; background: var(--primary); color: white; font-size: 12px; font-weight: 850; }
+.ocr-error { display: block; width: fit-content; margin: 8px auto 0; border-radius: 8px; padding: 7px 10px; background: #fff3f0; color: #a1483d; font-size: 12px; line-height: 1.45; }
 .note-image-caption { display: block; margin-top: 9px; color: #667482; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
 .image-unavailable { display: block; padding: 20px; background: #f4f6f7; color: #67727b; }
 .image-lightbox { width: 100vw; height: 100dvh; max-width: 100vw; max-height: 100dvh; margin: 0; border: 0; padding: 48px 20px 20px; background: rgba(20,24,27,.96); color: white; }
@@ -2434,7 +2621,6 @@ button {
 .app-shell .nav-item,
 .app-shell .back-button,
 .app-shell .quick-back-button,
-.app-shell .focus-mode-button,
 .app-shell .focus-reader-toolbar button {
   border-radius: var(--button-radius-value);
 }

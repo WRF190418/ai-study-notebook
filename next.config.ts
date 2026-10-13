@@ -4,7 +4,7 @@ import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
 export default function nextConfig(phase: string): NextConfig {
   return {
     distDir: phase === PHASE_DEVELOPMENT_SERVER ? process.env.NEXT_DEV_DIR || ".next-dev" : ".next",
-    serverExternalPackages: ["pdfjs-dist", "tesseract.js", "@tesseract.js-data/chi_sim"],
+    serverExternalPackages: ["pdfjs-dist", "tesseract.js", "@tesseract.js-data/chi_sim", "@tesseract.js-data/eng"],
     experimental: {
       serverActions: {
         bodySizeLimit: "8mb"
