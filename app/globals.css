@@ -1903,6 +1903,17 @@ button {
   color: #77827e;
 }
 
+.app-shell.focus-mode.focus-dark .page-source-button {
+  color: #76847f;
+}
+
+.app-shell.focus-mode.focus-dark .page-source-button:hover,
+.app-shell.focus-mode.focus-dark .page-source-button:focus-visible {
+  border-color: #41504b;
+  background: #26322e;
+  color: #b9d1c9;
+}
+
 .app-shell.focus-mode.focus-dark .page-star-button:hover,
 .app-shell.focus-mode.focus-dark .page-star-button:focus-visible {
   background: #30291d;
@@ -2382,8 +2393,17 @@ button {
   padding-right: 84px;
 }
 
+.markdown .note-page-heading.has-source-image {
+  padding-right: 81px;
+}
+
+.markdown .note-page-heading.starred-page-heading.has-source-image {
+  padding-right: 121px;
+}
+
 .page-heading-actions {
   position: absolute;
+  z-index: 2;
   right: 2px;
   top: 50%;
   display: flex;
@@ -2402,6 +2422,28 @@ button {
   background: transparent;
   color: #a9b0ba;
   transition: color 140ms ease, background 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+.page-source-button {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  padding: 0;
+  background: transparent;
+  color: #98a5ae;
+  transition: color 140ms ease, background 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+.page-source-button:hover,
+.page-source-button:focus-visible {
+  border-color: rgba(63, 143, 122, 0.22);
+  background: #f1f8f5;
+  color: #397b69;
+  outline: 0;
+  transform: translateY(-1px);
 }
 
 .page-note-button {

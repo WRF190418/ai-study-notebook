@@ -3,12 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Check, Copy, LoaderCircle, Maximize2, MessageSquareText, ScanText, Star, X } from "lucide-react";
+import { Check, Copy, LoaderCircle, Maximize2, MessageSquareText, Presentation, ScanText, Star, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
-import { pageAnchorId, parsePageHeading, type NotePageSection } from "@/lib/note-pages";
+import { pageAnchorId, parsePageHeading, type NotePageSection, type PageSourceImage } from "@/lib/note-pages";
 
 type EnglishOcrLayout = {
   width: number;
@@ -26,6 +26,7 @@ type PageStars = {
   noteId: string;
   pages: NotePageSection[];
   pageNotesByKey: Map<string, string>;
+  sourceImagesByPage: Map<number, PageSourceImage>;
   starredPageKeys: Set<string>;
   targetPageKey?: string;
   autoOpenNoteKey?: string;
@@ -107,6 +108,7 @@ function NotePageHeading({
   const starred = Boolean(pageStars && pageKey && pageStars.starredPageKeys.has(pageKey));
   const savedNote = pageStars?.pageNotesByKey.get(pageKey) ?? "";
   const targeted = Boolean(pageStars && pageKey && pageStars.targetPageKey === pageKey);
+  const sourceImage = parsed ? pageStars?.sourceImagesByPage.get(parsed.pageNumber) : undefined;
   const [editorOpen, setEditorOpen] = useState(false);
   const [draft, setDraft] = useState(savedNote);
   const Heading = level === 2 ? "h2" : "h3";
@@ -140,12 +142,13 @@ function NotePageHeading({
 
   return (
     <Heading
-      className={`note-page-heading${starred ? " starred-page-heading" : ""}${targeted ? " page-jump-target" : ""}`}
+      className={`note-page-heading${starred ? " starred-page-heading" : ""}${sourceImage ? " has-source-image" : ""}${targeted ? " page-jump-target" : ""}`}
       id={pageAnchorId(pageStars.noteId, pageKey)}
       tabIndex={-1}
     >
       <span>{children}</span>
       <span className="page-heading-actions">
+        {sourceImage ? <PageSourceImageButton image={sourceImage} pageNumber={parsed.pageNumber} /> : null}
         {starred ? (
           <button
             aria-label={`${savedNote ? "编辑" : "添加"}页备注：第${parsed.pageNumber}页`}
@@ -203,6 +206,39 @@ function NotePageHeading({
       ) : null}
     </Heading>
   );
+}
+
+function PageSourceImageButton({ image, pageNumber }: { image: PageSourceImage; pageNumber: number }) {
+  const [expanded, setExpanded] = useState(false);
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => { if (expanded) dialog.current?.showModal(); }, [expanded]);
+
+  return <>
+    <button
+      aria-label={`查看第${pageNumber}页原课件`}
+      className="page-source-button"
+      onClick={() => setExpanded(true)}
+      title="查看该页原课件"
+      type="button"
+    >
+      <Presentation size={17} />
+    </button>
+    {expanded ? createPortal(
+      <dialog
+        aria-label={`第${pageNumber}页原课件`}
+        className="image-lightbox"
+        onClick={(event) => { if (event.target === event.currentTarget) dialog.current?.close(); }}
+        onClose={() => setExpanded(false)}
+        ref={dialog}
+      >
+        <button className="lightbox-close" aria-label="关闭原课件预览" title="关闭" onClick={() => dialog.current?.close()} type="button"><X size={22} /></button>
+        <figure>
+          <img src={image.src} alt={image.alt} />
+          <figcaption>第{pageNumber}页原课件 · {image.alt}</figcaption>
+        </figure>
+      </dialog>, document.body
+    ) : null}
+  </>;
 }
 
 function reactNodeText(node: ReactNode): string {

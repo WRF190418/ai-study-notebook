@@ -33,7 +33,7 @@ import {
 import type { Course, Lesson, MindMapNode, Note, NoteReadingProgress, NoteStar, User, UserPreferences } from "@/lib/types";
 import MarkdownView from "@/components/MarkdownView";
 import CoursewareImages from "@/components/CoursewareImages";
-import { extractNotePages, makeExcerpt, markdownToPlainText, pageAnchorId, type NotePageSection } from "@/lib/note-pages";
+import { extractNotePages, extractPageSourceImages, makeExcerpt, markdownToPlainText, pageAnchorId, type NotePageSection } from "@/lib/note-pages";
 
 type Workspace = {
   courses: Course[];
@@ -892,6 +892,10 @@ function LessonDetail({
     () => (selectedNote ? extractNotePages(selectedNote.contentMarkdown) : []),
     [selectedNote]
   );
+  const sourceImagesByPage = useMemo(
+    () => (selectedNote ? extractPageSourceImages(selectedNote.contentMarkdown) : new Map()),
+    [selectedNote]
+  );
   const selectedNoteStars = selectedNote ? noteStars.filter((star) => star.noteId === selectedNote.id) : [];
   const starredPageKeys = useMemo(
     () => new Set(selectedNoteStars.map((star) => star.pageKey)),
@@ -1191,6 +1195,7 @@ function LessonDetail({
                 noteId: selectedNote.id,
                 pages,
                 pageNotesByKey,
+                sourceImagesByPage,
                 starredPageKeys,
                 targetPageKey,
                 autoOpenNoteKey,

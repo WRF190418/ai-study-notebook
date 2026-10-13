@@ -33,7 +33,7 @@ test("imports PPTX without AI, inserts an image, previews it and isolates accoun
   const workspace = await (await page.request.get("/api/workspace")).json();
   const course = workspace.courses[0];
   const lesson = workspace.lessons.find((item: { courseId: string; order: number }) => item.courseId === course.id && item.order === 1);
-  const note = await createNote({ userId: course.userId, courseId: course.id, lessonId: lesson.id, title: "课件原图测试", sourceType: "file", sourceText: "结构", contentMarkdown: "# 课件原图测试\n\n<!-- courseware-enrichment -->\n\n## 神经元\n\n树突接收输入，轴突传导信号。\n\n<!-- courseware-appendix -->\n\n### 第 1 页：结构\n\n原始课件。", summary: "神经科学", flashcards: [], mindMap: [] });
+  const note = await createNote({ userId: course.userId, courseId: course.id, lessonId: lesson.id, title: "课件原图测试", sourceType: "file", sourceText: "结构", contentMarkdown: "# 课件原图测试\n\n<!-- courseware-enrichment -->\n\n## 第1页｜神经元\n\n树突接收输入，轴突传导信号。\n\n<!-- courseware-appendix -->\n\n### 第 1 页：结构\n\n原始课件。", summary: "神经科学", flashcards: [], mindMap: [] });
   await page.goto("/");
   await page.getByRole("dialog", { name: "新手指导" }).getByRole("button", { name: "跳过" }).click();
   await page.locator(".lesson-card").filter({ hasText: "Lecture 1" }).click();
@@ -43,7 +43,7 @@ test("imports PPTX without AI, inserts an image, previews it and isolates accoun
   await page.getByLabel("导入 PPTX 原图").setInputFiles({ name: "神经科学.pptx", mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation", buffer: await fixturePptx() });
   await expect(page.getByText("已导入 2 张课件图片。")).toBeVisible({ timeout: 30_000 });
   await page.locator(".courseware-thumbnail").first().click();
-  await page.locator(".courseware-insert-fields").getByLabel("插入位置").selectOption("神经元");
+  await page.locator(".courseware-insert-fields").getByLabel("插入位置").selectOption("第1页｜神经元");
   await page.locator(".courseware-insert-fields").getByLabel("图片说明").fill("神经元接收与输出");
   await page.locator(".courseware-insert-fields").getByRole("button", { name: "插入图片" }).click();
   const image = page.locator(".note-reader .markdown img").first();
@@ -51,10 +51,19 @@ test("imports PPTX without AI, inserts an image, previews it and isolates accoun
   await expect(image).toHaveJSProperty("naturalWidth", 180);
   await expect(page.locator(".note-image-caption")).toContainText("第 1 页");
   const url = await image.getAttribute("src");
-  await page.getByRole("button", { name: /放大图片/ }).click();
+  await page.getByRole("button", { name: /放大图片/ }).first().click();
   await expect(page.getByRole("dialog", { name: "图片预览" })).toBeVisible();
   await page.getByRole("button", { name: "关闭图片预览" }).click();
   await expect(page.getByRole("dialog", { name: "图片预览" })).toHaveCount(0);
+  const sourceButton = page.getByRole("button", { name: "查看第1页原课件" });
+  await expect(sourceButton).toBeVisible();
+  await expect(sourceButton).toHaveText("");
+  await sourceButton.click();
+  const sourceDialog = page.getByRole("dialog", { name: "第1页原课件" });
+  await expect(sourceDialog).toBeVisible();
+  await expect(sourceDialog.locator("img")).toHaveAttribute("src", url!);
+  await sourceDialog.getByRole("button", { name: "关闭原课件预览" }).click();
+  await expect(sourceDialog).toHaveCount(0);
   await page.locator(".courseware-appendix summary").click();
   await expect(page.getByRole("heading", { name: "第 1 页：结构" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBeTruthy();

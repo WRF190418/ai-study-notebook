@@ -13,6 +13,11 @@ export type NotePageSection = {
   sourceStart: number;
 };
 
+export type PageSourceImage = {
+  src: string;
+  alt: string;
+};
+
 const pageHeadingPattern = /^第\s*(\d+)\s*页(?:\s*[|｜:：]\s*(.+))?\s*$/u;
 
 export function parsePageHeading(value: string) {
@@ -63,6 +68,50 @@ export function extractNotePages(markdown: string): NotePageSection[] {
       sourceStart: item.start
     };
   });
+}
+
+export function extractPageSourceImages(markdown: string): Map<number, PageSourceImage> {
+  const [main, appendix = ""] = markdown.split(COURSEWARE_APPENDIX_MARKER);
+  const images = new Map<number, PageSourceImage>();
+
+  collectPageImages(appendix, images);
+  for (const page of extractNotePages(main)) {
+    if (images.has(page.pageNumber)) continue;
+    const image = firstStoredImage(page.markdown);
+    if (image) images.set(page.pageNumber, image);
+  }
+
+  return images;
+}
+
+function collectPageImages(markdown: string, images: Map<number, PageSourceImage>) {
+  const headings = [...markdown.matchAll(/^#{2,6}[ \t]+(.+?)\s*#*\s*$/gm)]
+    .map((match) => {
+      const parsed = parsePageHeading(match[1]) ?? parseOriginalPageHeading(match[1]);
+      if (!parsed || match.index === undefined) return null;
+      return { pageNumber: parsed.pageNumber, start: match.index, contentStart: match.index + match[0].length };
+    })
+    .filter((item): item is NonNullable<typeof item> => Boolean(item));
+
+  headings.forEach((heading, index) => {
+    if (images.has(heading.pageNumber)) return;
+    const end = headings[index + 1]?.start ?? markdown.length;
+    const image = firstStoredImage(markdown.slice(heading.contentStart, end));
+    if (image) images.set(heading.pageNumber, image);
+  });
+}
+
+function parseOriginalPageHeading(value: string) {
+  const match = cleanInlineMarkdown(value).match(/^原课件第\s*(\d+)\s*页(?:\s*[|｜:：]\s*(.+))?\s*$/u);
+  if (!match) return null;
+  const pageNumber = Number(match[1]);
+  return Number.isSafeInteger(pageNumber) && pageNumber > 0 ? { pageNumber } : null;
+}
+
+function firstStoredImage(markdown: string): PageSourceImage | null {
+  const match = markdown.match(/!\[([^\]]*)\]\((\/api\/media\/[A-Za-z0-9_-]+)(?:\s+["']([^"']*)["'])?\)/);
+  if (!match) return null;
+  return { src: match[2], alt: (match[1] || match[3] || "课件原图").trim() };
 }
 
 export function pageAnchorId(noteId: string, pageKey: string) {
