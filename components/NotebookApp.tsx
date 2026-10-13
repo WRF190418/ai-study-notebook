@@ -1048,7 +1048,7 @@ function LessonDetail({
   return (
     <>
       {focusMode ? (
-        <div className="focus-reader-toolbar" role="toolbar" aria-label="专注阅读工具栏">
+        <div className="focus-reader-toolbar" role="toolbar" aria-label="专注阅读工具栏" tabIndex={0}>
           <span className="focus-reader-status">
             <span className="focus-reader-dot" aria-hidden="true" />
             <span>

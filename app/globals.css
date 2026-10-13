@@ -1532,21 +1532,43 @@ button {
 .focus-reader-toolbar {
   position: fixed;
   z-index: 180;
-  top: 16px;
+  top: 10px;
   left: 50%;
   display: flex;
-  width: min(780px, calc(100vw - 48px));
-  min-height: 58px;
+  width: 168px;
+  min-height: 44px;
   align-items: center;
-  justify-content: space-between;
-  gap: 20px;
+  justify-content: center;
+  gap: 0;
+  overflow: hidden;
   border: 1px solid rgba(210, 220, 217, 0.88);
-  border-radius: 18px;
-  padding: 8px 9px 8px 16px;
+  border-radius: 15px;
+  padding: 7px 13px;
   background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 18px 46px rgba(23, 32, 51, 0.16), 0 3px 10px rgba(23, 32, 51, 0.07);
+  box-shadow: 0 12px 30px rgba(23, 32, 51, 0.14), 0 2px 8px rgba(23, 32, 51, 0.06);
   transform: translateX(-50%);
   backdrop-filter: blur(18px) saturate(1.2);
+  transition:
+    width 220ms ease,
+    min-height 220ms ease,
+    gap 220ms ease,
+    border-radius 220ms ease,
+    padding 220ms ease,
+    box-shadow 220ms ease;
+}
+
+.focus-reader-toolbar:hover,
+.focus-reader-toolbar:focus-visible,
+.focus-reader-toolbar:has(button:focus-visible) {
+  width: min(780px, calc(100vw - 48px));
+  min-height: 58px;
+  justify-content: space-between;
+  gap: 20px;
+  overflow: visible;
+  border-radius: 18px;
+  padding: 8px 9px 8px 16px;
+  box-shadow: 0 18px 46px rgba(23, 32, 51, 0.16), 0 3px 10px rgba(23, 32, 51, 0.07);
+  outline: 0;
 }
 
 .focus-reader-status,
@@ -1570,14 +1592,29 @@ button {
   display: block;
 }
 
+.focus-reader-status strong {
+  white-space: nowrap;
+}
+
 .focus-reader-status small {
   max-width: 330px;
+  max-height: 0;
   overflow: hidden;
-  margin-top: 2px;
+  margin-top: 0;
   color: var(--muted);
   font-size: 12px;
+  opacity: 0;
   text-overflow: ellipsis;
   white-space: nowrap;
+  transition: max-height 180ms ease, margin-top 180ms ease, opacity 140ms ease;
+}
+
+.focus-reader-toolbar:hover .focus-reader-status small,
+.focus-reader-toolbar:focus-visible .focus-reader-status small,
+.focus-reader-toolbar:has(button:focus-visible) .focus-reader-status small {
+  max-height: 20px;
+  margin-top: 2px;
+  opacity: 1;
 }
 
 .focus-reader-dot {
@@ -1590,12 +1627,36 @@ button {
 }
 
 .focus-reader-toolbar-actions {
+  width: 0;
+  max-width: 0;
+  max-height: 0;
   flex: 0 0 auto;
   gap: 7px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(10px);
+  visibility: hidden;
+  transition: max-width 220ms ease, max-height 220ms ease, opacity 150ms ease, transform 220ms ease, visibility 0s linear 220ms;
+}
+
+.focus-reader-toolbar:hover .focus-reader-toolbar-actions,
+.focus-reader-toolbar:focus-visible .focus-reader-toolbar-actions,
+.focus-reader-toolbar:has(button:focus-visible) .focus-reader-toolbar-actions {
+  width: auto;
+  max-width: 520px;
+  max-height: 44px;
+  overflow: visible;
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+  visibility: visible;
+  transition-delay: 0s;
 }
 
 .focus-reader-toolbar button {
   min-height: 40px;
+  flex: 0 0 auto;
   gap: 7px;
   border: 0;
   border-radius: 11px;
@@ -1604,6 +1665,7 @@ button {
   color: white;
   font-size: 13px;
   font-weight: 850;
+  white-space: nowrap;
 }
 
 .focus-reader-toolbar button.focus-reader-back {
@@ -2795,7 +2857,10 @@ button {
 
   .focus-reader-toolbar {
     width: calc(100vw - 24px);
+    min-height: 58px;
     gap: 8px;
+    overflow: visible;
+    padding: 8px 9px;
     padding-left: 9px;
   }
 
@@ -2805,6 +2870,13 @@ button {
 
   .focus-reader-toolbar-actions {
     width: 100%;
+    max-width: none;
+    max-height: none;
+    overflow: visible;
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+    visibility: visible;
   }
 
   .focus-reader-toolbar button {
