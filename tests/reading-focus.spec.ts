@@ -45,9 +45,12 @@ test("remembers the last page and provides a focused reading mode", async ({ pag
   const guideAppeared = await guide.waitFor({ state: "visible", timeout: 5000 }).then(() => true, () => false);
   if (guideAppeared) await guide.getByRole("button", { name: "跳过" }).click();
   await page.getByLabel("选择课程").selectOption(course.id);
+  await expect(page.getByRole("button", { name: "专注阅读" })).toHaveCount(0);
   await page.getByRole("button", { name: /连续阅读章节/ }).click();
 
   const focusButton = page.getByRole("button", { name: "专注阅读" });
+  await expect(focusButton).toBeVisible();
+  await expect(focusButton).toHaveClass(/sidebar-focus-button/);
   await expect(focusButton).toBeInViewport();
   await focusButton.click();
   await expect(page.getByRole("toolbar", { name: "专注阅读工具栏" })).toBeVisible();

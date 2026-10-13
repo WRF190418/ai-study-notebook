@@ -23,7 +23,7 @@ const englishLanguagePath = path.join(
   "4.0.0_best_int"
 );
 const cachePath = path.join(appDataDir, "ocr-cache");
-const selectionCachePath = path.join(cachePath, "english-layout");
+const selectionCachePath = path.join(cachePath, "english-layout-v2");
 
 let workerPromise: Promise<Worker> | undefined;
 let englishWorkerPromise: Promise<Worker> | undefined;
@@ -79,7 +79,7 @@ export async function recognizeEnglishLayout(image: Buffer): Promise<EnglishOcrL
       .filter(
         (word) =>
           word.confidence >= 35 &&
-          /[A-Za-z]/.test(word.text) &&
+          /[\p{Script=Latin}\p{N}\p{P}\p{S}]/u.test(word.text) &&
           word.bbox.x1 > word.bbox.x0 &&
           word.bbox.y1 > word.bbox.y0
       );

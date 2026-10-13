@@ -36,6 +36,7 @@ test("recognizes image English and lets the reader select and copy it", async ({
       <rect width="720" height="260" fill="white"/>
       <text x="58" y="112" font-family="Arial" font-size="52" font-weight="700" fill="black">Vector Product</text>
       <text x="60" y="180" font-family="Arial" font-size="34" fill="black">Direction and Magnitude</text>
+      <text x="60" y="230" font-family="Arial" font-size="30" fill="black">F = 12.5 N; angle: 30°.</text>
     </svg>
   `);
   const image = await sharp(svg).png().toBuffer();
@@ -54,6 +55,7 @@ test("recognizes image English and lets the reader select and copy it", async ({
   expect(actualOcr.ok()).toBeTruthy();
   const actualLayout = (await actualOcr.json()).layout;
   expect(actualLayout.words.some((word: { text: string }) => /vector/i.test(word.text))).toBeTruthy();
+  expect(actualLayout.words.some((word: { text: string }) => /12\.5/.test(word.text))).toBeTruthy();
 
   await page.route("**/api/ocr/english", async (route) => {
     await route.fulfill({
@@ -65,7 +67,9 @@ test("recognizes image English and lets the reader select and copy it", async ({
           words: [
             { text: "Vector", confidence: 96, bbox: { x0: 58, y0: 64, x1: 218, y1: 114 } },
             { text: "Product", confidence: 96, bbox: { x0: 232, y0: 64, x1: 420, y1: 114 } },
-            { text: "Direction", confidence: 94, bbox: { x0: 60, y0: 146, x1: 210, y1: 182 } }
+            { text: "12.5", confidence: 94, bbox: { x0: 60, y0: 146, x1: 130, y1: 182 } },
+            { text: "N;", confidence: 94, bbox: { x0: 142, y0: 146, x1: 180, y1: 182 } },
+            { text: "(30°).", confidence: 91, bbox: { x0: 192, y0: 146, x1: 274, y1: 182 } }
           ]
         }
       })
@@ -83,20 +87,20 @@ test("recognizes image English and lets the reader select and copy it", async ({
   await page.getByRole("button", { name: /识别并选择英文：Vector Product slide/ }).click();
   const ocrLayer = page.getByLabel("可选择的图片英文文字");
   await expect(ocrLayer).toBeVisible();
-  await expect(ocrLayer.locator(".ocr-word")).toHaveCount(3);
+  await expect(ocrLayer.locator(".ocr-word")).toHaveCount(5);
 
   await ocrLayer.locator(".ocr-word").evaluateAll((words) => {
     const selection = window.getSelection();
     const range = document.createRange();
     range.setStart(words[0].firstChild!, 0);
-    range.setEnd(words[1].firstChild!, words[1].firstChild!.textContent!.length);
+    range.setEnd(words[4].firstChild!, words[4].firstChild!.textContent!.length);
     selection?.removeAllRanges();
     selection?.addRange(range);
     words[0].parentElement?.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
   });
-  await expect(page.getByText(/已选择：Vector Product/)).toBeVisible();
+  await expect(page.getByText(/已选择：Vector Product 12\.5 N; \(30°\)\./)).toBeVisible();
   await page.getByRole("button", { name: "复制" }).click();
   await expect(page.getByRole("button", { name: "已复制" })).toBeVisible();
-  expect(await page.evaluate(() => navigator.clipboard.readText())).toContain("Vector Product");
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toContain("Vector Product 12.5 N; (30°).");
   await page.screenshot({ path: `test-results/image-ocr-selection-${testInfo.project.name}.png`, fullPage: false });
 });

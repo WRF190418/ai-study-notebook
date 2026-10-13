@@ -438,6 +438,20 @@ export default function NotebookApp({
           </button>
         </nav>
 
+        {activeLesson && selectedNote ? (
+          <div className="sidebar-reading-tools">
+            <button className="sidebar-focus-button" onClick={() => setFocusMode(true)} type="button">
+              <span className="sidebar-focus-icon" aria-hidden="true">
+                <Maximize2 size={18} />
+              </span>
+              <span>
+                <strong>专注阅读</strong>
+                <small>沉浸查看当前笔记</small>
+              </span>
+            </button>
+          </div>
+        ) : null}
+
         <div className="sidebar-footer">
           <div className="user-card">
             <strong>{initialUser.name}</strong>
@@ -1033,15 +1047,6 @@ function LessonDetail({
 
   return (
     <>
-      {selectedNote ? (
-        <div className="side-focus-slot">
-          <button className="side-focus-button" onClick={onToggleFocusMode} type="button">
-            <Maximize2 size={18} />
-            <span>专注阅读</span>
-          </button>
-        </div>
-      ) : null}
-
       {focusMode ? (
         <div className="focus-reader-toolbar" role="toolbar" aria-label="专注阅读工具栏">
           <span className="focus-reader-status">
