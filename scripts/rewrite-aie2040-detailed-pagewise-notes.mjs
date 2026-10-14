@@ -181,7 +181,7 @@ function buildAppendix(spec, material, assetsByPage) {
 function coverageSection(pages, inlineFigures) {
   return `## 逐页覆盖核对
 
-本笔记已按当前课件整理规则覆盖 ${pages} 页：正文从第1页到第${pages}页连续建立独立小节，每页均包含“本页定位、逐页讲解、原页关键内容、复习注意”；正文选取 ${inlineFigures} 张必要原图，均紧邻对应页讲解并配有“读图提示”；完整逐页原图与提取文字保留在下方课件核对附录中，方便逐页复查。`;
+本笔记已按当前课件整理规则覆盖 ${pages} 页：正文从第1页到第${pages}页连续建立独立小节，每页均包含“本页定位、逐页讲解、原页关键内容、复习注意”；每个正文页标题均可通过右侧原课件按钮打开对应完整原页图；正文另选 ${inlineFigures} 张必要原图，均紧邻对应页讲解并配有“读图提示”；完整逐页原图与提取文字保留在下方课件核对附录中，方便逐页复查。`;
 }
 
 function buildMarkdown(spec, material, authored, assetsByPage, inlineFigures) {
@@ -219,9 +219,11 @@ function validate(db, note, item) {
   const images = (main.match(/!\[[^\]\n]*\]\(\/api\/media\/[A-Za-z0-9_-]+\)/g) || []).length;
   const hints = (main.match(/读图提示：/g) || []).length;
   const appendixPages = (appendix.match(/^### 第 [0-9]+ 页/gm) || []).length;
+  const appendixImages = (appendix.match(/!\[[^\]\n]*\]\(\/api\/media\/[A-Za-z0-9_-]+\)/g) || []).length;
   if (images !== item.inlineFigures) throw new Error(`${item.key}: images ${images} != ${item.inlineFigures}`);
   if (hints !== item.inlineFigures) throw new Error(`${item.key}: hints ${hints} != ${item.inlineFigures}`);
   if (appendixPages !== item.pages) throw new Error(`${item.key}: appendix pages ${appendixPages} != ${item.pages}`);
+  if (appendixImages !== item.pages) throw new Error(`${item.key}: source button images ${appendixImages} != ${item.pages}`);
   if (/courseware:|\{\{page:|[A-Z]:\\/.test(note.contentMarkdown)) throw new Error(`${item.key}: unresolved local reference`);
   const mediaIds = new Set(db.mediaAssets.map((asset) => asset.id));
   const missing = [...note.contentMarkdown.matchAll(/\/api\/media\/([A-Za-z0-9_-]+)/g)]
@@ -231,6 +233,7 @@ function validate(db, note, item) {
   return {
     key: item.key,
     pages: item.pages,
+    sourceButtons: appendixImages,
     inlineFigures: images,
     hints,
     contentChars: note.contentMarkdown.length,
@@ -264,7 +267,7 @@ for (const item of report.notes) {
     if (!assetsByPage.has(page)) throw new Error(`${item.key}: missing asset for page ${page}`);
   }
   note.contentMarkdown = buildMarkdown(spec, material, authored, assetsByPage, item.inlineFigures);
-  note.summary = `${spec.title} 已按新笔记规则重新整理：逐页详细讲解 ${item.pages} 页，正文包含必要原图 ${item.inlineFigures} 张及读图提示，附录保留完整原页核对。`;
+  note.summary = `${spec.title} 已按新笔记规则重新整理：逐页详细讲解 ${item.pages} 页，每页标题可打开原课件，正文包含必要原图 ${item.inlineFigures} 张及读图提示。`;
   note.updatedAt = new Date().toISOString();
   summaries.push(validate(db, note, item));
 }
@@ -274,7 +277,7 @@ report.notes = report.notes.map((item) => {
   return { ...item, contentChars: summary.contentChars, contentHash: summary.contentHash, appendixHash: summary.appendixHash };
 });
 report.rewrittenDetailedAt = new Date().toISOString();
-report.rewriteNote = "AIE2040 notes rebuilt with detailed per-page sections: page role, explanation, source key points, review note, required inline figures and reading hints.";
+report.rewriteNote = "AIE2040 notes rebuilt with detailed per-page sections: every page has its own explanation and a heading source-image button via the appendix; required inline figures still include reading hints.";
 
 fs.writeFileSync(dbPath, JSON.stringify(db, null, 2), "utf8");
 fs.writeFileSync(reportPath, JSON.stringify(report, null, 2), "utf8");
