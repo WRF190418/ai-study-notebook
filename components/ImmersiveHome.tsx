@@ -72,7 +72,7 @@ export default function ImmersiveHome(props: ImmersiveHomeProps) {
 
   return (
     <div className={`home-dashboard world-home ${magic ? "archive-home" : "poem-home"}${entering ? " world-entering" : ""}`} data-searching={Boolean(searchCourseIds)}>
-      <WorldScenery magic={magic} poem={poeticScenes[poeticFlow.index].motif} />
+      <WorldScenery magic={magic} poem={poeticScenes[poeticFlow.index].id} />
       <div className="world-front">
         <header className="world-welcome">
           <span className="world-location">{magic ? "THE NOCTURNE ARCHIVE" : "山水之间 · 与诗相逢"}</span>

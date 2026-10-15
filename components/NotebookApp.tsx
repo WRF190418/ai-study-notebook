@@ -145,6 +145,7 @@ export default function NotebookApp({
   const theme = workspace.preferences.theme ?? "mist-forest";
   const poeticFlow = usePoeticFlow(theme === "poetic-realm" && !focusMode, initialUser.id);
   const contentScrollRef = useRef<HTMLDivElement>(null);
+  const homeScrollRef = useRef<HTMLDivElement>(null);
   const searchAreaRef = useRef<HTMLDivElement>(null);
 
   const terms = useMemo(() => Array.from(new Set(workspace.courses.map((item) => item.term).filter(Boolean))), [workspace.courses]);
@@ -292,11 +293,26 @@ export default function NotebookApp({
     setAppView("courses");
   }
 
-  async function saveTheme(theme: AppTheme, ambience: Ambience) {
+  function returnHome() {
+    setFocusMode(false);
+    setActiveLessonId(null);
+    setSelectedNoteId("");
+    setPendingJump(null);
+    setSearchOpen(false);
+    setQuery("");
+    setAppView("home");
+    requestAnimationFrame(() => { if (homeScrollRef.current) homeScrollRef.current.scrollTop = 0; });
+  }
+
+  async function saveTheme(theme: AppTheme, ambience: Ambience, enterHome = false) {
     const version = ++themeSaveVersion.current;
     const optimistic = { ...workspace.preferences, theme, ambience, updatedAt: new Date().toISOString() };
     setThemeMessage("");
     setWorkspace((current) => ({ ...current, preferences: optimistic }));
+    if (enterHome) {
+      returnHome();
+      setThemePickerOpen(false);
+    }
     const save = themeSaveQueue.current.then(async () => {
       try {
         const response = await fetch("/api/preferences", {
@@ -312,6 +328,7 @@ export default function NotebookApp({
         if (version === themeSaveVersion.current) {
           setWorkspace((current) => ({ ...current, preferences: savedThemePreferences.current }));
           setThemeMessage("主题没有保存成功，请稍后重试。");
+          setThemePickerOpen(true);
         }
       }
     });
@@ -492,12 +509,7 @@ export default function NotebookApp({
         <nav className="nav-menu" aria-label="主导航">
           <button
             className={`nav-item ${appView === "home" && !activeLesson ? "active" : ""}`}
-            onClick={() => {
-              setFocusMode(false);
-              setActiveLessonId(null);
-              setSelectedNoteId("");
-              setAppView("home");
-            }}
+            onClick={returnHome}
             type="button"
           >
             <Home size={18} />
@@ -648,7 +660,7 @@ export default function NotebookApp({
         </header>
 
         {appView === "home" && !activeLesson ? (
-          <div className="home-scroll content-scroll" data-scroll-region="home">
+          <div className="home-scroll content-scroll" data-scroll-region="home" ref={homeScrollRef}>
             <DashboardHome
               theme={theme}
               poeticFlow={poeticFlow}
@@ -758,7 +770,7 @@ export default function NotebookApp({
           ambience={workspace.preferences.ambience ?? "immersive"}
           message={themeMessage}
           selectedTheme={workspace.preferences.theme ?? "mist-forest"}
-          onApply={(theme, ambience) => void saveTheme(theme, ambience)}
+          onApply={(theme, ambience, enterHome) => void saveTheme(theme, ambience, enterHome)}
           onClose={() => setThemePickerOpen(false)}
         />
       ) : null}
@@ -788,7 +800,7 @@ function ThemePicker({
 }: {
   ambience: Ambience;
   message: string;
-  onApply: (theme: AppTheme, ambience: Ambience) => void;
+  onApply: (theme: AppTheme, ambience: Ambience, enterHome?: boolean) => void;
   onClose: () => void;
   selectedTheme: AppTheme;
 }) {
@@ -809,7 +821,7 @@ function ThemePicker({
           <div>
             <span className="theme-picker-kicker"><Palette size={15} /> 学习空间</span>
             <h2>选择一种进入知识的方式</h2>
-            <p>灯下书房、林间晨光、流动诗境……找到此刻愿意停留的地方。</p>
+            <p>选择主题，即刻进入它的主页；灯下书房、林间晨光、流动诗境，随心停留。</p>
           </div>
           <button aria-label="关闭主题选择" className="theme-picker-close" onClick={onClose} type="button"><X size={20} /></button>
         </header>
@@ -820,7 +832,7 @@ function ThemePicker({
               aria-pressed={selectedTheme === theme.id}
               className={`theme-card theme-card-${theme.id}${selectedTheme === theme.id ? " selected" : ""}`}
               key={theme.id}
-              onClick={() => onApply(theme.id, ambience)}
+              onClick={() => onApply(theme.id, ambience, true)}
               type="button"
             >
               <span className="theme-card-scene" aria-hidden="true">

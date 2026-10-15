@@ -133,9 +133,10 @@
 .poetry-hold:hover { color: #633b35; }
 .poetic-scene { opacity: 0; transition: opacity 14s ease; }
 .poetic-scene.present { opacity: 1; }
-.app-shell[data-poetry-transition="manual"] :is(.poetry-verse,.poetic-scene,.world-poem-layer,.scenery-poetry stop) { transition-duration: .65s; }
+.app-shell[data-poetry-transition="manual"] :is(.poetry-verse,.poetic-scene,.world-poem-layer,.poetic-landscape-svg stop) { transition-duration: .65s; }
 .app-shell[data-theme="poetic-realm"][data-poetry-transition="manual"] { transition-duration: .65s; }
 .theme-card-scene .poetic-scene { transition: none; }
+.theme-card-scene :is(.world-poem-layer,.poetic-landscape-svg stop) { transition: none; }
 
 /* The archive: original arched architecture, celestial instruments and candlelight. */
 .app-shell[data-theme="arcane-library"] {
@@ -231,11 +232,11 @@
 @keyframes world-dust { from { transform: translateY(6px); opacity: .45; } to { transform: translateY(-12px); opacity: .8; } }
 @keyframes world-flame { from { opacity: .6; } to { opacity: 1; } }
 @keyframes world-candle { from { translate: 0 -4px; } to { translate: 0 5px; } }
-@keyframes world-sail { from { transform: translateX(-5px); } to { transform: translateX(10px); } }
+@keyframes world-sail { from { translate: -5px 0; } to { translate: 10px 0; } }
 @keyframes world-orbit { from { rotate: 0deg; } to { rotate: 360deg; } }
 @media (prefers-reduced-motion: reduce) {
   .app-shell .theme-landscape * { animation: none !important; }
-  .app-shell[data-theme="poetic-realm"], .poetry-verse, .poetic-scene { transition: none; }
+  .app-shell[data-theme="poetic-realm"], .poetry-verse, .poetic-scene, .app-shell .world-poem-layer, .app-shell .poetic-landscape-svg stop { transition: none; }
 }
 @media (max-width: 1260px) {
   .app-shell .home-hero { grid-template-columns: minmax(0, 1.1fr) minmax(290px, .9fr); }

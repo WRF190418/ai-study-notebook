@@ -3,7 +3,8 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Pause, Play } from "lucide-react";
 import type { UserPreferences } from "@/lib/types";
-import { poeticMotifs, poeticScenes, themeOptions } from "@/lib/themes";
+import { poeticScenes, themeOptions } from "@/lib/themes";
+import PoeticScenery from "@/components/PoeticScenery";
 
 const POEM_DURATION = 96_000;
 
@@ -89,6 +90,12 @@ export default function ThemeLandscape({ theme, poemIndex = 0, preview = false }
   const glow = theme === "warm-study" ? "#edb75d" : theme === "midnight-atlas" ? "#5263ab" : theme === "cognitive-lab" ? "#3acef0" : "#f7c875";
   const scene = poeticScenes[poemIndex];
   const name = themeOptions.find((item) => item.id === theme)?.name;
+  if (theme === "poetic-realm") return (
+    <span className={`theme-landscape landscape-poetic-realm${preview ? " landscape-preview" : ""}`} aria-hidden="true">
+      <PoeticScenery poem={scene.id} />
+      {!preview && <span className="landscape-caption">{scene.image}</span>}
+    </span>
+  );
   return (
     <span className={`theme-landscape landscape-${theme}${preview ? " landscape-preview" : ""}`} aria-hidden="true">
       <svg viewBox="0 0 600 460" preserveAspectRatio="xMidYMid meet" focusable="false">
@@ -148,20 +155,6 @@ export default function ThemeLandscape({ theme, poemIndex = 0, preview = false }
           <g className="scene-scan"><path d="M160 350Q308 394 456 350" fill="none" stroke="#84f3fa" opacity=".65" /><ellipse cx="309" cy="352" rx="147" ry="34" fill="none" stroke="#43c8df" opacity=".3" /></g>
           <text x="62" y="410" fill="#67b4cf" fontSize="10" letterSpacing="4">COGNITION / OPTICS / DISCOVERY</text>
         </>}
-        {theme === "poetic-realm" && poeticMotifs.map((motif, index) => <g key={motif} className={`poetic-scene poetic-scene-${motif}${motif === scene.motif ? " present" : ""}`}>
-          <rect width="600" height="460" fill={index === 1 ? "#d4ceca" : index === 3 ? "#dad9c9" : "#e7e5dc"} />
-          <circle cx={index === 3 ? 420 : 441} cy="109" r={index === 0 ? 36 : 29} fill={index === 3 ? "#d6a46f" : "#fbf4df"} />
-          <path d="M0 260Q62 225 101 170Q132 137 173 213Q216 181 246 114Q274 71 305 164Q331 135 376 231Q423 172 466 205Q514 137 600 224V460H0Z" fill="#8c9a95" opacity=".38" />
-          <path d="M0 322Q59 267 113 290Q176 193 208 263Q252 201 297 278Q359 232 407 298Q472 218 514 269L600 249V460H0Z" fill={index === 3 ? "#5c7473" : "#73877c"} opacity=".63" />
-          <g className="scene-mist"><ellipse cx="270" cy="295" rx="310" ry="30" fill="#f9f4e9" opacity=".45" /></g>
-          <path d="M0 385Q130 338 234 378T600 341V460H0Z" fill="#425f57" opacity=".72" />
-          <path d="M0 416Q160 378 310 415T600 392M118 441Q288 414 503 444" stroke="#f5f1e5" strokeWidth="2" fill="none" opacity=".4" />
-          {index === 0 && <g><path d="M32 0Q105 73 165 99Q197 123 208 164M121 80Q190 67 259 83" fill="none" stroke="#555848" strokeWidth="4" />{[[162,104],[201,152],[229,83],[137,87],[189,72]].map(([x,y]) => <g key={x}><path d={`M${x} ${y-20}V${y}`} stroke="#72624a" /><ellipse cx={x} cy={y} rx="5" ry="7" fill="#a14b40" /></g>)}<path d="M369 369L463 359L475 407L381 416Z" fill="#eee4ce" stroke="#b9ad94" /><path d="M370 369L424 390L463 359" fill="none" stroke="#b9ad94" /><circle cx="424" cy="390" r="5" fill="#a14b40" /></g>}
-          {index === 1 && <g><path d="M336 408H522M360 408V334H485V408M352 334L422 284L492 334" stroke="#45504b" fill="#56635b" strokeWidth="4" /><rect x="405" y="342" width="35" height="44" fill="#eac58c" /><ellipse className="scene-flame" cx="424" cy="360" rx="33" ry="45" fill={`url(#${halo})`} color="#ffd594" /><path d="M420 376V362" stroke="#916a38" strokeWidth="2" /></g>}
-          {(index === 2 || index === 5) && <g><path d="M406 398Q351 372 394 351Q436 327 384 313" fill="none" stroke="#dedcca" strokeWidth="9" opacity=".7" /><path d="M100 341V287M100 306L78 287M100 295L121 273" stroke="#4c6051" strokeWidth="4" /><circle cx="83" cy="279" r="17" fill="#62775b" /><circle cx="115" cy="271" r="21" fill="#62775b" /></g>}
-          {index === 3 && <g className="scene-sail"><path d="M344 385Q387 398 428 380L413 404H365Z" fill="#344e51" /><path d="M387 381V277L340 372H383M391 295L427 368H391" fill="#f4efe0" stroke="#71827a" /></g>}
-          {index === 4 && <g><path d="M50 112L20 191M130 95L100 174M224 161L194 240M310 70L280 149M530 207L500 286" stroke="#718779" opacity=".3" /><path d="M356 398Q385 368 418 389" stroke="#c7b88a" strokeWidth="7" fill="none" /><path d="M386 384L384 363M382 360L395 364M406 382L417 353" stroke="#45564e" strokeWidth="3" /><path d="M374 367L385 354L397 369Z" fill="#5c6a50" /></g>}
-        </g>)}
         {theme === "arcane-library" && <>
           <rect width="600" height="460" fill="#161d25" />
           <path d="M162 362V143Q300 -54 438 143V362Z" fill="#142c3c" stroke="#94723e" strokeWidth="8" />
@@ -177,7 +170,7 @@ export default function ThemeLandscape({ theme, poemIndex = 0, preview = false }
           {[{x:156,y:160},{x:447,y:107},{x:202,y:65},{x:401,y:228}].map(({x,y},n) => <g className={`scene-candle candle-${n}`} key={x}><ellipse cx={x} cy={y-13} rx="32" ry="47" fill={`url(#${halo})`} color="#f7c875" /><path d={`M${x-4} ${y}H${x+4}V${y+29}H${x-4}Z`} fill="#e4d5aa" /><path className="scene-flame" d={`M${x} ${y-19}Q${x+8} ${y-8} ${x} ${y-4}Q${x-6} ${y-9} ${x} ${y-19}`} fill="#ffe6aa" /></g>)}
         </>}
       </svg>
-      {!preview && <span className="landscape-caption">{theme === "poetic-realm" ? scene.image : name}</span>}
+      {!preview && <span className="landscape-caption">{name}</span>}
     </span>
   );
 }

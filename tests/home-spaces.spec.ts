@@ -1,9 +1,13 @@
 import { expect, test } from "@playwright/test";
 import { createNote } from "../lib/db";
 import { poeticScenes } from "../lib/themes";
+import { poeticScenery } from "../lib/poetic-scenery";
 
 test("poems switch by clicking the ink, remain frameless and keep the flow timer", async ({ page }, testInfo) => {
   test.setTimeout(180_000);
+  const browserErrors: string[] = [];
+  page.on("pageerror", error => browserErrors.push(error.message));
+  page.on("console", message => { if (message.type() === "error") browserErrors.push(message.text()); });
   const registered = await page.request.post("/api/auth/register", { data: { name: "诗页点击", email: `poem-click-${testInfo.project.name}-${Date.now()}@example.com`, password: "12345678" } });
   expect(registered.ok()).toBeTruthy();
   await page.request.post("/api/onboarding");
@@ -26,6 +30,12 @@ test("poems switch by clicking the ink, remain frameless and keep the flow timer
     await expect(shell).toHaveAttribute("data-poem", scene.id);
     await expect(shell).toHaveAttribute("data-poetic-motif", scene.motif);
     await expect(page.locator('.poetry-verse[aria-hidden="false"]')).toContainText(scene.verse[0]);
+    const art = page.locator(".scenery-poetry .poetic-landscape-svg");
+    const scenery = poeticScenery[scene.id];
+    await expect(art).toHaveAttribute("data-scenery-poem", scene.id);
+    await expect(art).toHaveAttribute("data-light", scenery.light);
+    await expect(art).toHaveAttribute("data-terrain", scenery.terrain);
+    expect(await art.locator("[data-poetic-detail].present").evaluateAll(elements => elements.map(element => element.getAttribute("data-poetic-detail")).sort())).toEqual([...scenery.details].sort());
   }
   await page.clock.fastForward(200_000);
   await expect(shell).toHaveAttribute("data-poem", "longing");
@@ -41,14 +51,17 @@ test("poems switch by clicking the ink, remain frameless and keep the flow timer
   await page.getByRole("button", { name: "课程", exact: true }).click();
   const marginPoem = page.getByRole("button", { name: "换一句诗", exact: true });
   await expect(page.locator(".course-margin-poem")).toHaveCount(1);
+  await expect(page.locator(".course-world-art .poetic-landscape-svg")).toHaveAttribute("data-scenery-poem", "journey");
   // Existing small-screen design hides the decorative margin; desktop allows switching there too.
   if (testInfo.project.name === "desktop") {
     await marginPoem.click();
     await expect(shell).toHaveAttribute("data-poem", "courage");
+    await expect(page.locator(".course-world-art .poetic-landscape-svg")).toHaveAttribute("data-terrain", "sea");
   }
   await page.reload();
   await expect(shell).toHaveAttribute("data-poem", testInfo.project.name === "desktop" ? "courage" : "journey");
   await expect(page.getByRole("button", { name: "继续流转" })).toHaveAttribute("aria-pressed", "true");
+  expect(browserErrors).toEqual([]);
 });
 
 test("study, forest and atlas have spatial homes with working courses and reading indexes", async ({ page }, testInfo) => {

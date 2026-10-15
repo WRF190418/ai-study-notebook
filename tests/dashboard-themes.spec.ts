@@ -28,7 +28,7 @@ test("lands on the learning dashboard and persists immersive themes", async ({ p
   await picker.getByRole("button", { name: /^极夜星图/ }).click();
   expect((await save).ok()).toBeTruthy();
   await expect(page.locator('.app-shell[data-theme="midnight-atlas"]')).toBeVisible();
-  await page.getByRole("button", { name: "关闭主题选择" }).click();
+  await expect(picker).toBeHidden();
 
   await page.reload();
   await expect(page.locator('.app-shell[data-theme="midnight-atlas"]')).toBeVisible();
@@ -76,7 +76,7 @@ test("lets poetry flow, hold and resume, and saves the original magic theme", as
   const saved = page.waitForResponse((response) => response.url().includes("/api/preferences") && response.request().method() === "PUT");
   await picker.getByRole("button", { name: /^秘法藏书院/ }).click();
   expect((await saved).ok()).toBeTruthy();
-  await page.getByRole("button", { name: "关闭主题选择" }).click();
+  await expect(picker).toBeHidden();
   await page.reload();
   await expect(shell).toHaveAttribute("data-theme", "arcane-library");
   await expect(page.locator(".poetry-passage")).toHaveCount(0);

@@ -137,7 +137,7 @@
 .world-opening-leaf small { letter-spacing: .2em; font-size: 13px; }.world-opening-leaf strong { font: 32px var(--theme-heading); letter-spacing: .1em; text-align: center; padding: 24px; }.world-opening-leaf > span { font-size: 11px; letter-spacing: .2em; opacity: .6; }
 .opening-book .world-opening-leaf { background: linear-gradient(90deg, #ded6bd 0%, #faf5e5 48%, #c1b69c 50%, #faf5e5 53%, #e9e2cc 100%); border: 7px solid #405a42; animation: book-unfurl .62s ease both; }
 .world-poem-layer { opacity: 0; transition: opacity 14s ease; }.world-poem-layer.present { opacity: 1; }
-.scenery-poetry stop { transition: stop-color 14s ease; }
+.poetic-landscape-svg stop { transition: stop-color 14s ease; }
 .poem-drifting-mist { animation: world-mist 48s ease-in-out infinite alternate; }
 .archive-floating-candle { animation: world-candle 7s ease-in-out infinite alternate; }.archive-floating-candle.candle-1 { animation-delay: -3s; animation-duration: 9s; }.archive-floating-candle.candle-2 { animation-delay: -5s; }
 .archive-motes { animation: world-motes 24s ease-in-out infinite alternate; }
