@@ -3,6 +3,7 @@ import "katex/dist/katex.min.css";
 import "./globals.css";
 import "./themes.css";
 import "./worlds.css";
+import "./course-spaces.css";
 
 export const metadata: Metadata = {
   title: "StudyNote AI",

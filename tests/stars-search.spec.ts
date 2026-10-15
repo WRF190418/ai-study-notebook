@@ -88,6 +88,12 @@ test("searches page content globally and persists beautiful page stars", async (
   const noteEditor = page.getByRole("dialog", { name: "第7页备注编辑器" });
   await expect(noteEditor).toBeVisible();
   await noteEditor.getByLabel("第7页备注内容").fill("考试重点：注意向量顺序与体积的绝对值。");
+  // A parent reader update must not remount the heading and discard the draft.
+  await page.getByRole("button", { name: /^专注阅读/ }).click();
+  await expect(noteEditor.getByLabel("第7页备注内容")).toHaveValue("考试重点：注意向量顺序与体积的绝对值。");
+  await page.getByRole("toolbar", { name: "专注阅读工具栏" }).hover();
+  await page.getByRole("button", { name: "退出专注阅读", exact: true }).click();
+  await expect(noteEditor.getByLabel("第7页备注内容")).toHaveValue("考试重点：注意向量顺序与体积的绝对值。");
   await page.screenshot({ path: `test-results/page-note-editor-${testInfo.project.name}.png`, fullPage: false });
   const noteSaveResponse = page.waitForResponse(
     (response) => response.url().includes("/api/stars") && response.request().method() === "PUT"

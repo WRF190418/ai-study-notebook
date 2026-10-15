@@ -4,7 +4,6 @@ import { ChangeEvent, ClipboardEvent, FormEvent, useEffect, useMemo, useRef, use
 import type { ReactNode } from "react";
 import {
   ArrowRight,
-  Atom,
   BookMarked,
   BookOpen,
   Brain,
@@ -17,7 +16,6 @@ import {
   Clock3,
   CornerUpLeft,
   FileText,
-  FunctionSquare,
   HelpCircle,
   Home,
   ImagePlus,
@@ -40,6 +38,7 @@ import MarkdownView from "@/components/MarkdownView";
 import CoursewareImages from "@/components/CoursewareImages";
 import ThemeLandscape, { usePoeticFlow } from "@/components/ThemeWorld";
 import ImmersiveHome from "@/components/ImmersiveHome";
+import CourseSpace from "@/components/CourseSpace";
 import { poeticScenes, themeOptions } from "@/lib/themes";
 import { extractNotePages, extractPageSourceImages, makeExcerpt, markdownToPlainText, pageAnchorId, type NotePageSection } from "@/lib/note-pages";
 
@@ -469,6 +468,7 @@ export default function NotebookApp({
       data-poem={poeticScenes[poeticFlow.index].id}
       data-poetry-held={poeticFlow.held}
       data-reading={Boolean(activeLesson)}
+      data-course-space={appView === "courses" && !activeLesson}
       data-world-home={(theme === "poetic-realm" || theme === "arcane-library") && appView === "home" && !activeLesson}
       data-night={theme === "midnight-atlas" || theme === "arcane-library"}
       data-ambience={workspace.preferences.ambience ?? "immersive"}
@@ -696,11 +696,13 @@ export default function NotebookApp({
                 onWorkspaceUpdated={setWorkspace}
               />
             ) : (
-              <CourseHome
+              <CourseSpace
                 theme={theme}
                 poemIndex={poeticFlow.index}
                 course={course}
                 lessons={lessons}
+                notes={workspace.notes}
+                readingProgress={workspace.readingProgress}
                 activeLessonId={lessonId}
                 lessonLayout={workspace.preferences.lessonLayout}
                 onEnterLesson={enterLesson}
@@ -1205,59 +1207,6 @@ function OnboardingGuide({
         </div>
       </section>
     </div>
-  );
-}
-
-function CourseHome({
-  theme,
-  poemIndex,
-  course,
-  lessons,
-  activeLessonId,
-  lessonLayout,
-  onEnterLesson
-}: {
-  theme: AppTheme;
-  poemIndex: number;
-  course?: Course;
-  lessons: Lesson[];
-  activeLessonId: string;
-  lessonLayout: UserPreferences["lessonLayout"];
-  onEnterLesson: (lesson: Lesson) => void;
-}) {
-  return (
-    <>
-      {course ? (
-        <section className="course-hero">
-          <div className="course-world-art"><ThemeLandscape theme={theme} poemIndex={poemIndex} preview /></div>
-          <h1>{course.title}</h1>
-          <p>
-            {course.code} - {course.description}
-          </p>
-          <div className="tag-row">
-            {course.tags.map((tag) => (
-              <span className="tag" key={tag}>
-                <Sparkles size={15} />
-                {tag}
-              </span>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      <div className="section-title">
-        <h2>
-          <BookOpen size={23} />
-          课程章节
-        </h2>
-      </div>
-
-      <div className={`lesson-grid ${lessonLayout === "list" ? "lesson-list" : ""}`}>
-        {lessons.map((lesson) => (
-          <LessonCard key={lesson.id} lesson={lesson} active={lesson.id === activeLessonId} onClick={() => onEnterLesson(lesson)} />
-        ))}
-      </div>
-    </>
   );
 }
 
@@ -1880,30 +1829,6 @@ function NoteImageInsert({
 
 function lessonLabel(lesson: Lesson) {
   return lesson.title.match(/^(?:Lecture|Tutorial|Chapter)\s+\d+[a-z]?(?=\s|[:：]|$)/i)?.[0] ?? `Lecture ${lesson.order}`;
-}
-
-function LessonCard({ lesson, active, onClick }: { lesson: Lesson; active: boolean; onClick: () => void }) {
-  const Icon = lesson.icon === "atom" ? Atom : lesson.icon === "function" ? FunctionSquare : lesson.icon === "sparkles" ? Sparkles : BookOpen;
-  return (
-    <button
-      className="lesson-card"
-      style={{ outline: active ? "3px solid rgba(63, 143, 122, 0.22)" : undefined }}
-      type="button"
-      onClick={onClick}
-    >
-      <div className={`lesson-art ${lesson.accent}`}>
-        <span className="lesson-badge">{lessonLabel(lesson)}</span>
-        <span className="lesson-icon">
-          <Icon size={34} />
-        </span>
-      </div>
-      <div className="lesson-body">
-        <h3>{lesson.title}</h3>
-        <p>{lesson.subtitle}</p>
-        <span className="inline-link">进入章节 <ChevronRight size={17} /></span>
-      </div>
-    </button>
-  );
 }
 
 function OrganizerPanel({

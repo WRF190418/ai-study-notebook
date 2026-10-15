@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Check, Copy, LoaderCircle, Maximize2, MessageSquareText, Presentation, ScanText, Star, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import type { Components, ExtraProps } from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -34,6 +35,22 @@ type PageStars = {
   onSaveNote: (page: { key: string; pageNumber: number }, note: string) => void;
   onToggle: (page: { key: string; pageNumber: number }) => void;
 };
+
+// Keep heading component identities stable when progress, themes or stars update.
+// Inline render functions remount headings and can erase an unsaved memo draft.
+const PageStarsContext = createContext<PageStars | undefined>(undefined);
+function MarkdownHeading2({ children, node }: ComponentPropsWithoutRef<"h2"> & ExtraProps) {
+  const pageStars = useContext(PageStarsContext);
+  return <NotePageHeading level={2} pageStars={pageStars} sourceStart={node?.position?.start.offset}>{children}</NotePageHeading>;
+}
+function MarkdownHeading3({ children, node }: ComponentPropsWithoutRef<"h3"> & ExtraProps) {
+  const pageStars = useContext(PageStarsContext);
+  return <NotePageHeading level={3} pageStars={pageStars} sourceStart={node?.position?.start.offset}>{children}</NotePageHeading>;
+}
+function MarkdownTable({ children }: ComponentPropsWithoutRef<"table">) {
+  return <div className="markdown-table-scroll" tabIndex={0} role="region" aria-label="笔记表格"><table>{children}</table></div>;
+}
+const markdownComponents: Components = { img: MarkdownNoteImage, table: MarkdownTable, h2: MarkdownHeading2, h3: MarkdownHeading3 };
 
 export default function MarkdownView({
   content,
@@ -74,16 +91,13 @@ export default function MarkdownView({
   }
 
   return (
-    <article className={`markdown ${compact ? "markdown-compact" : ""}`}>
-      <ReactMarkdown skipHtml components={{
-        img: MarkdownNoteImage,
-        table: ({ children }) => <div className="markdown-table-scroll" tabIndex={0} role="region" aria-label="笔记表格"><table>{children}</table></div>,
-        h2: ({ children, node }) => <NotePageHeading level={2} pageStars={pageStars} sourceStart={node?.position?.start.offset}>{children}</NotePageHeading>,
-        h3: ({ children, node }) => <NotePageHeading level={3} pageStars={pageStars} sourceStart={node?.position?.start.offset}>{children}</NotePageHeading>
-      }} remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
-        {normalizeMath(content, compact)}
-      </ReactMarkdown>
-    </article>
+    <PageStarsContext.Provider value={pageStars}>
+      <article className={`markdown ${compact ? "markdown-compact" : ""}`}>
+        <ReactMarkdown skipHtml components={markdownComponents} remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
+          {normalizeMath(content, compact)}
+        </ReactMarkdown>
+      </article>
+    </PageStarsContext.Provider>
   );
 }
 
