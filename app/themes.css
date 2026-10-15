@@ -98,11 +98,11 @@
   transition: background-color 14s ease, color 14s ease;
 }
 .app-shell[data-theme="poetic-realm"]::before { background: radial-gradient(ellipse at 80% 5%, #b3bdac35, transparent 55%), repeating-linear-gradient(0deg, #78664105 0 1px, transparent 1px 5px); }
-.app-shell[data-theme="poetic-realm"][data-poem="devotion"] { --theme-bg: #ddd9d2; --theme-glow: #b5a58f4d; --theme-accent-2: #a18c71; }
-.app-shell[data-theme="poetic-realm"][data-poem="journey"] { --theme-bg: #e2e9dc; --theme-glow: #acbea14d; --theme-accent-2: #75966c; }
-.app-shell[data-theme="poetic-realm"][data-poem="courage"] { --theme-bg: #dedfd4; --theme-glow: #c6b0794d; --theme-accent-2: #a18a52; }
-.app-shell[data-theme="poetic-realm"][data-poem="freedom"] { --theme-bg: #dce3dd; --theme-glow: #92aaa64d; --theme-accent-2: #72958b; }
-.app-shell[data-theme="poetic-realm"][data-poem="repose"] { --theme-bg: #e9e9df; --theme-glow: #afbea84d; --theme-accent-2: #8ea085; }
+.app-shell[data-theme="poetic-realm"][data-poetic-motif="devotion"] { --theme-bg: #ddd9d2; --theme-glow: #b5a58f4d; --theme-accent-2: #a18c71; }
+.app-shell[data-theme="poetic-realm"][data-poetic-motif="journey"] { --theme-bg: #e2e9dc; --theme-glow: #acbea14d; --theme-accent-2: #75966c; }
+.app-shell[data-theme="poetic-realm"][data-poetic-motif="courage"] { --theme-bg: #dedfd4; --theme-glow: #c6b0794d; --theme-accent-2: #a18a52; }
+.app-shell[data-theme="poetic-realm"][data-poetic-motif="freedom"] { --theme-bg: #dce3dd; --theme-glow: #92aaa64d; --theme-accent-2: #72958b; }
+.app-shell[data-theme="poetic-realm"][data-poetic-motif="repose"] { --theme-bg: #e9e9df; --theme-glow: #afbea84d; --theme-accent-2: #8ea085; }
 .app-shell[data-theme="poetic-realm"] .sidebar { background: linear-gradient(170deg, #eeeadef5, #d6ddcfe8); border-right: 1px solid #8b97764d; }
 .app-shell[data-theme="poetic-realm"] .nav-logo { font-family: var(--theme-heading); }
 .app-shell[data-theme="poetic-realm"] .nav-icon { background: #8c4d44; border-radius: 5px; transform: rotate(-4deg); }
@@ -133,6 +133,8 @@
 .poetry-hold:hover { color: #633b35; }
 .poetic-scene { opacity: 0; transition: opacity 14s ease; }
 .poetic-scene.present { opacity: 1; }
+.app-shell[data-poetry-transition="manual"] :is(.poetry-verse,.poetic-scene,.world-poem-layer,.scenery-poetry stop) { transition-duration: .65s; }
+.app-shell[data-theme="poetic-realm"][data-poetry-transition="manual"] { transition-duration: .65s; }
 .theme-card-scene .poetic-scene { transition: none; }
 
 /* The archive: original arched architecture, celestial instruments and candlelight. */

@@ -37,6 +37,7 @@ import type { Course, Lesson, MindMapNode, Note, NoteReadingProgress, NoteStar, 
 import MarkdownView from "@/components/MarkdownView";
 import CoursewareImages from "@/components/CoursewareImages";
 import ThemeLandscape, { usePoeticFlow } from "@/components/ThemeWorld";
+import AtmosphericHome from "@/components/AtmosphericHome";
 import ImmersiveHome from "@/components/ImmersiveHome";
 import CourseSpace from "@/components/CourseSpace";
 import { poeticScenes, themeOptions } from "@/lib/themes";
@@ -466,10 +467,12 @@ export default function NotebookApp({
       data-primary={workspace.preferences.primaryColor}
       data-theme={workspace.preferences.theme ?? "mist-forest"}
       data-poem={poeticScenes[poeticFlow.index].id}
+      data-poetic-motif={poeticScenes[poeticFlow.index].motif}
+      data-poetry-transition={poeticFlow.transition}
       data-poetry-held={poeticFlow.held}
       data-reading={Boolean(activeLesson)}
       data-course-space={appView === "courses" && !activeLesson}
-      data-world-home={(theme === "poetic-realm" || theme === "arcane-library") && appView === "home" && !activeLesson}
+      data-world-home={theme !== "cognitive-lab" && appView === "home" && !activeLesson}
       data-night={theme === "midnight-atlas" || theme === "arcane-library"}
       data-ambience={workspace.preferences.ambience ?? "immersive"}
       data-button-radius={workspace.preferences.buttonRadius}
@@ -699,6 +702,7 @@ export default function NotebookApp({
               <CourseSpace
                 theme={theme}
                 poemIndex={poeticFlow.index}
+                onNextPoem={poeticFlow.next}
                 course={course}
                 lessons={lessons}
                 notes={workspace.notes}
@@ -897,6 +901,9 @@ function DashboardHome({
 }) {
   if (theme === "poetic-realm" || theme === "arcane-library") {
     return <ImmersiveHome theme={theme} poeticFlow={poeticFlow} searchCourseIds={searchCourseIds} courses={courses} greeting={greeting} lessons={lessons} name={name} notes={notes} noteStars={noteStars} onContinue={onContinue} onOpenCourse={onOpenCourse} onOpenNote={onOpenNote} onTermChange={onTermChange} readingProgress={readingProgress} selectedTerm={selectedTerm} terms={terms} />;
+  }
+  if (theme === "warm-study" || theme === "mist-forest" || theme === "midnight-atlas") {
+    return <AtmosphericHome theme={theme} poeticFlow={poeticFlow} searchCourseIds={searchCourseIds} courses={courses} greeting={greeting} lessons={lessons} name={name} notes={notes} noteStars={noteStars} onContinue={onContinue} onOpenCourse={onOpenCourse} onOpenNote={onOpenNote} onTermChange={onTermChange} readingProgress={readingProgress} selectedTerm={selectedTerm} terms={terms} />;
   }
   const visibleCourses = courses.filter((course) => !selectedTerm || course.term === selectedTerm);
   const latestProgress = [...readingProgress].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];

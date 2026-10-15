@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Pause, Play } from "lucide-react";
 import type { UserPreferences } from "@/lib/types";
-import { poeticScenes, themeOptions } from "@/lib/themes";
+import { poeticMotifs, poeticScenes, themeOptions } from "@/lib/themes";
 
 const POEM_DURATION = 96_000;
 
@@ -12,7 +12,9 @@ export function usePoeticFlow(enabled: boolean, userId: string) {
   const [held, setHeld] = useState(false);
   const [ready, setReady] = useState(false);
   const [visible, setVisible] = useState(true);
+  const [transition, setTransition] = useState<"flow" | "manual">("flow");
   const remaining = useRef(POEM_DURATION);
+  const revision = useRef(0);
 
   useEffect(() => {
     try {
@@ -35,32 +37,40 @@ export function usePoeticFlow(enabled: boolean, userId: string) {
   useEffect(() => {
     if (!ready || !enabled || held || !visible) return;
     const started = performance.now();
+    const cycle = revision.current;
     let completed = false;
     const timer = window.setTimeout(() => {
       completed = true;
       remaining.current = POEM_DURATION;
+      setTransition("flow");
       setIndex((current) => (current + 1) % poeticScenes.length);
     }, remaining.current);
     return () => {
       window.clearTimeout(timer);
-      if (!completed) remaining.current = Math.max(0, remaining.current - (performance.now() - started));
+      if (!completed && cycle === revision.current) remaining.current = Math.max(0, remaining.current - (performance.now() - started));
     };
   }, [enabled, held, index, ready, visible]);
 
-  return { index, held, toggleHeld: () => setHeld((current) => !current) };
+  function next() {
+    revision.current += 1;
+    remaining.current = POEM_DURATION;
+    setTransition("manual");
+    setIndex(current => (current + 1) % poeticScenes.length);
+  }
+  return { index, held, transition, next, toggleHeld: () => setHeld((current) => !current) };
 }
 
-export function PoetryPassage({ index, held, onToggle }: { index: number; held: boolean; onToggle: () => void }) {
+export function PoetryPassage({ index, held, onToggle, onNext }: { index: number; held: boolean; onToggle: () => void; onNext: () => void }) {
   return (
     <div className="poetry-passage">
-      <div className="poetry-verses" aria-label="流动诗境">
+      <button type="button" className="poetry-verses" aria-label="换一句诗" title="点击诗句，换一境" onClick={onNext}>
         {poeticScenes.map((poem, poemIndex) => (
           <div className={`poetry-verse${index === poemIndex ? " present" : ""}`} aria-hidden={index !== poemIndex} key={poem.id}>
             <p>{poem.verse[0]}<br />{poem.verse[1]}</p>
             <span>{poem.author} ·《{poem.title}》</span>
           </div>
         ))}
-      </div>
+      </button>
       <button aria-pressed={held} className="poetry-hold" onClick={onToggle} type="button" title={held ? "继续诗境的缓慢流转" : "让此刻的诗与景暂时停留"}>
         {held ? <Play size={12} /> : <Pause size={12} />}
         {held ? "继续流转" : "留住此境"}
@@ -138,7 +148,7 @@ export default function ThemeLandscape({ theme, poemIndex = 0, preview = false }
           <g className="scene-scan"><path d="M160 350Q308 394 456 350" fill="none" stroke="#84f3fa" opacity=".65" /><ellipse cx="309" cy="352" rx="147" ry="34" fill="none" stroke="#43c8df" opacity=".3" /></g>
           <text x="62" y="410" fill="#67b4cf" fontSize="10" letterSpacing="4">COGNITION / OPTICS / DISCOVERY</text>
         </>}
-        {theme === "poetic-realm" && poeticScenes.map((poem, index) => <g key={poem.id} className={`poetic-scene poetic-scene-${poem.id}${index === poemIndex ? " present" : ""}`}>
+        {theme === "poetic-realm" && poeticMotifs.map((motif, index) => <g key={motif} className={`poetic-scene poetic-scene-${motif}${motif === scene.motif ? " present" : ""}`}>
           <rect width="600" height="460" fill={index === 1 ? "#d4ceca" : index === 3 ? "#dad9c9" : "#e7e5dc"} />
           <circle cx={index === 3 ? 420 : 441} cy="109" r={index === 0 ? 36 : 29} fill={index === 3 ? "#d6a46f" : "#fbf4df"} />
           <path d="M0 260Q62 225 101 170Q132 137 173 213Q216 181 246 114Q274 71 305 164Q331 135 376 231Q423 172 466 205Q514 137 600 224V460H0Z" fill="#8c9a95" opacity=".38" />

@@ -48,7 +48,8 @@
 .course-space-poetic-realm .course-titlepage h1 { font-family: "STKaiti","KaiTi","SimSun",serif; }
 .course-space-poetic-realm .course-world-art { inset: 60px -30px 20px auto; width: 220px; opacity: .15; mask-image: linear-gradient(90deg,transparent,#000 45%); }
 .course-space-poetic-realm .course-volume-mark { border: 1px solid #9c584870; color: #9c5848; transform: rotate(5deg); }
-.course-margin-poem { position: absolute; top: 83px; right: 37px; display: flex; flex-direction: row-reverse; align-items: flex-start; gap: 13px; max-height: 240px; }
+.course-margin-poem { position: absolute; z-index: 3; top: 83px; right: 37px; display: flex; flex-direction: row-reverse; align-items: flex-start; gap: 13px; max-height: 240px; appearance: none; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; text-align: inherit; cursor: pointer; }
+.course-margin-poem:focus-visible { outline: 1px dashed #6c725780; outline-offset: 6px; }
 .course-margin-poem > span { writing-mode: vertical-rl; font: 18px/1.9 "STKaiti","KaiTi",serif; letter-spacing: .13em; color: #52654e; height: 222px; }
 .course-margin-poem > small { writing-mode: vertical-rl; font-size: 9px; letter-spacing: .06em; max-height: 210px; color: #7c816a; }
 .course-space-poetic-realm .course-space-stats { max-width: calc(100% - 145px); }

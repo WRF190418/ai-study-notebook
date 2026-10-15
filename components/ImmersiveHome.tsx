@@ -72,7 +72,7 @@ export default function ImmersiveHome(props: ImmersiveHomeProps) {
 
   return (
     <div className={`home-dashboard world-home ${magic ? "archive-home" : "poem-home"}${entering ? " world-entering" : ""}`} data-searching={Boolean(searchCourseIds)}>
-      <WorldScenery magic={magic} poem={poeticScenes[poeticFlow.index].id} />
+      <WorldScenery magic={magic} poem={poeticScenes[poeticFlow.index].motif} />
       <div className="world-front">
         <header className="world-welcome">
           <span className="world-location">{magic ? "THE NOCTURNE ARCHIVE" : "山水之间 · 与诗相逢"}</span>
@@ -81,7 +81,7 @@ export default function ImmersiveHome(props: ImmersiveHomeProps) {
         </header>
 
         {magic ? <div className="archive-vault" aria-hidden="true"><span>秘法藏书院</span><i /><p>凡所求索，皆有微光</p></div> : <div className="poem-open-space">
-          <PoetryPassage index={poeticFlow.index} held={poeticFlow.held} onToggle={poeticFlow.toggleHeld} />
+          <PoetryPassage index={poeticFlow.index} held={poeticFlow.held} onToggle={poeticFlow.toggleHeld} onNext={poeticFlow.next} />
           <span className="poem-scene-inscription">{poeticScenes[poeticFlow.index].image}</span>
         </div>}
 

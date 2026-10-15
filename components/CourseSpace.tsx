@@ -14,10 +14,11 @@ const spaces = {
   "arcane-library": { label: "藏书内页", eyebrow: "THE NOCTURNE ARCHIVE / CONTENTS", invitation: "书已展开，求索自此页开始。", collection: "秘典目录", action: "翻开此章", mark: "✦" }
 } as const;
 
-export default function CourseSpace({ theme, poemIndex, course, lessons, notes, readingProgress, activeLessonId, lessonLayout, onEnterLesson }: {
+export default function CourseSpace({ theme, poemIndex, onNextPoem, course, lessons, notes, readingProgress, activeLessonId, lessonLayout, onEnterLesson }: {
   theme: UserPreferences["theme"]; poemIndex: number; course?: Course; lessons: Lesson[]; notes: Note[];
   readingProgress: NoteReadingProgress[]; activeLessonId: string; lessonLayout: UserPreferences["lessonLayout"];
   onEnterLesson: (lesson: Lesson) => void;
+  onNextPoem: () => void;
 }) {
   const space = spaces[theme];
   const ownNotes = notes.filter(note => note.courseId === course?.id);
@@ -39,7 +40,7 @@ export default function CourseSpace({ theme, poemIndex, course, lessons, notes, 
       <div className="course-titlepage-footer">
         <div className="course-space-stats" aria-label="本课程阅读概览"><span><strong>{lessons.length}</strong> 章</span><span><strong>{ownNotes.length}</strong> 篇笔记</span><span><strong>{readNotes}</strong> 篇有阅读记录</span></div>
         <p className="course-invitation">{space.invitation}</p>
-        {theme === "poetic-realm" && <div className="course-margin-poem" aria-label="此刻诗境"><span>{poem.verse[0]}<br />{poem.verse[1]}</span><small>{poem.author} ·《{poem.title}》</small></div>}
+        {theme === "poetic-realm" && <button type="button" className="course-margin-poem" aria-label="换一句诗" title="点击诗句，换一境" onClick={onNextPoem}><span>{poem.verse[0]}<br />{poem.verse[1]}</span><small>{poem.author} ·《{poem.title}》</small></button>}
         {theme === "arcane-library" && <div className="course-archive-emblem" aria-hidden="true"><i /><span>✧</span><i /></div>}
       </div>
     </section>}

@@ -38,6 +38,7 @@ test("shows the course back button only for a quick upward scroll", async ({ pag
     await expect(guide).toBeHidden();
   }
 
+  await page.getByRole("button", { name: "课程", exact: true }).click();
   await page.getByLabel("选择课程").selectOption(course.id);
   await page.getByRole("button", { name: /长篇笔记章节/ }).click();
   const scrollRegion = page.locator('[data-scroll-region="notes"]');
