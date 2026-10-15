@@ -10,6 +10,12 @@ async function dismissOnboarding(page: import("@playwright/test").Page) {
     await dialog.getByRole("button", { name: "跳过" }).click();
     await expect(page.getByRole("dialog", { name: "新手指导" })).toBeHidden({ timeout: 10_000 });
   }
+
+  const dashboard = page.locator(".home-dashboard");
+  if (await dashboard.isVisible().catch(() => false)) {
+    await dashboard.locator(".home-course-card").first().click();
+    await expect(page.locator(".course-hero")).toBeVisible();
+  }
 }
 
 function testPng(name = "note-image.png") {
@@ -73,6 +79,7 @@ test("registers a user and reaches the course workspace", async ({ page }, testI
 
   await expect(page.getByRole("heading", { name: "自然对话基础" })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole("dialog", { name: "新手指导" })).toBeVisible();
+  await expect(page.locator(".home-dashboard")).toBeVisible();
   await dismissOnboarding(page);
   await expect(page.getByRole("heading", { name: "课程章节" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "AI 整理台" })).toBeVisible();

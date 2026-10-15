@@ -3,10 +3,13 @@
 import { ChangeEvent, ClipboardEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
+  ArrowRight,
   Atom,
+  BookMarked,
   BookOpen,
   Brain,
   CalendarDays,
+  Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -16,6 +19,7 @@ import {
   FileText,
   FunctionSquare,
   HelpCircle,
+  Home,
   ImagePlus,
   Library,
   LogOut,
@@ -23,6 +27,7 @@ import {
   Minimize2,
   Moon,
   Network,
+  Palette,
   Search,
   Sparkles,
   Star,
@@ -79,6 +84,9 @@ type NavigationSnapshot = {
 
 type SourceType = "text" | "outline" | "image" | "file";
 type Mode = "standard" | "exam" | "deep";
+type AppView = "home" | "courses";
+type AppTheme = UserPreferences["theme"];
+type Ambience = UserPreferences["ambience"];
 type ProcessStep = {
   label: string;
   description: string;
@@ -107,6 +115,7 @@ export default function NotebookApp({
   initialWorkspace: Workspace;
 }) {
   const [workspace, setWorkspace] = useState(initialWorkspace);
+  const [appView, setAppView] = useState<AppView>("home");
   const [selectedTerm, setSelectedTerm] = useState(initialWorkspace.courses[0]?.term ?? "");
   const [courseId, setCourseId] = useState(initialWorkspace.courses[0]?.id ?? "");
   const [lessonId, setLessonId] = useState(initialWorkspace.lessons.find((lesson) => lesson.courseId === courseId)?.id ?? "");
@@ -124,6 +133,9 @@ export default function NotebookApp({
   const [onboardingCompletedAt, setOnboardingCompletedAt] = useState(initialUser.onboardingCompletedAt ?? "");
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
+  const [themePickerOpen, setThemePickerOpen] = useState(false);
+  const [themeMessage, setThemeMessage] = useState("");
+  const [greeting, setGreeting] = useState("欢迎回来");
   const contentScrollRef = useRef<HTMLDivElement>(null);
   const searchAreaRef = useRef<HTMLDivElement>(null);
 
@@ -150,6 +162,8 @@ export default function NotebookApp({
   useEffect(() => {
     setAppHydrated(true);
     setFocusDarkMode(window.localStorage.getItem(`study-note-focus-theme:${initialUser.id}`) === "dark");
+    const hour = new Date().getHours();
+    setGreeting(hour < 6 ? "夜深了" : hour < 11 ? "早上好" : hour < 14 ? "中午好" : hour < 18 ? "下午好" : "晚上好");
     if (!initialUser.onboardingCompletedAt) {
       setOnboardingOpen(true);
     }
@@ -229,6 +243,22 @@ export default function NotebookApp({
     setFocusMode(false);
   }
 
+  function openCourse(nextCourseId: string) {
+    chooseCourse(nextCourseId);
+    setAppView("courses");
+  }
+
+  function openNote(note: Note) {
+    const nextCourse = workspace.courses.find((item) => item.id === note.courseId);
+    if (nextCourse) setSelectedTerm(nextCourse.term);
+    setCourseId(note.courseId);
+    setLessonId(note.lessonId);
+    setActiveLessonId(note.lessonId);
+    setSelectedNoteId(note.id);
+    setAppView("courses");
+    setFocusMode(false);
+  }
+
   function chooseTerm(nextTerm: string) {
     setSelectedTerm(nextTerm);
     const firstCourse = workspace.courses.find((item) => item.term === nextTerm);
@@ -251,6 +281,27 @@ export default function NotebookApp({
     const firstNote = workspace.notes.find((note) => note.lessonId === lesson.id);
     setSelectedNoteId(firstNote?.id ?? "");
     setFocusMode(false);
+    setAppView("courses");
+  }
+
+  async function saveTheme(theme: AppTheme, ambience: Ambience) {
+    const previous = workspace.preferences;
+    const optimistic = { ...previous, theme, ambience, updatedAt: new Date().toISOString() };
+    setThemeMessage("");
+    setWorkspace((current) => ({ ...current, preferences: optimistic }));
+    try {
+      const response = await fetch("/api/preferences", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ theme, ambience })
+      });
+      if (!response.ok) throw new Error("THEME_SAVE_FAILED");
+      const data = await response.json();
+      setWorkspace((current) => ({ ...current, preferences: data.preferences }));
+    } catch {
+      setWorkspace((current) => ({ ...current, preferences: previous }));
+      setThemeMessage("主题没有保存成功，请稍后重试。");
+    }
   }
 
   async function logout() {
@@ -283,6 +334,7 @@ export default function NotebookApp({
     setSelectedNoteId(targetNote.id);
     setSearchOpen(false);
     setPendingJump({ noteId: targetNote.id, pageKey: target.pageKey });
+    setAppView("courses");
   }
 
   async function togglePageStar(noteId: string, page: { key: string; pageNumber: number }) {
@@ -398,6 +450,8 @@ export default function NotebookApp({
     <main
       className={`app-shell${focusMode ? " focus-mode" : ""}${focusMode && focusDarkMode ? " focus-dark" : ""}`}
       data-primary={workspace.preferences.primaryColor}
+      data-theme={workspace.preferences.theme ?? "mist-forest"}
+      data-ambience={workspace.preferences.ambience ?? "immersive"}
       data-button-radius={workspace.preferences.buttonRadius}
       data-button-style={workspace.preferences.buttonStyle}
       data-density={workspace.preferences.density}
@@ -413,11 +467,41 @@ export default function NotebookApp({
         </div>
 
         <nav className="nav-menu" aria-label="主导航">
-          <button className="nav-item active" type="button">
+          <button
+            className={`nav-item ${appView === "home" && !activeLesson ? "active" : ""}`}
+            onClick={() => {
+              setFocusMode(false);
+              setActiveLessonId(null);
+              setSelectedNoteId("");
+              setAppView("home");
+            }}
+            type="button"
+          >
+            <Home size={18} />
+            主页
+          </button>
+          <button
+            className={`nav-item ${appView === "courses" ? "active" : ""}`}
+            onClick={() => {
+              setFocusMode(false);
+              setActiveLessonId(null);
+              setSelectedNoteId("");
+              setAppView("courses");
+            }}
+            type="button"
+          >
             <Library size={18} />
             课程
           </button>
-          <button className="nav-item" type="button">
+          <button
+            className="nav-item"
+            onClick={() => {
+              setAppView("courses");
+              setActiveLessonId(null);
+              setOrganizerCollapsed(false);
+            }}
+            type="button"
+          >
             <Brain size={18} />
             AI 整理
           </button>
@@ -453,6 +537,14 @@ export default function NotebookApp({
         ) : null}
 
         <div className="sidebar-footer">
+          <button className="theme-entry-button" onClick={() => setThemePickerOpen(true)} type="button">
+            <span className="theme-entry-icon"><Palette size={17} /></span>
+            <span>
+              <strong>空间主题</strong>
+              <small>{themeName(workspace.preferences.theme ?? "mist-forest")}</small>
+            </span>
+            <ChevronRight size={16} />
+          </button>
           <div className="user-card">
             <strong>{initialUser.name}</strong>
             <span>{initialUser.email}</span>
@@ -477,7 +569,7 @@ export default function NotebookApp({
                 ))}
               </select>
             </label>
-            <select value={course?.id ?? ""} onChange={(event) => chooseCourse(event.target.value)} aria-label="选择课程">
+            <select value={course?.id ?? ""} onChange={(event) => openCourse(event.target.value)} aria-label="选择课程">
               {termCourses.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.title}
@@ -532,6 +624,25 @@ export default function NotebookApp({
           </div>
         </header>
 
+        {appView === "home" && !activeLesson ? (
+          <div className="home-scroll content-scroll" data-scroll-region="home">
+            <DashboardHome
+              courses={workspace.courses}
+              greeting={greeting}
+              lessons={workspace.lessons}
+              name={initialUser.name}
+              notes={workspace.notes}
+              noteStars={workspace.noteStars}
+              readingProgress={workspace.readingProgress}
+              selectedTerm={selectedTerm}
+              terms={terms}
+              onContinue={(note, pageKey) => pageKey ? navigateToLocatedPage({ noteId: note.id, pageKey }) : openNote(note)}
+              onOpenCourse={openCourse}
+              onOpenNote={openNote}
+              onTermChange={chooseTerm}
+            />
+          </div>
+        ) : (
         <div className={`workspace ${organizerCollapsed ? "organizer-collapsed" : ""}`}>
           <div className="content-scroll" data-scroll-region="notes" ref={contentScrollRef}>
             {activeLesson ? (
@@ -581,6 +692,7 @@ export default function NotebookApp({
               collapsed={organizerCollapsed}
               onToggleCollapsed={() => setOrganizerCollapsed((value) => !value)}
               onCommandApplied={(payload) => {
+                setAppView("courses");
                 setWorkspace(payload.workspace);
                 const nextCourse = payload.workspace.courses.find((item) => item.id === payload.selectedCourseId);
                 if (nextCourse) setSelectedTerm(nextCourse.term);
@@ -594,6 +706,7 @@ export default function NotebookApp({
                 );
               }}
               onNoteCreated={({ note, lesson }) => {
+                setAppView("courses");
                 setWorkspace((current) => ({
                   ...current,
                   lessons: current.lessons.some((item) => item.id === lesson.id) ? current.lessons : [...current.lessons, lesson],
@@ -606,7 +719,18 @@ export default function NotebookApp({
             />
           ) : null}
         </div>
+        )}
       </section>
+
+      {themePickerOpen ? (
+        <ThemePicker
+          ambience={workspace.preferences.ambience ?? "immersive"}
+          message={themeMessage}
+          selectedTheme={workspace.preferences.theme ?? "mist-forest"}
+          onApply={(theme, ambience) => void saveTheme(theme, ambience)}
+          onClose={() => setThemePickerOpen(false)}
+        />
+      ) : null}
 
       {onboardingOpen ? (
         <OnboardingGuide
@@ -617,6 +741,302 @@ export default function NotebookApp({
         />
       ) : null}
     </main>
+  );
+}
+
+const themeOptions: Array<{
+  id: AppTheme;
+  name: string;
+  eyebrow: string;
+  description: string;
+  detail: string;
+}> = [
+  {
+    id: "warm-study",
+    name: "暖纸书房",
+    eyebrow: "胡桃木 · 黄铜 · 纸张",
+    description: "像傍晚坐在安静书桌前，温暖、沉静、有书卷气。",
+    detail: "适合长时间阅读与人文课程"
+  },
+  {
+    id: "mist-forest",
+    name: "雾林清晨",
+    eyebrow: "薄雾 · 鼠尾草 · 柔光",
+    description: "低饱和绿意与柔和层次，让日常整理更平静。",
+    detail: "适合日常学习与轻松复习"
+  },
+  {
+    id: "midnight-atlas",
+    name: "极夜星图",
+    eyebrow: "深海蓝 · 星金 · 夜幕",
+    description: "深蓝阅读空间与细微星轨，专为夜间沉浸复习。",
+    detail: "适合专注阅读与考前冲刺"
+  },
+  {
+    id: "cognitive-lab",
+    name: "未来认知实验室",
+    eyebrow: "冰白 · 钴蓝 · 精密网格",
+    description: "清晰锐利的信息界面，像进入安静的研究控制室。",
+    detail: "适合 AI、工程与理科课程"
+  }
+];
+
+function themeName(theme: AppTheme) {
+  return themeOptions.find((item) => item.id === theme)?.name ?? "雾林清晨";
+}
+
+function ThemePicker({
+  ambience,
+  message,
+  onApply,
+  onClose,
+  selectedTheme
+}: {
+  ambience: Ambience;
+  message: string;
+  onApply: (theme: AppTheme, ambience: Ambience) => void;
+  onClose: () => void;
+  selectedTheme: AppTheme;
+}) {
+  useEffect(() => {
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [onClose]);
+
+  return (
+    <div className="theme-picker-backdrop" role="presentation" onMouseDown={(event) => {
+      if (event.target === event.currentTarget) onClose();
+    }}>
+      <section aria-label="空间主题" aria-modal="true" className="theme-picker" role="dialog">
+        <header className="theme-picker-heading">
+          <div>
+            <span className="theme-picker-kicker"><Palette size={15} /> 学习空间</span>
+            <h2>选择一种进入知识的方式</h2>
+            <p>主题会改变光线、材质与界面气质；笔记结构和原课件颜色保持不变。</p>
+          </div>
+          <button aria-label="关闭主题选择" className="theme-picker-close" onClick={onClose} type="button"><X size={20} /></button>
+        </header>
+
+        <div className="theme-gallery">
+          {themeOptions.map((theme) => (
+            <button
+              aria-pressed={selectedTheme === theme.id}
+              className={`theme-card theme-card-${theme.id}${selectedTheme === theme.id ? " selected" : ""}`}
+              key={theme.id}
+              onClick={() => onApply(theme.id, ambience)}
+              type="button"
+            >
+              <span className="theme-card-scene" aria-hidden="true">
+                <span className="theme-scene-sidebar" />
+                <span className="theme-scene-paper"><i /><i /><i /></span>
+                <span className="theme-scene-orbit" />
+              </span>
+              <span className="theme-card-copy">
+                <span className="theme-card-title">
+                  <strong>{theme.name}</strong>
+                  {selectedTheme === theme.id ? <span className="theme-selected-mark"><Check size={13} /></span> : null}
+                </span>
+                <small>{theme.eyebrow}</small>
+                <span>{theme.description}</span>
+                <em>{theme.detail}</em>
+              </span>
+            </button>
+          ))}
+        </div>
+
+        <footer className="theme-picker-footer">
+          <div>
+            <strong>氛围强度</strong>
+            <span>控制环境纹理和光影，不改变正文清晰度。</span>
+          </div>
+          <div className="ambience-switch" aria-label="选择氛围强度" role="group">
+            {(["minimal", "standard", "immersive"] as const).map((value) => (
+              <button
+                aria-pressed={ambience === value}
+                className={ambience === value ? "active" : ""}
+                key={value}
+                onClick={() => onApply(selectedTheme, value)}
+                type="button"
+              >
+                {value === "minimal" ? "极简" : value === "standard" ? "标准" : "沉浸"}
+              </button>
+            ))}
+          </div>
+          {message ? <span className="theme-save-error" role="status">{message}</span> : null}
+        </footer>
+      </section>
+    </div>
+  );
+}
+
+function DashboardHome({
+  courses,
+  greeting,
+  lessons,
+  name,
+  notes,
+  noteStars,
+  onContinue,
+  onOpenCourse,
+  onOpenNote,
+  onTermChange,
+  readingProgress,
+  selectedTerm,
+  terms
+}: {
+  courses: Course[];
+  greeting: string;
+  lessons: Lesson[];
+  name: string;
+  notes: Note[];
+  noteStars: NoteStar[];
+  onContinue: (note: Note, pageKey?: string) => void;
+  onOpenCourse: (courseId: string) => void;
+  onOpenNote: (note: Note) => void;
+  onTermChange: (term: string) => void;
+  readingProgress: NoteReadingProgress[];
+  selectedTerm: string;
+  terms: string[];
+}) {
+  const visibleCourses = courses.filter((course) => !selectedTerm || course.term === selectedTerm);
+  const latestProgress = [...readingProgress].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+  const progressNote = latestProgress ? notes.find((note) => note.id === latestProgress.noteId) : undefined;
+  const recentNotes = [...notes].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 4);
+  const fallbackNote = recentNotes[0];
+  const continueNote = progressNote ?? fallbackNote;
+  const continuePage = progressNote && latestProgress
+    ? extractNotePages(progressNote.contentMarkdown).find((page) => page.key === latestProgress.pageKey)
+    : undefined;
+  const recentStars = [...noteStars].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 4);
+  const readNoteIds = new Set(readingProgress.map((item) => item.noteId));
+  const currentTermNotes = notes.filter((note) => visibleCourses.some((course) => course.id === note.courseId));
+
+  return (
+    <div className="home-dashboard">
+      <section className="home-hero">
+        <div className="home-hero-copy">
+          <span className="home-eyebrow"><span className="home-live-dot" /> 你的学习空间已经准备好</span>
+          <h1>{greeting}，{name}</h1>
+          <p>从最近停下的地方继续，或选择一门课程进入今天的学习。</p>
+          <div className="home-stats" aria-label="学习空间概览">
+            <span><strong>{visibleCourses.length}</strong><small>本学期课程</small></span>
+            <span><strong>{currentTermNotes.length}</strong><small>整理笔记</small></span>
+            <span><strong>{noteStars.length}</strong><small>加星重点</small></span>
+          </div>
+        </div>
+        <div className="home-hero-art" aria-hidden="true">
+          <span className="home-orbit orbit-one" />
+          <span className="home-orbit orbit-two" />
+          <span className="home-book book-one"><i /><i /><i /></span>
+          <span className="home-book book-two"><i /><i /></span>
+          <span className="home-focus-glyph"><BookOpen size={31} /></span>
+        </div>
+      </section>
+
+      <section className="home-section home-continue-section">
+        <div className="home-section-heading">
+          <div>
+            <span>CONTINUE</span>
+            <h2>继续上次阅读</h2>
+          </div>
+          {continueNote ? <small>阅读位置已自动记录</small> : null}
+        </div>
+        {continueNote ? (
+          <button className="home-continue-card" onClick={() => onContinue(continueNote, latestProgress?.pageKey)} type="button">
+            <span className="home-continue-icon"><BookMarked size={25} /></span>
+            <span className="home-continue-copy">
+              <small>{courses.find((course) => course.id === continueNote.courseId)?.code ?? "最近笔记"}</small>
+              <strong>{continueNote.title}</strong>
+              <span>{continuePage ? `上次看到第 ${continuePage.pageNumber} 页 · ${continuePage.title}` : continueNote.summary}</span>
+            </span>
+            <span className="home-continue-action">继续阅读 <ArrowRight size={18} /></span>
+          </button>
+        ) : (
+          <div className="home-empty-card">
+            <BookOpen size={24} />
+            <span><strong>还没有最近阅读记录</strong><small>从下面选择课程，第一段学习旅程就会出现在这里。</small></span>
+          </div>
+        )}
+      </section>
+
+      <section className="home-section">
+        <div className="home-section-heading home-course-heading">
+          <div>
+            <span>COURSES</span>
+            <h2>我的课程</h2>
+          </div>
+          <label className="home-term-picker">
+            <CalendarDays size={15} />
+            <select aria-label="主页选择学期" onChange={(event) => onTermChange(event.target.value)} value={selectedTerm}>
+              {terms.map((term) => <option key={term} value={term}>{term}</option>)}
+            </select>
+          </label>
+        </div>
+        <div className="home-course-grid">
+          {visibleCourses.map((course, index) => {
+            const courseLessons = lessons.filter((lesson) => lesson.courseId === course.id);
+            const courseNotes = notes.filter((note) => note.courseId === course.id);
+            const readCount = courseNotes.filter((note) => readNoteIds.has(note.id)).length;
+            const completion = courseNotes.length ? Math.round((readCount / courseNotes.length) * 100) : 0;
+            return (
+              <button className={`home-course-card accent-${course.accent}`} key={course.id} onClick={() => onOpenCourse(course.id)} type="button">
+                <span className="home-course-number">{String(index + 1).padStart(2, "0")}</span>
+                <span className="home-course-code">{course.code}</span>
+                <h3>{course.title}</h3>
+                <p>{course.description}</p>
+                <span className="home-course-meta">
+                  <span>{courseLessons.length} 个章节</span>
+                  <span>{courseNotes.length} 篇笔记</span>
+                </span>
+                <span className="home-course-progress"><i style={{ width: `${completion}%` }} /></span>
+                <span className="home-course-footer"><small>{completion ? `已开始 ${completion}%` : "等待开始"}</small><span>进入课程 <ChevronRight size={16} /></span></span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {(recentNotes.length || recentStars.length) ? (
+        <section className="home-lower-grid">
+          <div className="home-list-panel">
+            <div className="home-section-heading compact"><div><span>RECENT</span><h2>最近笔记</h2></div></div>
+            <div className="home-note-list">
+              {recentNotes.map((note) => {
+                const noteCourse = courses.find((course) => course.id === note.courseId);
+                const noteLesson = lessons.find((lesson) => lesson.id === note.lessonId);
+                return (
+                  <button key={note.id} onClick={() => onOpenNote(note)} type="button">
+                    <span className="home-list-icon"><FileText size={17} /></span>
+                    <span><strong>{note.title}</strong><small>{noteCourse?.code} · {noteLesson?.title}</small></span>
+                    <ChevronRight size={16} />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="home-list-panel">
+            <div className="home-section-heading compact"><div><span>STARRED</span><h2>最近加星</h2></div></div>
+            <div className="home-note-list">
+              {recentStars.length ? recentStars.map((star) => {
+                const note = notes.find((item) => item.id === star.noteId);
+                if (!note) return null;
+                const page = extractNotePages(note.contentMarkdown).find((item) => item.key === star.pageKey);
+                return (
+                  <button key={`${star.noteId}-${star.pageKey}`} onClick={() => onContinue(note, star.pageKey)} type="button">
+                    <span className="home-list-icon star"><Star size={17} fill="currentColor" /></span>
+                    <span><strong>第{star.pageNumber}页 · {page?.title ?? note.title}</strong><small>{star.note || note.title}</small></span>
+                    <ChevronRight size={16} />
+                  </button>
+                );
+              }) : <div className="home-list-empty">阅读时给重点页面加星，它们会集中显示在这里。</div>}
+            </div>
+          </div>
+        </section>
+      ) : null}
+    </div>
   );
 }
 

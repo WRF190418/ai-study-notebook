@@ -33,6 +33,8 @@ const emptyDb: AppDb = {
 export function defaultPreferences(userId: string): UserPreferences {
   return {
     userId,
+    theme: "mist-forest",
+    ambience: "immersive",
     primaryColor: "sage",
     buttonRadius: "soft",
     buttonStyle: "solid",
@@ -63,8 +65,12 @@ async function readDb(): Promise<AppDb> {
   db.noteStars ??= [];
   db.readingProgress ??= [];
   for (const user of db.users) {
-    if (!db.preferences.some((item) => item.userId === user.id)) {
+    const preferences = db.preferences.find((item) => item.userId === user.id);
+    if (!preferences) {
       db.preferences.push(defaultPreferences(user.id));
+    } else {
+      preferences.theme ??= "mist-forest";
+      preferences.ambience ??= "immersive";
     }
   }
   return db;

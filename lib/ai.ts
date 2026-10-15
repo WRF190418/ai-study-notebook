@@ -237,6 +237,8 @@ const commandOperationSchema = z.object({
     .optional(),
   preferences: z
     .object({
+      theme: z.enum(["warm-study", "mist-forest", "midnight-atlas", "cognitive-lab"]).optional(),
+      ambience: z.enum(["standard", "immersive", "minimal"]).optional(),
       primaryColor: z.enum(["sage", "cobalt", "violet", "mono"]).optional(),
       buttonRadius: z.enum(["square", "soft", "pill"]).optional(),
       buttonStyle: z.enum(["solid", "soft", "outline"]).optional(),
@@ -380,7 +382,7 @@ export async function interpretNotebookCommand(input: {
           "update_preferences 用于全局页面主题、按钮、密度、卡片和布局偏好。",
           "复杂命令可以拆成多个 operations，例如同时重命名章节并改变颜色。",
           "如果只是咨询、对象不明确、可能误删，operations 留空，requiresClarification=true，并在 message 中询问用户。",
-          "偏好枚举含义：primaryColor sage=绿色清爽，cobalt=蓝色学术，violet=紫色灵感，mono=黑白极简；buttonRadius square=方正，soft=轻圆角，pill=胶囊；buttonStyle solid=实色，soft=浅色柔和，outline=线框；density compact=紧凑，comfortable=标准，airy=宽松；cardStyle elevated=阴影，bordered=边框，flat=平面；lessonLayout grid=卡片网格，list=列表。",
+          "偏好枚举含义：theme warm-study=暖纸书房，mist-forest=雾林清晨，midnight-atlas=极夜星图，cognitive-lab=未来认知实验室；ambience minimal=极简，standard=标准，immersive=沉浸；primaryColor sage=绿色清爽，cobalt=蓝色学术，violet=紫色灵感，mono=黑白极简；buttonRadius square=方正，soft=轻圆角，pill=胶囊；buttonStyle solid=实色，soft=浅色柔和，outline=线框；density compact=紧凑，comfortable=标准，airy=宽松；cardStyle elevated=阴影，bordered=边框，flat=平面；lessonLayout grid=卡片网格，list=列表。",
           "章节样式枚举含义：lesson.accent sage=绿色，amber=橙黄色，cobalt=蓝色，rose=粉色/玫红/彩色活泼；lesson.icon book=书本，atom=物理/原子，sparkles=复习/重点，function=公式/函数，image=图像/标注。",
           "“当前/这篇/这一章”优先使用 currentCourseId、currentLessonId、currentNoteId。",
           "如果用户说“刚才那篇/最新那篇”，优先选择 notes 列表中 createdAt 最新的笔记。",

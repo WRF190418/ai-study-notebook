@@ -32,7 +32,11 @@ test("shows the course back button only for a quick upward scroll", async ({ pag
 
   await page.goto("/");
   const guide = page.getByRole("dialog", { name: "新手指导" });
-  if (await guide.isVisible().catch(() => false)) await guide.getByRole("button", { name: "跳过" }).click();
+  const guideAppeared = await guide.waitFor({ state: "visible", timeout: 5000 }).then(() => true, () => false);
+  if (guideAppeared) {
+    await guide.getByRole("button", { name: "跳过" }).click();
+    await expect(guide).toBeHidden();
+  }
 
   await page.getByLabel("选择课程").selectOption(course.id);
   await page.getByRole("button", { name: /长篇笔记章节/ }).click();
