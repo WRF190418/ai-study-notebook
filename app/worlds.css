@@ -1,0 +1,203 @@
+/* These homes are spaces, not dashboard skins. Reading keeps the existing UI. */
+.app-shell[data-world-home="true"] { grid-template-columns: 88px minmax(0, 1fr); }
+.app-shell[data-world-home="true"]::before, .app-shell[data-world-home="true"]::after { display: none; }
+.app-shell[data-world-home="true"] .sidebar { padding: 25px 10px 18px; background: #e8e7dc; border-right: 1px solid #626c5326; z-index: 90; }
+.app-shell[data-world-home="true"][data-night="true"] .sidebar { background: #111d1c; border-color: #b89c6238; }
+.app-shell[data-world-home="true"] .nav-logo { justify-content: center; padding: 0; margin-bottom: 35px; }
+.app-shell[data-world-home="true"] .nav-logo > span:last-child { display: none; }
+.app-shell[data-world-home="true"] .nav-menu { gap: 12px; }
+.app-shell[data-world-home="true"] .nav-item { flex-direction: column; justify-content: center; gap: 7px; padding: 13px 0; font-size: 11px; border-radius: 8px; }
+.app-shell[data-world-home="true"] .sidebar-footer { gap: 12px; }
+.app-shell[data-world-home="true"] .user-card { display: none; }
+.app-shell[data-world-home="true"] .theme-entry-button { min-height: 50px; padding: 10px; justify-content: center; background: transparent; border-color: transparent; }
+.app-shell[data-world-home="true"] .theme-entry-button > span:nth-child(2), .app-shell[data-world-home="true"] .theme-entry-button > svg { display: none; }
+.app-shell[data-world-home="true"] .sidebar-footer > .ghost-button { flex-direction: column; gap: 5px; font-size: 11px; padding: 12px 0; background: transparent; border-color: transparent; }
+.app-shell[data-world-home="true"] .main { padding: 0; overflow: hidden; }
+.app-shell[data-world-home="true"] .topbar { position: absolute; top: 31px; right: 40px; z-index: 80; margin: 0; min-height: 0; }
+.app-shell[data-world-home="true"] .course-switcher { display: none; }
+.app-shell[data-world-home="true"] .search-area { width: 290px; }
+.app-shell[data-world-home="true"] .search-box { background: #f5f2e6b3; border: 1px solid #6c72573d; box-shadow: none; backdrop-filter: blur(14px); }
+.app-shell[data-world-home="true"][data-night="true"] .search-box { background: #122322d9; border-color: #ad945b50; }
+.app-shell[data-world-home="true"] .home-scroll { padding: 0; max-width: none; height: 100%; width: 100%; }
+.app-shell .world-home { display: block; position: relative; min-height: 100%; isolation: isolate; overflow: hidden; }
+.world-scenery { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.world-scenery svg { width: 100%; height: 100%; position: absolute; inset: 0; }
+.world-front { position: relative; z-index: 2; min-height: 100dvh; max-width: 1560px; margin: auto; padding: 42px 70px 28px; display: flex; flex-direction: column; }
+.world-welcome { width: calc(100% - 320px); }
+.world-location { font-size: 10px; letter-spacing: .24em; color: #5d705e; }
+.world-welcome h1 { font-size: 25px; font-weight: 500; margin: 15px 0 10px; letter-spacing: .09em; color: #354c40; }
+.world-welcome-note { font-size: 12px; color: #5e6f60; letter-spacing: .08em; }
+.poem-open-space { position: relative; flex: 1; min-height: 340px; }
+.poem-home .poetry-passage { position: absolute; right: 16%; top: 5px; margin: 0; padding: 0; border: none; width: 240px; }
+.poem-home .poetry-verses { height: 300px; }
+.poem-home .poetry-verse { display: flex; flex-direction: row-reverse; justify-content: center; gap: 20px; }
+.poem-home .poetry-verse p { writing-mode: vertical-rl; font-size: 28px; line-height: 1.95; letter-spacing: .14em; height: 290px; margin: 0; color: #354c40; font-weight: 400; }
+.poem-home .poetry-verse > span { writing-mode: vertical-rl; font-size: 10px; letter-spacing: .12em; padding-top: 8px; color: #69765f; }
+.poem-home .poetry-hold { display: flex; align-items: center; justify-content: center; gap: 6px; width: max-content; margin: 5px auto 0; padding: 7px 11px; font-size: 11px; letter-spacing: .12em; border: 1px solid #6c72573d; border-radius: 20px; color: #53634e; background: #eeecdf70; cursor: pointer; }
+.poem-scene-inscription { position: absolute; left: 8%; bottom: 35px; font-size: 12px; letter-spacing: .35em; color: #536e5d; }
+.world-collection-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin: 0 0 22px; }
+.world-collection-heading > div > span { font-size: 9px; letter-spacing: .23em; color: #6c785e; }
+.world-collection-heading h2 { font-size: 17px; margin: 8px 0 0; font-weight: 500; letter-spacing: .12em; color: #394f41; }
+.world-term { display: flex; align-items: center; gap: 6px; color: #53634e; }
+.world-term select { background: transparent; color: inherit; border: 0; border-bottom: 1px solid #68755a42; border-radius: 0; appearance: none; padding: 9px 12px 9px 0; font-size: 12px; cursor: pointer; }
+.world-term option { color: var(--theme-ink); background: var(--theme-surface-solid); }
+.poem-collection { width: 100%; max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+.poem-manuscripts { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 28px; padding: 8px 0 18px; }
+.app-shell .world-home .home-course-card { position: relative; min-height: 0; margin: 0; color: inherit; cursor: pointer; text-align: left; }
+.app-shell .world-home .home-course-card::before, .app-shell .world-home .home-course-card::after { content: none; }
+.app-shell .world-home[data-searching="true"] .home-course-card:not(.course-search-match) { opacity: .45; }
+.app-shell .world-home .archive-book.course-search-match { filter: drop-shadow(0 0 16px #edce78aa); transform: translateY(-10px) rotateY(-3deg); }
+.app-shell .world-home .poem-manuscript.course-search-match { outline: 2px solid #956a48; outline-offset: 5px; transform: translateY(-8px); }
+.app-shell .world-home .poem-manuscript { display: flex; flex-direction: column; align-items: center; height: 232px; padding: 23px 16px 20px; overflow: visible; border: 1px solid #a6967040; border-radius: 1px; background: repeating-linear-gradient(0deg, #79654104 0 1px, transparent 1px 4px), linear-gradient(100deg, #e3ddc8, #f9f3e1 9%, #f5efdc 85%, #e5dec6); box-shadow: 3px 5px 0 #ddd8c3, 4px 6px 0 #bdb7a157, 8px 22px 26px #4d5d4324; transform: rotate(-2deg); transition: transform .5s, box-shadow .5s; }
+.app-shell .world-home .manuscript-1 { transform: rotate(1.7deg) translateY(6px); background-color: #e9e5d1; }
+.app-shell .world-home .manuscript-2 { transform: rotate(-.8deg) translateY(-3px); }
+.app-shell .world-home .poem-manuscript:hover, .app-shell .world-home .poem-manuscript:focus-visible { transform: translateY(-12px) rotate(0); box-shadow: 3px 5px 0 #ddd8c3, 4px 6px 0 #bdb7a157, 10px 28px 38px #4d5d4338; }
+.manuscript-binding { position: absolute; left: 8px; right: 8px; top: 10px; height: 3px; background: #8b785556; box-shadow: 0 2px #f9f3df; }
+.manuscript-code { font: 10px Georgia, serif; letter-spacing: .13em; color: #6d735c; }
+.app-shell .world-home .poem-manuscript h3 { writing-mode: vertical-rl; text-orientation: mixed; font-size: 21px; letter-spacing: .1em; line-height: 1.5; font-weight: 500; margin: 14px 0 10px; height: 130px; max-width: 100%; color: #384f42; }
+.manuscript-count { font-size: 9px; color: #6b745f; letter-spacing: .08em; }
+.manuscript-seal { position: absolute; bottom: 28px; right: 12px; padding: 1px 3px; color: #a0523d; border: 1px solid #a0523d9c; font: 13px "STKaiti", "KaiTi", serif; transform: rotate(-6deg); opacity: .8; }
+.manuscript-open { display: flex; align-items: center; gap: 6px; margin-top: 12px; font-size: 10px; color: #465b45; opacity: 0; transition: opacity .3s; }
+.poem-manuscript:is(:hover,:focus-visible) .manuscript-open { opacity: 1; }
+.world-reading-desk { display: flex; justify-content: space-between; align-items: center; gap: 30px; width: 100%; max-width: 1072px; margin: 30px auto 0; padding-top: 18px; border-top: 1px solid #6a79523d; }
+.world-resume { display: flex; align-items: center; gap: 15px; min-width: 0; max-width: 65%; border: 0; background: transparent; color: #415840; text-align: left; padding: 8px 0; cursor: pointer; }
+.world-resume > span { display: grid; gap: 6px; min-width: 0; }
+.world-resume small { font-size: 10px; letter-spacing: .1em; color: #65735e; }
+.world-resume strong { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.world-resume em { font-size: 10px; color: #68745e; font-style: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.world-resume > svg:last-child { flex-shrink: 0; transition: transform .3s; }
+.world-resume:hover > svg:last-child { transform: translateX(5px); }
+.world-index-actions { display: flex; gap: 24px; flex-shrink: 0; }
+.world-index-actions button { display: flex; align-items: center; gap: 7px; border: 0; background: transparent; color: #50634e; font-size: 11px; padding: 10px 0; cursor: pointer; border-bottom: 1px solid transparent; }
+.world-index-actions button:is(:hover,[aria-expanded="true"]) { border-color: currentColor; }
+.world-index-actions button > span { font: 10px Georgia, serif; opacity: .7; }
+.world-empty, .world-resume-empty { font-size: 12px; color: var(--theme-muted); line-height: 1.8; }
+/* The archive: deep hall, hovering candles, physical bindings on a wooden shelf. */
+.archive-home { background: #101c1e; }
+.archive-home .world-front { max-width: 1560px; }
+.archive-home .world-location { color: #bca878; }
+.archive-home .world-welcome h1 { color: #e5dcc2; }
+.archive-home .world-welcome-note { color: #b1b4a5; }
+.archive-vault { flex: 1; min-height: 285px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 46px; color: #e8d8ae; text-shadow: 0 2px 20px #000; }
+.archive-vault > span { font: 32px "STSong", "Songti SC", "SimSun", serif; letter-spacing: .4em; padding-left: .4em; }
+.archive-vault i { width: 100px; height: 1px; background: linear-gradient(90deg, transparent, #d1b373, transparent); margin: 18px 0 12px; }
+.archive-vault p { margin: 0; font-size: 11px; letter-spacing: .25em; color: #b7ac8a; }
+.archive-collection { width: 100%; max-width: 1130px; margin: 0 auto; }
+.archive-home .world-collection-heading { padding: 0 30px; margin-bottom: 28px; }
+.archive-home .world-collection-heading > div > span { color: #b19a68; }
+.archive-home .world-collection-heading h2 { color: #e2d5b6; font-size: 17px; }
+.archive-home .world-term { color: #c5b890; }
+.archive-home .world-term select { border-color: #b79c5a4f; }
+.archive-bookshelf { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-end; gap: 40px 26px; padding: 0 40px; perspective: 1400px; position: relative; z-index: 2; }
+.app-shell .world-home .archive-book { display: block; width: clamp(115px, 12vw, 150px); height: 236px; flex-shrink: 0; padding: 0; overflow: visible; background: transparent; border: none; border-radius: 0; box-shadow: none; transform: rotateY(-10deg); transform-style: preserve-3d; transition: transform .5s, filter .5s; }
+.app-shell .world-home .archive-book:is(:hover,:focus-visible) { transform: translateY(-20px) rotateY(-3deg) rotateZ(-1deg); filter: drop-shadow(0 0 12px #ddbb663d); z-index: 3; }
+.archive-book-cover { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; padding: 27px 17px 19px; border-radius: 3px 7px 7px 3px; border: 1px solid #b7a16480; border-left: 8px solid #17251f; background: radial-gradient(ellipse at 50% 40%, #73805b26, transparent 70%), repeating-linear-gradient(88deg, #fff2b604 0 1px, transparent 1px 3px), linear-gradient(100deg, #263c30, #253d35 30%, #1b2c28); box-shadow: inset 0 0 0 5px #182a23, inset 0 0 0 6px #b7a1644f, 5px 8px 8px #0007, inset 10px 0 12px #0003; }
+.binding-1 .archive-book-cover { border-left-color: #35241e; background: radial-gradient(ellipse at 50% 40%, #b7774a20, transparent 70%), linear-gradient(100deg, #543b2b, #483127 50%, #32251f); box-shadow: inset 0 0 0 5px #34271f, inset 0 0 0 6px #b7a1644f, 5px 8px 8px #0007; }
+.binding-2 .archive-book-cover { border-left-color: #152530; background: radial-gradient(ellipse at 50% 40%, #73a3ac20, transparent 70%), linear-gradient(100deg, #304b53, #263e49 50%, #1b2c36); box-shadow: inset 0 0 0 5px #1b2c33, inset 0 0 0 6px #b7a1644f, 5px 8px 8px #0007; }
+.binding-3 .archive-book-cover { border-left-color: #31232e; background: radial-gradient(ellipse at 50% 40%, #ab719220, transparent 70%), linear-gradient(100deg, #493447, #382b36 50%, #30212d); box-shadow: inset 0 0 0 5px #2f222b, inset 0 0 0 6px #b7a1644f, 5px 8px 8px #0007; }
+.archive-book-edge { position: absolute; top: 5px; bottom: 3px; right: -9px; width: 12px; background: repeating-linear-gradient(0deg, #d5cbaa 0 1px, #a99d7d 1px 2px); transform: skewY(-22deg); border-radius: 0 3px 3px 0; box-shadow: 2px 1px 2px #0008; }
+.archive-book-code { font: 10px Georgia, serif; letter-spacing: .12em; color: #dac48c; position: relative; z-index: 1; }
+.archive-book-sigil { position: absolute; top: 51px; font: 88px Georgia, serif; color: #cbb37438; line-height: 1; }
+.app-shell .world-home .archive-book h3 { position: relative; font-size: 20px; font-weight: 400; letter-spacing: .1em; line-height: 1.7; text-align: center; color: #ebdfbf; margin: 33px 0 13px; min-height: 60px; max-height: 102px; overflow: hidden; }
+.app-shell .world-home .archive-book h3.long-course-title { font-size: 14px; line-height: 1.65; margin-top: 25px; max-height: 120px; overflow-wrap: anywhere; }
+.app-shell .world-home .poem-manuscript h3.long-course-title { font-size: 15px; letter-spacing: .04em; }
+.archive-book-rule { width: 45%; height: 1px; margin-top: auto; background: #c9ae6d70; }
+.archive-book-count { color: #c2b389; font-size: 9px; letter-spacing: .1em; margin-top: 12px; }
+.archive-book-open { display: flex; gap: 5px; align-items: center; color: #ebd9a1; font-size: 9px; position: absolute; bottom: 8px; opacity: 0; transition: opacity .3s; }
+.archive-book:is(:hover,:focus-visible) .archive-book-open { opacity: 1; }
+.archive-shelf-label { position: absolute; left: -5px; right: -10px; bottom: -44px; font-size: 9px; text-align: center; letter-spacing: .08em; color: #c5b488; }
+.archive-shelf-plank { height: 32px; margin-top: -2px; position: relative; z-index: 1; background: repeating-linear-gradient(1deg, #a7864912 0 1px, transparent 1px 4px), linear-gradient(0deg, #241d16, #5c4930 88%, #aa8b53 90%, #75603c); border-bottom: 4px solid #181b15; box-shadow: 0 24px 30px #0009; transform: perspective(1200px) rotateX(12deg); }
+.archive-shelf-plank::before { content: ""; position: absolute; left: -12px; right: -12px; top: -8px; height: 9px; background: linear-gradient(#7c6340, #a38350); clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 100%, 0 100%); }
+.archive-shelf-plank i { display: block; position: absolute; width: 1px; background: #d3b57326; top: 4px; bottom: 4px; left: 24%; }
+.archive-shelf-plank i:nth-child(2) { left: 53%; }.archive-shelf-plank i:nth-child(3) { left: 78%; }
+.archive-home .world-reading-desk { margin-top: 50px; border-color: #baa16a38; max-width: 1070px; }
+.archive-home .world-resume, .archive-home .world-index-actions button { color: #dbceaa; }
+.archive-home .world-resume small, .archive-home .world-resume em { color: #b1b49e; }
+/* An index is opened intentionally, leaving the scene uncluttered. */
+.world-index-backdrop { position: fixed; inset: 0 0 0 88px; z-index: 100; background: #0a191b38; backdrop-filter: blur(5px); display: flex; align-items: flex-end; justify-content: flex-end; padding: 32px; }
+.world-index-drawer { width: min(560px, 100%); max-height: 72dvh; display: flex; flex-direction: column; color: #354c40; background: #f4f0e1; border: 1px solid #a696704d; border-radius: 3px; box-shadow: 0 25px 100px #14281955; animation: index-unfold .35s ease both; }
+.archive-home .world-index-drawer { color: #eadfc1; background: linear-gradient(140deg, #24322c, #14221f); border: 1px solid #b69e6759; box-shadow: 0 25px 100px #0009, inset 0 0 0 5px #14221f, inset 0 0 0 6px #b69e6726; }
+.world-index-drawer > header { display: flex; align-items: center; justify-content: space-between; padding: 25px 28px 18px; border-bottom: 1px solid #8b896238; }
+.world-index-drawer header span { font-size: 9px; letter-spacing: .2em; opacity: .6; }
+.world-index-drawer h2 { font: 22px var(--theme-heading); margin: 10px 0 0; }
+.world-index-drawer header button { border: none; background: transparent; color: inherit; padding: 10px; cursor: pointer; }
+.world-index-list { overflow: auto; padding: 6px 20px 20px; }
+.world-index-list > button { display: flex; align-items: center; gap: 14px; width: 100%; border: none; border-bottom: 1px solid #8b89622b; padding: 19px 7px; text-align: left; background: transparent; color: inherit; cursor: pointer; }
+.world-index-list > button:hover { background: #83956c13; }
+.world-index-list > button > span { display: grid; gap: 8px; flex: 1; min-width: 0; }
+.world-index-list strong { font-size: 13px; font-weight: 500; }
+.world-index-list small { font-size: 11px; opacity: .7; line-height: 1.6; }
+/* Small physical entry gesture, then the scenery yields to the document. */
+.world-opening { position: absolute; inset: 0; z-index: 120; display: grid; place-items: center; background: #e8e6d46b; backdrop-filter: blur(6px); }
+.opening-book { background: #06121180; }
+.world-opening-leaf { width: min(75%, 720px); height: 70%; max-height: 680px; background: repeating-linear-gradient(0deg, #79654105 0 1px, transparent 1px 5px), #f5efdc; box-shadow: 0 35px 100px #1c2a2855; border: 1px solid #b4a77e; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; color: #3f5543; transform-origin: center; animation: scroll-unfurl .62s ease both; }
+.world-opening-leaf small { letter-spacing: .2em; font-size: 13px; }.world-opening-leaf strong { font: 32px var(--theme-heading); letter-spacing: .1em; text-align: center; padding: 24px; }.world-opening-leaf > span { font-size: 11px; letter-spacing: .2em; opacity: .6; }
+.opening-book .world-opening-leaf { background: linear-gradient(90deg, #ded6bd 0%, #faf5e5 48%, #c1b69c 50%, #faf5e5 53%, #e9e2cc 100%); border: 7px solid #405a42; animation: book-unfurl .62s ease both; }
+.world-poem-layer { opacity: 0; transition: opacity 14s ease; }.world-poem-layer.present { opacity: 1; }
+.scenery-poetry stop { transition: stop-color 14s ease; }
+.poem-drifting-mist { animation: world-mist 48s ease-in-out infinite alternate; }
+.archive-floating-candle { animation: world-candle 7s ease-in-out infinite alternate; }.archive-floating-candle.candle-1 { animation-delay: -3s; animation-duration: 9s; }.archive-floating-candle.candle-2 { animation-delay: -5s; }
+.archive-motes { animation: world-motes 24s ease-in-out infinite alternate; }
+.archive-moonbeam { animation: world-moonlight 16s ease-in-out infinite alternate; }
+.app-shell[data-poetry-held="true"] .scenery-poetry *, .app-shell[data-ambience="minimal"] .world-scenery * { animation-play-state: paused; }
+.app-shell:is([data-theme="poetic-realm"], [data-theme="arcane-library"])[data-reading="true"]:not(.focus-mode) .workspace { animation: world-arrival .55s ease both; }
+@keyframes world-mist { to { transform: translateX(45px); opacity: .6; } }
+@keyframes world-candle { to { transform: translateY(-12px); } }
+@keyframes world-motes { to { transform: translate(9px, -18px); opacity: .45; } }
+@keyframes world-moonlight { to { opacity: .45; } }
+@keyframes index-unfold { from { opacity: 0; transform: translateY(24px); } }
+@keyframes scroll-unfurl { from { opacity: 0; transform: scaleX(.12) scaleY(.8); } 60% { opacity: 1; } }
+@keyframes book-unfurl { from { opacity: 0; transform: perspective(1200px) rotateY(-75deg) scale(.55); } 60% { opacity: 1; } }
+@keyframes world-arrival { from { opacity: .2; transform: translateY(9px); } }
+@media (max-height: 900px) and (min-width: 901px) {
+  .world-front { padding-top: 30px; padding-bottom: 22px; }
+  .world-welcome h1 { font-size: 22px; margin-top: 10px; }
+  .poem-open-space { min-height: 280px; }
+  .poem-home .poetry-verses { height: 245px; }.poem-home .poetry-verse p { height: 240px; font-size: 24px; }
+  .poem-home .poetry-passage { top: 0; }
+  .archive-vault { min-height: 235px; padding-bottom: 32px; }
+  .app-shell .world-home .archive-book { height: 214px; }
+  .app-shell .world-home .archive-book h3 { font-size: 18px; margin-top: 24px; }
+  .app-shell .world-home .poem-manuscript { height: 210px; }
+  .app-shell .world-home .poem-manuscript h3 { height: 110px; font-size: 19px; }
+  .world-reading-desk { margin-top: 22px; }
+}
+@media (max-width: 1200px) {
+  .world-front { padding-left: 35px; padding-right: 35px; }
+  .archive-bookshelf { gap: 40px 20px; padding: 0 20px; }
+  .app-shell .world-home .archive-book { width: 122px; }
+  .poem-manuscripts { gap: 18px; }
+  .poem-collection { padding: 0; }
+}
+@media (max-width: 900px) {
+  .world-front { min-height: 100dvh; padding: 100px 25px 30px; }
+  .app-shell[data-world-home="true"] .topbar { top: 20px; right: 24px; left: 24px; }
+  .app-shell[data-world-home="true"] .search-area { width: 100%; }
+  .world-welcome { width: 100%; }.world-welcome h1 { font-size: 22px; }
+  .poem-open-space { min-height: 350px; }
+  .poem-home .poetry-passage { right: 0; top: 20px; }
+  .poem-scene-inscription { left: 0; bottom: 15px; font-size: 10px; }
+  .poem-manuscripts { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 25px 16px; }
+  .archive-vault { min-height: 230px; }.archive-vault > span { font-size: 25px; }
+  .archive-bookshelf { gap: 60px 22px; }.archive-home .world-collection-heading { padding: 0; }
+  .world-reading-desk { flex-wrap: wrap; gap: 12px; }.world-resume { max-width: 100%; }
+  .world-index-actions { margin-left: auto; }
+  .world-index-backdrop { padding: 20px; }
+}
+@media (max-width: 600px) {
+  .app-shell[data-world-home="true"] { grid-template-columns: 68px minmax(0, 1fr); }
+  .app-shell[data-world-home="true"] .sidebar { width: auto; padding-left: 5px; padding-right: 5px; }
+  .app-shell[data-world-home="true"] .nav-item { display: flex; font-size: 9px; }
+  .world-front { padding-left: 18px; padding-right: 18px; }
+  .poem-manuscripts { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .world-collection-heading { gap: 10px; }.world-collection-heading h2 { font-size: 13px; }.world-term select { font-size: 10px; max-width: 105px; }
+  .archive-bookshelf { padding: 0; gap: 60px 16px; }
+  .app-shell .world-home .archive-book { width: 105px; height: 210px; }
+  .archive-book-cover { padding-left: 12px; padding-right: 12px; }.app-shell .world-home .archive-book h3 { font-size: 17px; }
+  .world-index-backdrop { left: 68px; padding: 12px; }
+  .world-index-drawer > header { padding: 20px; }.world-index-list { padding: 5px 12px 15px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .world-scenery *, .world-opening *, .world-index-drawer { animation: none !important; }
+  .app-shell .world-home *, .app-shell[data-reading="true"] .workspace { transition-duration: .01ms !important; animation: none !important; }
+}

@@ -38,7 +38,8 @@ import {
 import type { Course, Lesson, MindMapNode, Note, NoteReadingProgress, NoteStar, User, UserPreferences } from "@/lib/types";
 import MarkdownView from "@/components/MarkdownView";
 import CoursewareImages from "@/components/CoursewareImages";
-import ThemeLandscape, { PoetryPassage, usePoeticFlow } from "@/components/ThemeWorld";
+import ThemeLandscape, { usePoeticFlow } from "@/components/ThemeWorld";
+import ImmersiveHome from "@/components/ImmersiveHome";
 import { poeticScenes, themeOptions } from "@/lib/themes";
 import { extractNotePages, extractPageSourceImages, makeExcerpt, markdownToPlainText, pageAnchorId, type NotePageSection } from "@/lib/note-pages";
 
@@ -468,6 +469,7 @@ export default function NotebookApp({
       data-poem={poeticScenes[poeticFlow.index].id}
       data-poetry-held={poeticFlow.held}
       data-reading={Boolean(activeLesson)}
+      data-world-home={(theme === "poetic-realm" || theme === "arcane-library") && appView === "home" && !activeLesson}
       data-night={theme === "midnight-atlas" || theme === "arcane-library"}
       data-ambience={workspace.preferences.ambience ?? "immersive"}
       data-button-radius={workspace.preferences.buttonRadius}
@@ -555,7 +557,7 @@ export default function NotebookApp({
         ) : null}
 
         <div className="sidebar-footer">
-          <button className="theme-entry-button" onClick={() => setThemePickerOpen(true)} type="button">
+          <button aria-label="空间主题" title="空间主题" className="theme-entry-button" onClick={() => setThemePickerOpen(true)} type="button">
             <span className="theme-entry-icon"><Palette size={17} /></span>
             <span>
               <strong>空间主题</strong>
@@ -647,6 +649,7 @@ export default function NotebookApp({
             <DashboardHome
               theme={theme}
               poeticFlow={poeticFlow}
+              searchCourseIds={query.trim() ? [...new Set(searchResults.map(result => result.courseId))] : undefined}
               courses={workspace.courses}
               greeting={greeting}
               lessons={workspace.lessons}
@@ -858,6 +861,7 @@ function ThemePicker({
 function DashboardHome({
   theme,
   poeticFlow,
+  searchCourseIds,
   courses,
   greeting,
   lessons,
@@ -874,6 +878,7 @@ function DashboardHome({
 }: {
   theme: AppTheme;
   poeticFlow: ReturnType<typeof usePoeticFlow>;
+  searchCourseIds?: string[];
   courses: Course[];
   greeting: string;
   lessons: Lesson[];
@@ -888,6 +893,9 @@ function DashboardHome({
   selectedTerm: string;
   terms: string[];
 }) {
+  if (theme === "poetic-realm" || theme === "arcane-library") {
+    return <ImmersiveHome theme={theme} poeticFlow={poeticFlow} searchCourseIds={searchCourseIds} courses={courses} greeting={greeting} lessons={lessons} name={name} notes={notes} noteStars={noteStars} onContinue={onContinue} onOpenCourse={onOpenCourse} onOpenNote={onOpenNote} onTermChange={onTermChange} readingProgress={readingProgress} selectedTerm={selectedTerm} terms={terms} />;
+  }
   const visibleCourses = courses.filter((course) => !selectedTerm || course.term === selectedTerm);
   const latestProgress = [...readingProgress].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
   const progressNote = latestProgress ? notes.find((note) => note.id === latestProgress.noteId) : undefined;
@@ -908,7 +916,6 @@ function DashboardHome({
           <span className="home-eyebrow"><span className="home-live-dot" /> 你的学习空间已经准备好</span>
           <h1>{greeting}，{name}</h1>
           <p>从最近停下的地方继续，或选择一门课程进入今天的学习。</p>
-          {theme === "poetic-realm" && <PoetryPassage index={poeticFlow.index} held={poeticFlow.held} onToggle={poeticFlow.toggleHeld} />}
           <div className="home-stats" aria-label="学习空间概览">
             <span><strong>{visibleCourses.length}</strong><small>本学期课程</small></span>
             <span><strong>{currentTermNotes.length}</strong><small>整理笔记</small></span>
