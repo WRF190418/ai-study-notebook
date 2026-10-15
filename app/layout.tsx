@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "katex/dist/katex.min.css";
 import "./globals.css";
+import "./themes.css";
 
 export const metadata: Metadata = {
   title: "StudyNote AI",

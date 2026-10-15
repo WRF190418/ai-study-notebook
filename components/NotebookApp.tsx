@@ -38,6 +38,8 @@ import {
 import type { Course, Lesson, MindMapNode, Note, NoteReadingProgress, NoteStar, User, UserPreferences } from "@/lib/types";
 import MarkdownView from "@/components/MarkdownView";
 import CoursewareImages from "@/components/CoursewareImages";
+import ThemeLandscape, { PoetryPassage, usePoeticFlow } from "@/components/ThemeWorld";
+import { poeticScenes, themeOptions } from "@/lib/themes";
 import { extractNotePages, extractPageSourceImages, makeExcerpt, markdownToPlainText, pageAnchorId, type NotePageSection } from "@/lib/note-pages";
 
 type Workspace = {
@@ -135,7 +137,12 @@ export default function NotebookApp({
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [themePickerOpen, setThemePickerOpen] = useState(false);
   const [themeMessage, setThemeMessage] = useState("");
+  const themeSaveQueue = useRef(Promise.resolve());
+  const themeSaveVersion = useRef(0);
+  const savedThemePreferences = useRef(initialWorkspace.preferences);
   const [greeting, setGreeting] = useState("欢迎回来");
+  const theme = workspace.preferences.theme ?? "mist-forest";
+  const poeticFlow = usePoeticFlow(theme === "poetic-realm" && !focusMode, initialUser.id);
   const contentScrollRef = useRef<HTMLDivElement>(null);
   const searchAreaRef = useRef<HTMLDivElement>(null);
 
@@ -285,23 +292,30 @@ export default function NotebookApp({
   }
 
   async function saveTheme(theme: AppTheme, ambience: Ambience) {
-    const previous = workspace.preferences;
-    const optimistic = { ...previous, theme, ambience, updatedAt: new Date().toISOString() };
+    const version = ++themeSaveVersion.current;
+    const optimistic = { ...workspace.preferences, theme, ambience, updatedAt: new Date().toISOString() };
     setThemeMessage("");
     setWorkspace((current) => ({ ...current, preferences: optimistic }));
-    try {
-      const response = await fetch("/api/preferences", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ theme, ambience })
-      });
-      if (!response.ok) throw new Error("THEME_SAVE_FAILED");
-      const data = await response.json();
-      setWorkspace((current) => ({ ...current, preferences: data.preferences }));
-    } catch {
-      setWorkspace((current) => ({ ...current, preferences: previous }));
-      setThemeMessage("主题没有保存成功，请稍后重试。");
-    }
+    const save = themeSaveQueue.current.then(async () => {
+      try {
+        const response = await fetch("/api/preferences", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ theme, ambience })
+        });
+        if (!response.ok) throw new Error("THEME_SAVE_FAILED");
+        const data = await response.json();
+        savedThemePreferences.current = data.preferences;
+        if (version === themeSaveVersion.current) setWorkspace((current) => ({ ...current, preferences: data.preferences }));
+      } catch {
+        if (version === themeSaveVersion.current) {
+          setWorkspace((current) => ({ ...current, preferences: savedThemePreferences.current }));
+          setThemeMessage("主题没有保存成功，请稍后重试。");
+        }
+      }
+    });
+    themeSaveQueue.current = save;
+    await save;
   }
 
   async function logout() {
@@ -451,6 +465,10 @@ export default function NotebookApp({
       className={`app-shell${focusMode ? " focus-mode" : ""}${focusMode && focusDarkMode ? " focus-dark" : ""}`}
       data-primary={workspace.preferences.primaryColor}
       data-theme={workspace.preferences.theme ?? "mist-forest"}
+      data-poem={poeticScenes[poeticFlow.index].id}
+      data-poetry-held={poeticFlow.held}
+      data-reading={Boolean(activeLesson)}
+      data-night={theme === "midnight-atlas" || theme === "arcane-library"}
       data-ambience={workspace.preferences.ambience ?? "immersive"}
       data-button-radius={workspace.preferences.buttonRadius}
       data-button-style={workspace.preferences.buttonStyle}
@@ -627,6 +645,8 @@ export default function NotebookApp({
         {appView === "home" && !activeLesson ? (
           <div className="home-scroll content-scroll" data-scroll-region="home">
             <DashboardHome
+              theme={theme}
+              poeticFlow={poeticFlow}
               courses={workspace.courses}
               greeting={greeting}
               lessons={workspace.lessons}
@@ -674,6 +694,8 @@ export default function NotebookApp({
               />
             ) : (
               <CourseHome
+                theme={theme}
+                poemIndex={poeticFlow.index}
                 course={course}
                 lessons={lessons}
                 activeLessonId={lessonId}
@@ -744,45 +766,8 @@ export default function NotebookApp({
   );
 }
 
-const themeOptions: Array<{
-  id: AppTheme;
-  name: string;
-  eyebrow: string;
-  description: string;
-  detail: string;
-}> = [
-  {
-    id: "warm-study",
-    name: "暖纸书房",
-    eyebrow: "胡桃木 · 黄铜 · 纸张",
-    description: "像傍晚坐在安静书桌前，温暖、沉静、有书卷气。",
-    detail: "适合长时间阅读与人文课程"
-  },
-  {
-    id: "mist-forest",
-    name: "雾林清晨",
-    eyebrow: "薄雾 · 鼠尾草 · 柔光",
-    description: "低饱和绿意与柔和层次，让日常整理更平静。",
-    detail: "适合日常学习与轻松复习"
-  },
-  {
-    id: "midnight-atlas",
-    name: "极夜星图",
-    eyebrow: "深海蓝 · 星金 · 夜幕",
-    description: "深蓝阅读空间与细微星轨，专为夜间沉浸复习。",
-    detail: "适合专注阅读与考前冲刺"
-  },
-  {
-    id: "cognitive-lab",
-    name: "未来认知实验室",
-    eyebrow: "冰白 · 钴蓝 · 精密网格",
-    description: "清晰锐利的信息界面，像进入安静的研究控制室。",
-    detail: "适合 AI、工程与理科课程"
-  }
-];
-
 function themeName(theme: AppTheme) {
-  return themeOptions.find((item) => item.id === theme)?.name ?? "雾林清晨";
+  return themeOptions.find((item) => item.id === theme)?.name ?? "苔庭晨雾";
 }
 
 function ThemePicker({
@@ -815,7 +800,7 @@ function ThemePicker({
           <div>
             <span className="theme-picker-kicker"><Palette size={15} /> 学习空间</span>
             <h2>选择一种进入知识的方式</h2>
-            <p>主题会改变光线、材质与界面气质；笔记结构和原课件颜色保持不变。</p>
+            <p>灯下书房、林间晨光、流动诗境……找到此刻愿意停留的地方。</p>
           </div>
           <button aria-label="关闭主题选择" className="theme-picker-close" onClick={onClose} type="button"><X size={20} /></button>
         </header>
@@ -830,9 +815,7 @@ function ThemePicker({
               type="button"
             >
               <span className="theme-card-scene" aria-hidden="true">
-                <span className="theme-scene-sidebar" />
-                <span className="theme-scene-paper"><i /><i /><i /></span>
-                <span className="theme-scene-orbit" />
+                <ThemeLandscape theme={theme.id} preview />
               </span>
               <span className="theme-card-copy">
                 <span className="theme-card-title">
@@ -873,6 +856,8 @@ function ThemePicker({
 }
 
 function DashboardHome({
+  theme,
+  poeticFlow,
   courses,
   greeting,
   lessons,
@@ -887,6 +872,8 @@ function DashboardHome({
   selectedTerm,
   terms
 }: {
+  theme: AppTheme;
+  poeticFlow: ReturnType<typeof usePoeticFlow>;
   courses: Course[];
   greeting: string;
   lessons: Lesson[];
@@ -921,6 +908,7 @@ function DashboardHome({
           <span className="home-eyebrow"><span className="home-live-dot" /> 你的学习空间已经准备好</span>
           <h1>{greeting}，{name}</h1>
           <p>从最近停下的地方继续，或选择一门课程进入今天的学习。</p>
+          {theme === "poetic-realm" && <PoetryPassage index={poeticFlow.index} held={poeticFlow.held} onToggle={poeticFlow.toggleHeld} />}
           <div className="home-stats" aria-label="学习空间概览">
             <span><strong>{visibleCourses.length}</strong><small>本学期课程</small></span>
             <span><strong>{currentTermNotes.length}</strong><small>整理笔记</small></span>
@@ -928,11 +916,7 @@ function DashboardHome({
           </div>
         </div>
         <div className="home-hero-art" aria-hidden="true">
-          <span className="home-orbit orbit-one" />
-          <span className="home-orbit orbit-two" />
-          <span className="home-book book-one"><i /><i /><i /></span>
-          <span className="home-book book-two"><i /><i /></span>
-          <span className="home-focus-glyph"><BookOpen size={31} /></span>
+          <ThemeLandscape theme={theme} poemIndex={poeticFlow.index} />
         </div>
       </section>
 
@@ -1218,12 +1202,16 @@ function OnboardingGuide({
 }
 
 function CourseHome({
+  theme,
+  poemIndex,
   course,
   lessons,
   activeLessonId,
   lessonLayout,
   onEnterLesson
 }: {
+  theme: AppTheme;
+  poemIndex: number;
   course?: Course;
   lessons: Lesson[];
   activeLessonId: string;
@@ -1234,6 +1222,7 @@ function CourseHome({
     <>
       {course ? (
         <section className="course-hero">
+          <div className="course-world-art"><ThemeLandscape theme={theme} poemIndex={poemIndex} preview /></div>
           <h1>{course.title}</h1>
           <p>
             {course.code} - {course.description}

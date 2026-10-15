@@ -22,7 +22,7 @@ export type User = {
 
 export type UserPreferences = {
   userId: string;
-  theme: "warm-study" | "mist-forest" | "midnight-atlas" | "cognitive-lab";
+  theme: "warm-study" | "mist-forest" | "midnight-atlas" | "cognitive-lab" | "poetic-realm" | "arcane-library";
   ambience: "standard" | "immersive" | "minimal";
   primaryColor: "sage" | "cobalt" | "violet" | "mono";
   buttonRadius: "square" | "soft" | "pill";

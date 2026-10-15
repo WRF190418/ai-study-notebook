@@ -1,0 +1,253 @@
+/* Six original learning spaces. Scene animation always stays outside note text. */
+.app-shell { --scene-strength: 1; --theme-heading: inherit; }
+.app-shell[data-ambience="standard"] { --scene-strength: .75; }
+.app-shell[data-ambience="minimal"] { --scene-strength: .3; }
+.app-shell :is(.home-dashboard h1, .home-dashboard h2, .home-course-card h3, .course-hero h1, .lesson-detail-hero h1) { font-family: var(--theme-heading); }
+.app-shell :is(button, input, textarea, select):focus-visible { outline: 2px solid var(--theme-accent); outline-offset: 4px; }
+.app-shell .home-hero { min-height: 355px; grid-template-columns: minmax(0, 1.05fr) minmax(350px, .95fr); }
+.app-shell .home-hero-art { min-height: 355px; }
+.theme-landscape { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.theme-landscape svg { display: block; width: 100%; height: 100%; }
+.landscape-warm-study { background: #30261f; }
+.landscape-mist-forest { background: #c4dcd0; }
+.landscape-midnight-atlas { background: #0b1428; }
+.landscape-cognitive-lab { background: #0c2639; }
+.landscape-poetic-realm { background: #e7e5dc; }
+.landscape-arcane-library { background: #161d25; }
+.home-hero-art > .theme-landscape { mask-image: linear-gradient(90deg, transparent, #000 18%); }
+.landscape-caption { position: absolute; right: 28px; bottom: 22px; padding: 7px 12px; border: 1px solid #ffffff35; border-radius: 20px; background: #0b172044; color: #fff4d6; backdrop-filter: blur(12px); font-family: Georgia, "KaiTi", "STKaiti", serif; font-size: 11px; letter-spacing: .16em; }
+.theme-card-scene { min-height: 175px; }
+.theme-card { min-height: 202px; grid-template-columns: 43% minmax(0, 1fr); }
+.theme-picker { width: min(1120px, calc(100vw - 56px)); }
+.theme-card-copy > span:not(.theme-card-title) { margin-top: 11px; font-size: 12px; }
+.theme-card-copy em { padding-top: 10px; }
+.theme-card-scene .theme-landscape { border-radius: inherit; }
+.theme-card-scene .theme-landscape svg { opacity: 1; }
+.theme-card-title strong { font-size: 17px; }
+.course-world-art { position: absolute; inset: 0 0 0 55%; pointer-events: none; opacity: calc(var(--scene-strength) * .7); mask-image: linear-gradient(90deg, transparent, #000 70%); }
+.app-shell .course-hero > :not(.course-world-art) { position: relative; z-index: 1; }
+.app-shell .course-hero h1 { max-width: 90%; }
+.app-shell .course-hero p { max-width: 80%; text-shadow: 0 1px 8px #0003; }
+.app-shell .inline-link { color: var(--primary-ink); }
+
+/* Lamplit walnut, cloth bindings and brass. */
+.app-shell[data-theme="warm-study"] {
+  --theme-heading: Georgia, "STSong", "SimSun", serif;
+  --theme-bg: #e8ddc7;
+  --theme-accent: #80602f;
+  --theme-accent-2: #bc8a43;
+  --primary: #80602f;
+  --primary-soft: #e9dcc3;
+  --primary-ink: #71522c;
+}
+.app-shell[data-theme="warm-study"]::before { background: radial-gradient(ellipse at 80% 5%, #ffe1a095, transparent 55%), repeating-linear-gradient(0deg, #85684605 0 1px, transparent 1px 4px); }
+.app-shell[data-theme="warm-study"] .sidebar { --theme-ink: #f3e3c5; --theme-muted: #c3ad8d; --theme-surface: #3e3027; --theme-line: #a17c453c; --primary-soft: #d4a76223; --primary-ink: #edcf99; background: repeating-linear-gradient(90deg, #f3cf7c04 0 1px, transparent 1px 8px), linear-gradient(110deg, #392c24, #483329); border-right: 3px double #b98c4c66; }
+.app-shell[data-theme="warm-study"] .home-hero { background: linear-gradient(100deg, #fff4dc 0%, #e4d1aa 56%, #322820 100%); }
+.app-shell[data-theme="warm-study"] .home-course-card { border-radius: 5px 16px 16px 5px; padding-left: 30px; background: linear-gradient(90deg, #a4814822, transparent 15%), #fbf2e1; box-shadow: inset 7px 0 #8e6b35, inset 11px 0 #e4cfa2, 2px 6px 0 #cbbd9e, 0 16px 25px #60432417; border: 1px solid #b69a6a66; }
+.app-shell[data-theme="warm-study"] .home-course-card::before { top: 0; left: auto; right: 26px; width: 15px; height: 44px; border-radius: 0; background: var(--course-accent); clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%); }
+.app-shell[data-theme="warm-study"] .home-course-number { top: 39px; font-family: Georgia, serif; font-size: 43px; }
+.app-shell[data-theme="warm-study"] :is(.course-hero, .lesson-detail-hero, .lesson-art) { background: radial-gradient(ellipse at 80% 5%, #c39b514d, transparent 70%), linear-gradient(120deg, #3c3228, #806440); }
+.app-shell[data-theme="warm-study"] .lesson-card { border-radius: 5px 12px 12px 5px; box-shadow: inset 5px 0 #957044, 0 10px 20px #573e2914; }
+.app-shell[data-theme="warm-study"] .note-reader { background: repeating-linear-gradient(0deg, #8b6c3703 0 1px, transparent 1px 4px), var(--theme-surface-solid); }
+
+/* A real window into a layered, breathing forest. */
+.app-shell[data-theme="mist-forest"] { --theme-bg: #dbe8df; --theme-surface: #f8fdf8de; --theme-glow: #83ac8f42; --theme-accent: #316d51; --primary: #316d51; --primary-soft: #dfece0; --primary-ink: #2c6049; }
+.app-shell[data-theme="mist-forest"]::before { background: radial-gradient(ellipse at 95% 4%, #fff8c8b3, transparent 40%), radial-gradient(ellipse at 0 90%, #44765d35, transparent 55%), linear-gradient(145deg, #dcece1, #b9d4c64d 60%, #f0f1db); }
+.app-shell[data-theme="mist-forest"] .sidebar { background: linear-gradient(165deg, #eaf3e6eb, #c3dacbed); border-right: 1px solid #83a28a66; }
+.app-shell[data-theme="mist-forest"] .home-hero { background: linear-gradient(110deg, #f8fbed 10%, #e7efdf 50%, #a7c5b3); }
+.app-shell[data-theme="mist-forest"] .home-course-card { border-radius: 22px 22px 48px 22px; background: radial-gradient(ellipse at 95% 0, #c4ddc84d, transparent 65%), #f8fdf8d9; box-shadow: 0 15px 32px #355b4810; }
+.app-shell[data-theme="mist-forest"] .home-course-card::before { height: 3px; left: 22px; right: 22px; opacity: .6; }
+.app-shell[data-theme="mist-forest"] .home-course-card::after { content: ""; position: absolute; right: -25px; bottom: -44px; width: 95px; height: 160px; border: 1px solid #739f7526; border-radius: 100% 0 100% 0; transform: rotate(-20deg); pointer-events: none; }
+.app-shell[data-theme="mist-forest"] :is(.course-hero, .lesson-detail-hero, .lesson-art) { background: radial-gradient(ellipse at 90% 0, #afc59177, transparent 60%), linear-gradient(125deg, #315849, #5f8d72); }
+.app-shell[data-theme="mist-forest"] .lesson-card { border-radius: 17px 17px 32px 17px; }
+.app-shell[data-theme="mist-forest"] .home-course-progress i { background: linear-gradient(90deg, #477958, #a4b777); }
+
+/* Glass and optics: precise edges, illuminated circuits, no ornamental paper. */
+.app-shell[data-theme="cognitive-lab"] { --theme-bg: #dbe9f1; --theme-line: #508bac3d; --theme-accent: #12678b; --primary: #12678b; --primary-soft: #d7eef5; }
+.app-shell[data-theme="cognitive-lab"] .sidebar { --theme-ink: #d8eef9; --theme-muted: #99bdcf; --theme-surface: #173246; --theme-line: #6bb6d533; --primary-soft: #46b8db26; --primary-ink: #95e3f6; background: linear-gradient(150deg, #102537, #153d50); border-right: 1px solid #5cc5dd88; }
+.app-shell[data-theme="cognitive-lab"] .home-hero { border-radius: 5px 30px 5px 5px; border-color: #68afc970; background: linear-gradient(100deg, #f1fbff 18%, #d4e9f4 54%, #0c2639); }
+.app-shell[data-theme="cognitive-lab"] :is(.home-course-card, .home-list-panel, .home-continue-card, .lesson-card) { border-radius: 4px 20px 4px 4px; background-image: linear-gradient(135deg, #bce9fa25, transparent 55%); box-shadow: inset 0 0 25px #64bfeb0a, 0 12px 30px #10435a0d; }
+.app-shell[data-theme="cognitive-lab"] .home-course-card::before { height: 1px; background: linear-gradient(90deg, var(--theme-accent), #81d4df, transparent); }
+.app-shell[data-theme="cognitive-lab"] .home-course-number { font-family: Consolas, monospace; font-size: 42px; top: 22px; }
+.app-shell[data-theme="cognitive-lab"] .home-course-code { border: 1px solid #6cafce4d; border-radius: 3px; font-family: Consolas, monospace; }
+.app-shell[data-theme="cognitive-lab"] .home-course-progress i { background: linear-gradient(90deg, #1c7ea4, #67dfeb); box-shadow: 0 0 9px #43c6ea; }
+.app-shell[data-theme="cognitive-lab"] :is(.course-hero, .lesson-detail-hero, .lesson-art) { background: linear-gradient(135deg, #10293d, #195975); }
+.app-shell[data-theme="cognitive-lab"] .lesson-art { background-image: linear-gradient(#70cff411 1px, transparent 1px), linear-gradient(90deg, #70cff411 1px, transparent 1px), linear-gradient(135deg, #10293d, #195975); background-size: 20px 20px, 20px 20px, auto; }
+
+/* Poetry: a continuous passage through landscape and human feeling. */
+.app-shell[data-theme="poetic-realm"] {
+  --theme-heading: "KaiTi", "STKaiti", "Kaiti SC", "SimSun", serif;
+  --theme-bg: #e9e6dc;
+  --theme-surface: #faf8efeb;
+  --theme-surface-solid: #f8f5eb;
+  --theme-elevated: #fffcf4;
+  --theme-line: #7f897345;
+  --theme-ink: #34433c;
+  --theme-muted: #747b6b;
+  --theme-glow: #a3b3a14d;
+  --theme-accent: #8c4d44;
+  --theme-accent-2: #809684;
+  --theme-star: #ab6c43;
+  --theme-shadow: 0 22px 60px #394a3612;
+  --primary: #8c4d44;
+  --primary-soft: #eaded2;
+  --primary-ink: #844b42;
+  --ink: #34433c;
+  --muted: #747b6b;
+  --line: #7f897345;
+  transition: background-color 14s ease, color 14s ease;
+}
+.app-shell[data-theme="poetic-realm"]::before { background: radial-gradient(ellipse at 80% 5%, #b3bdac35, transparent 55%), repeating-linear-gradient(0deg, #78664105 0 1px, transparent 1px 5px); }
+.app-shell[data-theme="poetic-realm"][data-poem="devotion"] { --theme-bg: #ddd9d2; --theme-glow: #b5a58f4d; --theme-accent-2: #a18c71; }
+.app-shell[data-theme="poetic-realm"][data-poem="journey"] { --theme-bg: #e2e9dc; --theme-glow: #acbea14d; --theme-accent-2: #75966c; }
+.app-shell[data-theme="poetic-realm"][data-poem="courage"] { --theme-bg: #dedfd4; --theme-glow: #c6b0794d; --theme-accent-2: #a18a52; }
+.app-shell[data-theme="poetic-realm"][data-poem="freedom"] { --theme-bg: #dce3dd; --theme-glow: #92aaa64d; --theme-accent-2: #72958b; }
+.app-shell[data-theme="poetic-realm"][data-poem="repose"] { --theme-bg: #e9e9df; --theme-glow: #afbea84d; --theme-accent-2: #8ea085; }
+.app-shell[data-theme="poetic-realm"] .sidebar { background: linear-gradient(170deg, #eeeadef5, #d6ddcfe8); border-right: 1px solid #8b97764d; }
+.app-shell[data-theme="poetic-realm"] .nav-logo { font-family: var(--theme-heading); }
+.app-shell[data-theme="poetic-realm"] .nav-icon { background: #8c4d44; border-radius: 5px; transform: rotate(-4deg); }
+.app-shell[data-theme="poetic-realm"] .home-hero { min-height: 420px; border-radius: 3px; border: 1px solid #7f897338; background: linear-gradient(100deg, #fbf8ee 3%, #f0eee3 48%, #e4e5da); box-shadow: 0 12px 45px #3a4b3510; }
+.app-shell[data-theme="poetic-realm"] .home-hero h1 { font-size: clamp(34px, 3.4vw, 49px); font-weight: 500; letter-spacing: .04em; }
+.app-shell[data-theme="poetic-realm"] .home-hero-copy { padding-top: 30px; padding-bottom: 30px; }
+.app-shell[data-theme="poetic-realm"] .home-hero-copy > p { font-size: 13px; }
+.app-shell[data-theme="poetic-realm"] .home-hero-art { min-height: 420px; }
+.app-shell[data-theme="poetic-realm"] .home-stats { gap: 27px; margin-top: 18px; }
+.app-shell[data-theme="poetic-realm"] .home-stats strong { font-family: Georgia, serif; font-size: 20px; font-weight: 400; }
+.app-shell[data-theme="poetic-realm"] .home-eyebrow { font-weight: 500; font-size: 10px; }
+.app-shell[data-theme="poetic-realm"] .home-course-card { border-radius: 3px; padding: 27px; background: linear-gradient(100deg, #b6bda817, transparent 40%), #faf8efeb; border: 1px solid #7f897338; box-shadow: 4px 5px 0 #e2dfd2, 5px 6px 0 #acb39c55; }
+.app-shell[data-theme="poetic-realm"] .home-course-card::before { top: 18px; right: 18px; left: auto; width: 21px; height: 25px; background: #a3564766; border: 2px double #faf8ef; }
+.app-shell[data-theme="poetic-realm"] .home-course-number { top: 45px; right: 22px; font-family: Georgia, serif; font-weight: 400; font-size: 44px; color: #737f6b30; }
+.app-shell[data-theme="poetic-realm"] .home-course-code { background: transparent; border-bottom: 1px solid #9b75624d; border-radius: 0; padding-left: 0; }
+.app-shell[data-theme="poetic-realm"] :is(.home-list-panel, .home-continue-card) { border-radius: 3px; }
+.app-shell[data-theme="poetic-realm"] :is(.course-hero, .lesson-detail-hero) { border-radius: 3px; background: linear-gradient(110deg, #42564b, #87917a); }
+.app-shell[data-theme="poetic-realm"] .lesson-art { background: radial-gradient(ellipse at 85% 30%, #e4d9b34d, transparent 65%), linear-gradient(125deg, #627564, #aab09a); }
+.app-shell[data-theme="poetic-realm"] .lesson-card { border-radius: 3px; }
+.app-shell[data-theme="poetic-realm"] .landscape-caption { color: #4b5d4e; background: #f8f4e3b3; border-color: #8d977155; }
+.poetry-passage { margin-top: 22px; }
+.poetry-verses { position: relative; height: 120px; }
+.poetry-verse { position: absolute; inset: 0; opacity: 0; transition: opacity 12s ease; pointer-events: none; }
+.poetry-verse.present { opacity: 1; }
+.app-shell .poetry-verse p { color: var(--theme-ink); font-family: "KaiTi", "STKaiti", "SimSun", serif; font-size: clamp(21px, 1.9vw, 29px); letter-spacing: .12em; line-height: 1.65; }
+.poetry-verse > span { display: block; margin-top: 7px; font-size: 10px; letter-spacing: .08em; color: var(--theme-muted); }
+.poetry-hold { display: inline-flex; align-items: center; gap: 6px; margin-top: 5px; padding: 5px 0; border: 0; background: transparent; color: #8c4d44; font-size: 11px; letter-spacing: .12em; }
+.poetry-hold:hover { color: #633b35; }
+.poetic-scene { opacity: 0; transition: opacity 14s ease; }
+.poetic-scene.present { opacity: 1; }
+.theme-card-scene .poetic-scene { transition: none; }
+
+/* The archive: original arched architecture, celestial instruments and candlelight. */
+.app-shell[data-theme="arcane-library"] {
+  color-scheme: dark;
+  --theme-heading: Georgia, "STSong", "SimSun", serif;
+  --theme-bg: #131c23;
+  --theme-surface: #1f292bdc;
+  --theme-surface-solid: #202c2f;
+  --theme-elevated: #2b3636;
+  --theme-line: #b39a5f42;
+  --theme-ink: #eee2c7;
+  --theme-muted: #b3ad98;
+  --theme-glow: #be8c3a35;
+  --theme-accent: #cfb479;
+  --theme-accent-2: #8d9d79;
+  --theme-star: #e8c476;
+  --theme-shadow: 0 20px 60px #05090c4d;
+  --primary: #a78b4d;
+  --primary-soft: #b6974d21;
+  --primary-ink: #dcc48f;
+  --ink: #eee2c7;
+  --muted: #b3ad98;
+  --line: #b39a5f42;
+}
+.app-shell[data-theme="arcane-library"]::before { background: radial-gradient(ellipse at 90% 5%, #b9853826, transparent 40%), repeating-linear-gradient(90deg, #bfa36708 0 1px, transparent 1px 150px), linear-gradient(140deg, #162630, #15201e); }
+.app-shell[data-theme="arcane-library"] .sidebar { background: repeating-linear-gradient(90deg, #a88a5105 0 1px, transparent 1px 7px), linear-gradient(110deg, #211f1b, #2c2920); border-right: 3px double #8d784b66; }
+.app-shell[data-theme="arcane-library"] .nav-logo { font-family: Georgia, serif; }
+.app-shell[data-theme="arcane-library"] .nav-icon { border: 1px solid #c5a261; background: #443c28; color: #eddaaa; border-radius: 50% 50% 6px 6px; }
+.app-shell[data-theme="arcane-library"] .home-hero { border-radius: 5px 90px 5px 5px; background: radial-gradient(ellipse at 40% 75%, #8e613026, transparent 60%), linear-gradient(100deg, #202b2b, #161e26); border: 1px solid #a88c4f66; box-shadow: inset 0 0 0 5px #bba16d08, 0 18px 60px #0004; }
+.app-shell[data-theme="arcane-library"] .home-hero h1 { color: #f0dfb8; font-weight: 500; }
+.app-shell[data-theme="arcane-library"] .home-course-card { --course-accent: #cfb479; border: 1px solid #a88c4f66; border-radius: 5px 26px 5px 5px; background: radial-gradient(ellipse at 80% 0, #8c783a15, transparent 60%), linear-gradient(100deg, #29322c, #222b2b); box-shadow: inset 5px 0 #8c764744, inset 9px 0 #0e18174d, 0 12px 30px #0003; padding-left: 28px; }
+.app-shell[data-theme="arcane-library"] .home-course-card::before { inset: 9px; height: auto; border: 1px solid #a98c4826; border-radius: 2px 18px 2px 2px; background: transparent; pointer-events: none; }
+.app-shell[data-theme="arcane-library"] .home-course-card::after { content: "✦"; position: absolute; right: 23px; top: 19px; color: #dbc28a99; font-size: 20px; }
+.app-shell[data-theme="arcane-library"] .home-course-number { top: 42px; font-family: Georgia, serif; font-weight: 400; font-size: 43px; }
+.app-shell[data-theme="arcane-library"] .home-course-code { border: 1px solid #a88c4f55; border-radius: 3px; background: #aa8e4921; color: #e3c485; }
+.app-shell[data-theme="arcane-library"] .home-course-footer > span { color: #dcc48f; }
+.app-shell[data-theme="arcane-library"] .home-course-progress i { background: linear-gradient(90deg, #8b7040, #edcf84); box-shadow: 0 0 9px #e0b95799; }
+.app-shell[data-theme="arcane-library"] :is(.course-hero, .lesson-detail-hero, .lesson-art) { background: radial-gradient(ellipse at 80% 20%, #86703933, transparent 60%), linear-gradient(130deg, #243837, #24323b); border: 1px solid #a88c4f4d; color: #e9dbb9; }
+.app-shell[data-theme="arcane-library"] .lesson-card { border-radius: 5px 20px 5px 5px; box-shadow: inset 4px 0 #a88c4f42, 0 14px 28px #0003; }
+.app-shell[data-theme="arcane-library"] .lesson-icon { border: 1px solid #ad91514d; border-radius: 50%; background: #b99c5014; color: #e2c785; }
+.app-shell[data-theme="arcane-library"] .note-reader { background: linear-gradient(100deg, #26312e, #202c2f); border: 1px solid #a88c4f4d; }
+.theme-card-poetic-realm { --preview-accent: #9f5c4a; }
+.theme-card-arcane-library { --preview-accent: #b79858; }
+
+/* Night controls and reading overlays share the active space's material. */
+.app-shell[data-night="true"] :is(.command-panel, .progress-panel, .upload-zone, .mode-tabs, .command-message, .field input, .field textarea, .field select, .courseware-thumbnail, .page-note-editor, .ghost-button, .back-button, .quick-back-button, .search-results-panel) { background-color: var(--theme-surface-solid); color: var(--theme-ink); border-color: var(--theme-line); }
+.app-shell[data-night="true"] :is(.field span, .command-panel p, .mode-tabs button, .ocr-selection-bar) { color: var(--theme-muted); }
+.app-shell[data-night="true"] :is(.markdown a, .page-source-button, .page-star-button, .page-note-button) { color: var(--primary-ink); }
+.app-shell[data-night="true"] .markdown img { background: white; }
+.app-shell[data-night="true"] .starred-pages-panel { border-color: #a88c4f55; background: var(--theme-surface-solid); }
+.app-shell[data-night="true"] :is(.starred-pages-heading, .starred-pages-body, .starred-page-card) { background: transparent; color: var(--theme-ink); border-color: var(--theme-line); }
+.app-shell[data-night="true"] :is(.starred-pages-empty strong, .starred-pages-heading strong) { color: var(--theme-ink); }
+.app-shell[data-night="true"] :is(.starred-pages-empty p, .starred-pages-heading small, .starred-page-link small) { color: var(--theme-muted); }
+.app-shell[data-night="true"] .starred-pages-count { background: var(--primary-soft); border-color: var(--theme-line); color: var(--primary-ink); }
+.app-shell[data-night="true"] .page-note-editor textarea { color: var(--theme-ink); background: var(--theme-bg); border-color: var(--theme-line); }
+.app-shell[data-night="true"] :is(.search-result-item, .search-results-heading) { color: var(--theme-ink); border-color: var(--theme-line); }
+.app-shell[data-night="true"] .search-result-item:hover { background: var(--primary-soft); }
+.app-shell[data-night="true"] .mode-tabs button.active { background: var(--theme-elevated); color: var(--theme-ink); }
+.app-shell[data-night="true"] :is(.sidebar-focus-button, .continue-reading-card) { background: radial-gradient(ellipse at 0 0, var(--theme-glow), transparent 75%), var(--theme-surface-solid); color: var(--theme-ink); border-color: var(--theme-line); }
+.app-shell[data-night="true"] :is(.icon-button, .command-attachment-button, .page-note-cancel, .search-results-header, .search-results-limit, .search-results-header select) { background: var(--theme-elevated); color: var(--theme-ink); border-color: var(--theme-line); }
+.app-shell[data-night="true"] :is(.search-results-header strong, .search-result-title strong, .search-empty strong) { color: var(--theme-ink); }
+.app-shell[data-night="true"] :is(.search-result-card p, .search-result-path, .search-results-limit) { color: var(--theme-muted); }
+.app-shell[data-night="true"] :is(.search-result-title > span, .search-result-card:hover, .search-result-card:focus-visible) { background: var(--primary-soft); color: var(--primary-ink); }
+.app-shell[data-night="true"] .search-result-card + .search-result-card { border-top-color: var(--theme-line); }
+
+/* Motion is slow and peripheral. Reduced-motion and minimal settings are static. */
+.scene-mist { animation: world-mist 27s ease-in-out infinite alternate; }
+.scene-dust { animation: world-dust 19s ease-in-out infinite alternate; }
+.scene-flame { animation: world-flame 4s ease-in-out infinite alternate; }
+.scene-candle { animation: world-candle 9s ease-in-out infinite alternate; }
+.candle-1 { animation-delay: -3s; }
+.candle-2 { animation-delay: -6s; }
+.scene-prism { animation: world-candle 13s ease-in-out infinite alternate; }
+.scene-scan { animation: world-flame 7s ease-in-out infinite alternate; }
+.scene-sunbeam { animation: world-flame 18s ease-in-out infinite alternate; }
+.scene-sail { animation: world-sail 24s ease-in-out infinite alternate; }
+.scene-orbit { animation: world-orbit 150s linear infinite; transform-box: fill-box; transform-origin: center; }
+.app-shell[data-poetry-held="true"] .landscape-poetic-realm *,
+.app-shell[data-ambience="minimal"] .theme-landscape *,
+.app-shell[data-reading="true"] .theme-landscape *,
+.app-shell .landscape-preview * { animation-play-state: paused; }
+.app-shell[data-ambience="minimal"] .home-hero-art { opacity: .55; }
+.app-shell[data-ambience="standard"] .home-hero-art { opacity: .85; }
+.app-shell[data-reading="true"]::before { opacity: .2; }
+.app-shell.focus-mode .main { background: radial-gradient(ellipse at 50% 0, var(--theme-glow), transparent 60%), var(--theme-bg); }
+.app-shell.focus-mode:not(.focus-dark) { color-scheme: light; --ink: #303b35; --muted: #6e796e; --line: #85907b40; --theme-ink: #303b35; --theme-muted: #6e796e; --theme-line: #85907b40; --theme-surface: #faf8f0; --theme-surface-solid: #faf8f0; --primary-ink: #5f6650; }
+.app-shell.focus-mode:not(.focus-dark) .note-reader { background: #faf8f0; color: #303b35; }
+.app-shell.focus-mode.focus-dark { --theme-ink: #e8e6d9; --theme-muted: #a6ada5; --theme-line: #58655966; --theme-surface: #192320; --theme-surface-solid: #192320; }
+.app-shell.focus-mode.focus-dark .note-reader { background: #192320; color: #e8e6d9; }
+.app-shell.focus-mode.focus-dark .markdown { color: #e8e6d9; }
+.app-shell.focus-mode::before, .app-shell.focus-mode::after { opacity: .06; }
+@keyframes world-mist { from { transform: translateX(-12px); opacity: .65; } to { transform: translateX(18px); opacity: 1; } }
+@keyframes world-dust { from { transform: translateY(6px); opacity: .45; } to { transform: translateY(-12px); opacity: .8; } }
+@keyframes world-flame { from { opacity: .6; } to { opacity: 1; } }
+@keyframes world-candle { from { translate: 0 -4px; } to { translate: 0 5px; } }
+@keyframes world-sail { from { transform: translateX(-5px); } to { transform: translateX(10px); } }
+@keyframes world-orbit { from { rotate: 0deg; } to { rotate: 360deg; } }
+@media (prefers-reduced-motion: reduce) {
+  .app-shell .theme-landscape * { animation: none !important; }
+  .app-shell[data-theme="poetic-realm"], .poetry-verse, .poetic-scene { transition: none; }
+}
+@media (max-width: 1260px) {
+  .app-shell .home-hero { grid-template-columns: minmax(0, 1.1fr) minmax(290px, .9fr); }
+  .app-shell .home-hero-copy { padding-left: 30px; }
+  .theme-card { gap: 11px; }
+}
+@media (max-width: 880px) {
+  .app-shell .home-hero { grid-template-columns: 1fr; }
+  .app-shell .home-hero-art { display: block; position: absolute; inset: 0 0 0 35%; min-height: 100%; opacity: .17; }
+  .home-hero-art > .theme-landscape { mask-image: linear-gradient(90deg, transparent, #000 60%); }
+  .app-shell .home-hero-copy { padding: 30px 25px; }
+  .landscape-caption { display: none; }
+  .theme-picker { width: calc(100vw - 24px); }
+  .theme-card { grid-template-columns: 35% minmax(0, 1fr); }
+  .theme-card-title strong { font-size: 16px; }
+  .course-world-art { left: 35%; }
+}

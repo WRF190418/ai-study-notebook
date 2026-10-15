@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { updateUserPreferences } from "@/lib/db";
+import { themeIds } from "@/lib/themes";
 
 const preferencesSchema = z.object({
-  theme: z.enum(["warm-study", "mist-forest", "midnight-atlas", "cognitive-lab"]).optional(),
+  theme: z.enum(themeIds).optional(),
   ambience: z.enum(["standard", "immersive", "minimal"]).optional()
 }).refine((value) => Object.keys(value).length > 0, "至少需要一项偏好设置");
 
