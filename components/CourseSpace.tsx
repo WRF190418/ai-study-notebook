@@ -41,6 +41,7 @@ export default function CourseSpace({ theme, poemIndex, onNextPoem, course, less
       <div className="course-titlepage-footer">
         <div className="course-space-stats" aria-label="本课程阅读概览"><span><strong>{lessons.length}</strong> 章</span><span><strong>{ownNotes.length}</strong> 篇笔记</span><span><strong>{readNotes}</strong> 篇有阅读记录</span></div>
         <p className="course-invitation">{space.invitation}</p>
+        {theme === "galactic-guide" && <aside className="course-guide-crossref" aria-label="指南分册交叉索引"><span>交叉索引</span><span>{course.code} → 本册章节 → 逐页正文</span></aside>}
         {theme === "poetic-realm" && <button type="button" className="course-margin-poem" aria-label="换一句诗" title="点击诗句，换一境" onClick={onNextPoem}><span>{poem.verse[0]}<br />{poem.verse[1]}</span><small>{poem.author} ·《{poem.title}》</small></button>}
         {theme === "arcane-library" && <div className="course-archive-emblem" aria-hidden="true"><i /><span>✧</span><i /></div>}
       </div>

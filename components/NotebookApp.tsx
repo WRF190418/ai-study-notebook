@@ -148,11 +148,15 @@ export default function NotebookApp({
   const restoringPersonalHistory = useRef(false);
   const [themePickerOpen, setThemePickerOpen] = useState(false);
   const [themeMessage, setThemeMessage] = useState("");
+  const [guideCoverRequested, setGuideCoverRequested] = useState(false);
   const themeSaveQueue = useRef(Promise.resolve());
   const themeSaveVersion = useRef(0);
   const savedThemePreferences = useRef(initialWorkspace.preferences);
   const [greeting, setGreeting] = useState("欢迎回来");
   const theme = workspace.preferences.theme ?? "mist-forest";
+  useEffect(() => {
+    if (theme !== "galactic-guide" || appView !== "home" || activeLessonId || tutorialPractice) setGuideCoverRequested(false);
+  }, [theme, appView, activeLessonId, tutorialPractice]);
   const poeticFlow = usePoeticFlow(theme === "poetic-realm" && !focusMode, initialUser.id, !tutorialPractice);
   const contentScrollRef = useRef<HTMLDivElement>(null);
   const homeScrollRef = useRef<HTMLDivElement>(null);
@@ -328,6 +332,7 @@ export default function NotebookApp({
     if (enterHome) {
       returnHome();
       setThemePickerOpen(false);
+      setGuideCoverRequested(theme === "galactic-guide" && !practiceRef.current);
     }
     if (practiceRef.current) return;
     const save = themeSaveQueue.current.then(async () => {
@@ -345,6 +350,7 @@ export default function NotebookApp({
         if (version === themeSaveVersion.current && !practiceRef.current) {
           setWorkspace((current) => ({ ...current, preferences: savedThemePreferences.current }));
           setThemeMessage("主题没有保存成功，请稍后重试。");
+          setGuideCoverRequested(false);
           setThemePickerOpen(true);
         }
       }
@@ -755,6 +761,8 @@ export default function NotebookApp({
           <div className="home-scroll content-scroll" data-scroll-region="home" ref={homeScrollRef}>
             <DashboardHome
               theme={theme}
+              guideCoverRequested={guideCoverRequested}
+              onGuideOpened={() => setGuideCoverRequested(false)}
               poeticFlow={poeticFlow}
               searchCourseIds={query.trim() ? [...new Set(searchResults.map(result => result.courseId))] : undefined}
               courses={workspace.courses}
@@ -978,6 +986,8 @@ function ThemePicker({
 
 function DashboardHome({
   theme,
+  guideCoverRequested,
+  onGuideOpened,
   poeticFlow,
   searchCourseIds,
   courses,
@@ -995,6 +1005,8 @@ function DashboardHome({
   terms
 }: {
   theme: AppTheme;
+  guideCoverRequested: boolean;
+  onGuideOpened: () => void;
   poeticFlow: ReturnType<typeof usePoeticFlow>;
   searchCourseIds?: string[];
   courses: Course[];
@@ -1012,7 +1024,7 @@ function DashboardHome({
   terms: string[];
 }) {
   if (theme === "galactic-guide") {
-    return <GalacticHome searchCourseIds={searchCourseIds} courses={courses} greeting={greeting} lessons={lessons} name={name} notes={notes} noteStars={noteStars} onContinue={onContinue} onOpenCourse={onOpenCourse} onOpenNote={onOpenNote} onTermChange={onTermChange} readingProgress={readingProgress} selectedTerm={selectedTerm} terms={terms} />;
+    return <GalacticHome showCover={guideCoverRequested} onCoverOpened={onGuideOpened} searchCourseIds={searchCourseIds} courses={courses} greeting={greeting} lessons={lessons} name={name} notes={notes} noteStars={noteStars} onContinue={onContinue} onOpenCourse={onOpenCourse} onOpenNote={onOpenNote} onTermChange={onTermChange} readingProgress={readingProgress} selectedTerm={selectedTerm} terms={terms} />;
   }
   if (theme === "poetic-realm" || theme === "arcane-library") {
     return <ImmersiveHome theme={theme} poeticFlow={poeticFlow} searchCourseIds={searchCourseIds} courses={courses} greeting={greeting} lessons={lessons} name={name} notes={notes} noteStars={noteStars} onContinue={onContinue} onOpenCourse={onOpenCourse} onOpenNote={onOpenNote} onTermChange={onTermChange} readingProgress={readingProgress} selectedTerm={selectedTerm} terms={terms} />;

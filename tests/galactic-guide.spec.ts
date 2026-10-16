@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { createCourseWithStarterLesson, createNote } from "../lib/db";
+import { guideIncidents, guideMarginalia } from "../lib/galactic-guide";
 
 function textContrast(element: Element) {
   const style = getComputedStyle(element);
@@ -30,19 +31,41 @@ test("the personal galactic guide has a working index, safe scenery and a quiet 
   await expect(page.locator(".theme-card-galactic-guide .guide-scenery-preview")).toBeVisible();
   const saved = page.waitForResponse(r => r.url().endsWith("/api/preferences") && r.request().method() === "PUT");
   await page.locator(".theme-card-galactic-guide").click(); expect((await saved).ok()).toBeTruthy();
+  const cover = page.getByRole("dialog", { name: "银河系搭车客指南封面" });
+  await expect(cover).toBeVisible();
+  await expect(cover.getByRole("button", { name: "打开随身指南", exact: true })).toBeFocused();
+  await page.screenshot({ path: `test-results/galactic-cover-${info.project.name}.png`, animations: "disabled" });
+  await cover.getByRole("button", { name: "打开随身指南", exact: true }).click();
+  await expect(cover).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "已知领域", exact: true })).toBeFocused();
   await expect(page.locator(".galactic-home")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "DON’T PANIC." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^银河系搭车客指南/ })).toBeVisible();
   await expect(page.locator(".guide-course")).toHaveCount(initial.courses.length + 5);
   await expect(page.locator(".guide-location-slip strong")).toHaveText("第 2 页");
   const before = await (await page.request.get("/api/workspace")).json();
   const writes: string[] = []; page.on("request", r => { if (r.method() !== "GET" && r.url().includes("/api/")) writes.push(r.url()); });
-  for (let i = 1; i <= 3; i++) {
+  for (let i = 1; i <= guideIncidents.length; i++) {
     await page.getByRole("button", { name: "触发一次不大可能事件" }).click();
     await expect(page.locator(".guide-space-window .guide-scenery")).toHaveAttribute("data-event", String(i));
     if (i === 1) await page.screenshot({ path: `test-results/galactic-event-${info.project.name}.png`, animations: "disabled" });
+    if (i === 3) {
+      await expect(page.locator(".guide-incident")).toContainText("没有发生任何事");
+      await expect(page.locator(".guide-space-window .guide-scenery")).toHaveAttribute("data-scene", "2");
+    }
   }
+  await page.getByRole("button", { name: "翻阅编者边注", exact: true }).click();
+  await expect(page.locator(".guide-margin-note")).toHaveText(new RegExp(guideMarginalia[1]));
+  await page.getByRole("button", { name: "宇宙，以及其他" }).click();
+  await expect(page.getByRole("region", { name: "指南虚构条目" })).toContainText("比喻也放不下");
+  await page.getByRole("button", { name: "交叉参阅：其他 ↗", exact: true }).click();
+  await expect(page.getByRole("region", { name: "指南虚构条目" })).toContainText("分类的完整性");
+  await page.getByRole("button", { name: "交叉参阅：茶 ↗", exact: true }).click();
+  await expect(page.getByRole("region", { name: "指南虚构条目" })).toContainText("普通的热饮");
+  await page.screenshot({ path: `test-results/galactic-fiction-${info.project.name}.png`, animations: "disabled" });
+  await page.getByRole("button", { name: "收起虚构条目" }).click();
   expect(writes).toEqual([]);
-  await expect(page.locator(".guide-incident")).toContainText("正常航行");
+  await expect(page.locator(".guide-incident")).toContainText("茶没有受到影响");
+  await page.locator('[data-scroll-region="home"]').evaluate(el => { el.scrollTop = 0; });
   await page.screenshot({ path: `test-results/galactic-home-${info.project.name}.png`, fullPage: true, animations: "disabled" });
   const overlap = await page.evaluate(() => {
     const a = document.querySelector(".guide-arrival")!.getBoundingClientRect(), b = document.querySelector(".search-area")!.getBoundingClientRect();
@@ -55,6 +78,7 @@ test("the personal galactic guide has a working index, safe scenery and a quiet 
   await page.locator(".guide-resume").click();
   await expect(page.getByRole("heading", { name: /第2页.*问题与理解/ })).toBeInViewport();
   await page.getByRole("button", { name: "主页", exact: true }).click();
+  await expect(cover).toHaveCount(0);
   await page.getByRole("button", { name: /加星索引/ }).click();
   await expect(page.getByRole("dialog", { name: "加星页面索引" })).toContainText("自己的备注，不被主题替换");
   await page.keyboard.press("Escape"); await expect(page.locator(".world-index-drawer")).toHaveCount(0);
@@ -82,6 +106,7 @@ test("the personal galactic guide has a working index, safe scenery and a quiet 
   await page.getByRole("button", { name: "返回课程章节", exact: true }).last().click();
   const directory = page.locator(".course-space-galactic-guide"); await expect(directory).toBeVisible();
   await expect(directory.locator(".course-invitation")).toHaveText("本分册按课程顺序编排。宇宙未必如此。");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
   await page.screenshot({ path: `test-results/galactic-course-${info.project.name}.png`, animations: "disabled" });
   await page.getByLabel("搜索全部笔记").fill("搭车阅读核对");
   await expect(page.locator(".search-results-panel")).toContainText(note.title);
@@ -89,4 +114,29 @@ test("the personal galactic guide has a working index, safe scenery and a quiet 
   for (const key of ["courses", "lessons", "notes", "noteStars", "preferences"]) expect(after[key]).toEqual(before[key]);
   expect(errors).toEqual([]);
   await page.reload(); await expect(page.locator(".app-shell")).toHaveAttribute("data-theme", "galactic-guide");
+  await expect(cover).toHaveCount(0);
+});
+
+test("guide cover is escapable, reduced-motion safe, and cannot obscure a failed theme save", async ({ page }, info) => {
+  expect((await page.request.post("/api/auth/register", { data: { name: "指南封面验证", email: `guide-cover-${info.project.name}-${Date.now()}@example.com`, password: "12345678" } })).ok()).toBeTruthy();
+  await page.request.post("/api/onboarding");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+  async function chooseGuide() {
+    await page.getByRole("button", { name: "空间主题", exact: true }).click();
+    await page.locator(".theme-card-galactic-guide").click();
+  }
+  const cover = page.getByRole("dialog", { name: "银河系搭车客指南封面" });
+  await chooseGuide();
+  await expect(cover).toBeVisible();
+  await page.keyboard.press("Escape"); await expect(cover).toHaveCount(0);
+  await chooseGuide();
+  await expect(cover).toBeVisible();
+  await cover.getByRole("button", { name: "直接进入索引" }).click(); await expect(cover).toHaveCount(0);
+  await chooseGuide();
+  await cover.getByRole("button", { name: "打开随身指南", exact: true }).click(); await expect(cover).toHaveCount(0);
+  await page.route("**/api/preferences", route => route.fulfill({ status: 500, json: { error: "Test failure" } }));
+  await chooseGuide();
+  await expect(page.getByRole("dialog", { name: "空间主题", exact: true })).toContainText("主题没有保存成功");
+  await expect(cover).toHaveCount(0);
 });

@@ -7,7 +7,7 @@ export const themeOptions = [
   { id: "cognitive-lab", name: "棱镜实验舱", eyebrow: "冰蓝 · 棱镜 · 神经网络", description: "悬浮的棱镜折射出知识的连接，进入清晰、冷静的研究空间。", detail: "光学棱镜 / 数据轨道 / 玻璃界面" },
   { id: "poetic-realm", name: "诗之境", eyebrow: "景随情生 · 诗意流转", description: "从相思到求索，从长风到清欢。情、景与诗缓缓交融，偶然与你相遇。", detail: "流动诗境 / 山水留白 / 留住此境" },
   { id: "arcane-library", name: "秘法藏书院", eyebrow: "拱窗 · 烛光 · 古老秘典", description: "夜幕下的藏书院仍亮着烛火。翻开书页，知识自有隐秘的光。", detail: "原创秘法纹样 / 星仪 / 浮烛微光" },
-  { id: "galactic-guide", name: "银河系搭车客指南", eyebrow: "随身指南 · 星际便车 · 编者附注", description: "指南仍在修订。宇宙暂未对此发表意见。", detail: "旧式电子指南 / 舷窗 / 不大可能事件" }
+  { id: "galactic-guide", name: "银河系搭车客指南", eyebrow: "随身本 · 宇宙 · 一杯茶", description: "封面可以打开。宇宙暂不支持此操作。", detail: "实体封面 / 索引内页 / 编者夹页" }
 ] as const;
 
 export const poeticMotifs = ["longing", "devotion", "journey", "courage", "freedom", "repose"] as const;
