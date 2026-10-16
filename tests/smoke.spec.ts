@@ -7,7 +7,7 @@ async function dismissOnboarding(page: import("@playwright/test").Page) {
     () => false
   );
   if (appeared) {
-    await dialog.getByRole("button", { name: "跳过" }).click();
+    await dialog.getByRole("button", { name: "退出教程", exact: true }).click();
     await expect(page.getByRole("dialog", { name: "新手指导" })).toBeHidden({ timeout: 10_000 });
   }
 

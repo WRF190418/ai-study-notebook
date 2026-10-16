@@ -12,7 +12,7 @@ test("lands on the learning dashboard and persists immersive themes", async ({ p
   const guide = page.getByRole("dialog", { name: "新手指导" });
   const guideAppeared = await guide.waitFor({ state: "visible", timeout: 5000 }).then(() => true, () => false);
   if (guideAppeared) {
-    await guide.getByRole("button", { name: "跳过" }).click();
+    await guide.getByRole("button", { name: "退出教程", exact: true }).click();
     await expect(guide).toBeHidden();
   }
 

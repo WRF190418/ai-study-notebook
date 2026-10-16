@@ -54,7 +54,7 @@ test("searches page content globally and persists beautiful page stars", async (
   const guide = page.getByRole("dialog", { name: "新手指导" });
   const guideAppeared = await guide.waitFor({ state: "visible", timeout: 5000 }).then(() => true, () => false);
   if (guideAppeared) {
-    await guide.getByRole("button", { name: "跳过" }).click();
+    await guide.getByRole("button", { name: "退出教程", exact: true }).click();
     await expect(guide).toBeHidden();
   }
 

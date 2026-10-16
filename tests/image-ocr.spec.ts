@@ -80,7 +80,7 @@ test("recognizes image English and lets the reader select and copy it", async ({
   await page.goto("/");
   const guide = page.getByRole("dialog", { name: "新手指导" });
   const guideAppeared = await guide.waitFor({ state: "visible", timeout: 5000 }).then(() => true, () => false);
-  if (guideAppeared) await guide.getByRole("button", { name: "跳过" }).click();
+  if (guideAppeared) await guide.getByRole("button", { name: "退出教程", exact: true }).click();
   await page.getByRole("button", { name: "课程", exact: true }).click();
   await page.getByLabel("选择课程").selectOption(course.id);
   await page.getByRole("button", { name: /英文课件图片/ }).click();

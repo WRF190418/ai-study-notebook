@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ImagePlus, LoaderCircle, Upload } from "lucide-react";
 import type { MediaAsset, Note } from "@/lib/types";
 
-export default function CoursewareImages({ note, onUpdate }: { note: Note; onUpdate: (workspace: any) => void }) {
+export default function CoursewareImages({ note, onUpdate, practice = false }: { note: Note; onUpdate: (workspace: any) => void; practice?: boolean }) {
   const [open, setOpen] = useState(false);
   const [assets, setAssets] = useState<MediaAsset[]>([]);
   const [selected, setSelected] = useState<string>("");
@@ -15,15 +15,16 @@ export default function CoursewareImages({ note, onUpdate }: { note: Note; onUpd
   useEffect(() => {
     let active = true;
     setAssets([]); setSelected(""); setMessage(""); setHeading(""); setCaption("");
+    if (practice) return;
     void fetch(`/api/notes/${note.id}/images`).then((response) => response.json()).then((data) => {
       if (active) setAssets(data.assets ?? []);
     }).catch(() => { if (active) setMessage("图片列表读取失败，请稍后重试。"); });
     return () => { active = false; };
-  }, [note.id]);
+  }, [note.id, practice]);
   const headings = [...note.contentMarkdown.matchAll(/^#{1,6}\s+(.+)$/gm)].map((match) => match[1]);
 
   async function importFile(file?: File) {
-    if (!file || busy) return;
+    if (!file || busy || practice) return;
     setBusy(true); setMessage("");
     try {
       const form = new FormData(); form.set("file", file);
@@ -38,7 +39,7 @@ export default function CoursewareImages({ note, onUpdate }: { note: Note; onUpd
   }
 
   async function insert() {
-    if (!selected || busy) return;
+    if (!selected || busy || practice) return;
     setBusy(true); setMessage("");
     try {
       const response = await fetch(`/api/notes/${note.id}/images`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
@@ -54,7 +55,8 @@ export default function CoursewareImages({ note, onUpdate }: { note: Note; onUpd
   return <div className="courseware-images">
     <button className="ghost-button" type="button" aria-expanded={open} onClick={() => setOpen((value) => !value)}><ImagePlus size={17} />课件图片{assets.length ? `（${assets.length}）` : ""}</button>
     {open ? <div className="courseware-image-library">
-      <label className="courseware-import"><Upload size={17} />{busy ? "处理中…" : "导入 PPTX 原图"}<input aria-label="导入 PPTX 原图" type="file" accept=".pptx" disabled={busy} onChange={(event) => { void importFile(event.target.files?.[0]); event.target.value = ""; }} /></label>
+      <label className="courseware-import"><Upload size={17} />{busy ? "处理中…" : "导入 PPTX 原图"}<input aria-label="导入 PPTX 原图" type="file" accept=".pptx" disabled={busy || practice} onChange={(event) => { void importFile(event.target.files?.[0]); event.target.value = ""; }} /></label>
+      {practice && <p className="tutorial-practice-notice">教学练习不导入文件、不修改笔记。</p>}
       <div className="courseware-gallery" aria-label="课件原图列表">
         {assets.map((asset) => <button type="button" key={asset.id} className={`courseware-thumbnail ${selected === asset.id ? "selected" : ""}`} aria-pressed={selected === asset.id} aria-label={`选择${asset.sourceFile ? `第 ${asset.slideNumber} 页` : ""}图片：${asset.alt || asset.fileName}`} onClick={() => { setSelected(asset.id); setCaption(asset.alt || ""); }}>
           <img src={`/api/media/${asset.id}`} alt={asset.alt || asset.fileName} loading="lazy" />

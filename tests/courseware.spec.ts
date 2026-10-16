@@ -35,7 +35,7 @@ test("imports PPTX without AI, inserts an image, previews it and isolates accoun
   const lesson = workspace.lessons.find((item: { courseId: string; order: number }) => item.courseId === course.id && item.order === 1);
   const note = await createNote({ userId: course.userId, courseId: course.id, lessonId: lesson.id, title: "课件原图测试", sourceType: "file", sourceText: "结构", contentMarkdown: "# 课件原图测试\n\n<!-- courseware-enrichment -->\n\n## 第1页｜神经元\n\n树突接收输入，轴突传导信号。\n\n<!-- courseware-appendix -->\n\n### 第 1 页：结构\n\n原始课件。", summary: "神经科学", flashcards: [], mindMap: [] });
   await page.goto("/");
-  await page.getByRole("dialog", { name: "新手指导" }).getByRole("button", { name: "跳过" }).click();
+  await page.getByRole("dialog", { name: "新手指导" }).getByRole("button", { name: "退出教程", exact: true }).click();
   await page.locator(".lesson-card").filter({ hasText: "Lecture 1" }).click();
   await expect(page.locator(".note-reader")).toBeVisible();
   await expect(page.locator(".note-reader")).not.toContainText("<!-- courseware-enrichment -->");

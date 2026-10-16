@@ -40,9 +40,9 @@ import ThemeLandscape, { usePoeticFlow } from "@/components/ThemeWorld";
 import AtmosphericHome from "@/components/AtmosphericHome";
 import ImmersiveHome from "@/components/ImmersiveHome";
 import CourseSpace from "@/components/CourseSpace";
-import OnboardingGuide, { GuidedPractice } from "@/components/OnboardingGuide";
-import { guideSteps } from "@/lib/onboarding";
-import { resolveGuideRoute } from "@/lib/onboarding-targets";
+import InteractiveTutorial from "@/components/InteractiveTutorial";
+import { tutorialChapters, tutorialEvent } from "@/lib/tutorial";
+import { createTutorialWorkspace, tutorialImage, tutorialTerm } from "@/lib/tutorial-demo";
 import { poeticScenes, themeOptions } from "@/lib/themes";
 import { extractNotePages, extractPageSourceImages, makeExcerpt, markdownToPlainText, pageAnchorId, type NotePageSection } from "@/lib/note-pages";
 
@@ -138,8 +138,13 @@ export default function NotebookApp({
   const [appHydrated, setAppHydrated] = useState(false);
   const [onboardingCompletedAt, setOnboardingCompletedAt] = useState(initialUser.onboardingCompletedAt ?? "");
   const [onboardingOpen, setOnboardingOpen] = useState(false);
-  const [onboardingStep, setOnboardingStep] = useState(0);
-  const [guidedPractice, setGuidedPractice] = useState(false);
+  const [tutorialPractice, setTutorialPractice] = useState(false);
+  const [tutorialChapter, setTutorialChapter] = useState("");
+  const practiceRef = useRef(false);
+  const personalSnapshot = useRef<{ workspace: Workspace; view: AppView; nav: NavigationSnapshot; searchFilter: string; homeScroll: number; collapsed: boolean; dark: boolean; focus: boolean; history: unknown; url: string } | null>(null);
+  const tutorialSearchSnapshot = useRef<NavigationSnapshot | null>(null);
+  const tutorialHistoryGuard = useRef(false);
+  const restoringPersonalHistory = useRef(false);
   const [themePickerOpen, setThemePickerOpen] = useState(false);
   const [themeMessage, setThemeMessage] = useState("");
   const themeSaveQueue = useRef(Promise.resolve());
@@ -147,7 +152,7 @@ export default function NotebookApp({
   const savedThemePreferences = useRef(initialWorkspace.preferences);
   const [greeting, setGreeting] = useState("欢迎回来");
   const theme = workspace.preferences.theme ?? "mist-forest";
-  const poeticFlow = usePoeticFlow(theme === "poetic-realm" && !focusMode, initialUser.id);
+  const poeticFlow = usePoeticFlow(theme === "poetic-realm" && !focusMode, initialUser.id, !tutorialPractice);
   const contentScrollRef = useRef<HTMLDivElement>(null);
   const homeScrollRef = useRef<HTMLDivElement>(null);
   const searchAreaRef = useRef<HTMLDivElement>(null);
@@ -174,7 +179,7 @@ export default function NotebookApp({
 
   useEffect(() => {
     setAppHydrated(true);
-    setFocusDarkMode(window.localStorage.getItem(`study-note-focus-theme:${initialUser.id}`) === "dark");
+    try { setFocusDarkMode(window.localStorage.getItem(`study-note-focus-theme:${initialUser.id}`) === "dark"); } catch { /* Reading still works when browser storage is unavailable. */ }
     const hour = new Date().getHours();
     setGreeting(hour < 6 ? "夜深了" : hour < 11 ? "早上好" : hour < 14 ? "中午好" : hour < 18 ? "下午好" : "晚上好");
     if (!initialUser.onboardingCompletedAt) {
@@ -185,7 +190,7 @@ export default function NotebookApp({
   function toggleFocusDarkMode() {
     setFocusDarkMode((current) => {
       const next = !current;
-      window.localStorage.setItem(`study-note-focus-theme:${initialUser.id}`, next ? "dark" : "light");
+      if (!practiceRef.current) window.localStorage.setItem(`study-note-focus-theme:${initialUser.id}`, next ? "dark" : "light");
       return next;
     });
   }
@@ -193,7 +198,7 @@ export default function NotebookApp({
   useEffect(() => {
     function closeSearchOnOutsideClick(event: MouseEvent) {
       // The practice dock supports the current search; using it must not dismiss results.
-      if (event.target instanceof Element && event.target.closest(".guide-practice")) return;
+      if (event.target instanceof Element && event.target.closest(".tutorial-layer")) return;
       if (searchAreaRef.current && !searchAreaRef.current.contains(event.target as Node)) {
         setSearchOpen(false);
       }
@@ -205,7 +210,7 @@ export default function NotebookApp({
   useEffect(() => {
     if (!focusMode) return;
     const exitFocusMode = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !document.querySelector(".onboarding-backdrop")) setFocusMode(false);
+      if (event.key === "Escape" && !document.querySelector(".tutorial-modal, dialog[open]")) { setFocusMode(false); tutorialEvent("focus-exit"); }
     };
     window.addEventListener("keydown", exitFocusMode);
     return () => window.removeEventListener("keydown", exitFocusMode);
@@ -213,8 +218,11 @@ export default function NotebookApp({
 
   useEffect(() => {
     function restoreNavigation(event: PopStateEvent) {
+      if (restoringPersonalHistory.current) { restoringPersonalHistory.current = false; return; }
       const snapshot = event.state?.studyNoteSnapshot as NavigationSnapshot | undefined;
       if (!snapshot) return;
+      if (snapshot.courseId.startsWith("tutorial-") && !practiceRef.current) return;
+      setAppView("courses");
       setSelectedTerm(snapshot.selectedTerm);
       setCourseId(snapshot.courseId);
       setLessonId(snapshot.lessonId);
@@ -223,6 +231,7 @@ export default function NotebookApp({
       setQuery(snapshot.query);
       setSearchOpen(snapshot.searchOpen);
       setPendingJump(null);
+      tutorialEvent("search-back");
       window.setTimeout(() => {
         if (contentScrollRef.current) contentScrollRef.current.scrollTop = snapshot.scrollTop;
       }, 0);
@@ -319,6 +328,7 @@ export default function NotebookApp({
       returnHome();
       setThemePickerOpen(false);
     }
+    if (practiceRef.current) return;
     const save = themeSaveQueue.current.then(async () => {
       try {
         const response = await fetch("/api/preferences", {
@@ -329,9 +339,9 @@ export default function NotebookApp({
         if (!response.ok) throw new Error("THEME_SAVE_FAILED");
         const data = await response.json();
         savedThemePreferences.current = data.preferences;
-        if (version === themeSaveVersion.current) setWorkspace((current) => ({ ...current, preferences: data.preferences }));
+        if (version === themeSaveVersion.current && !practiceRef.current) setWorkspace((current) => ({ ...current, preferences: data.preferences }));
       } catch {
-        if (version === themeSaveVersion.current) {
+        if (version === themeSaveVersion.current && !practiceRef.current) {
           setWorkspace((current) => ({ ...current, preferences: savedThemePreferences.current }));
           setThemeMessage("主题没有保存成功，请稍后重试。");
           setThemePickerOpen(true);
@@ -343,6 +353,7 @@ export default function NotebookApp({
   }
 
   async function logout() {
+    if (practiceRef.current) return;
     await fetch("/api/auth/logout", { method: "POST" });
     window.location.reload();
   }
@@ -361,9 +372,16 @@ export default function NotebookApp({
       searchOpen,
       scrollTop: contentScrollRef.current?.scrollTop ?? 0
     };
-    window.history.replaceState({ ...window.history.state, studyNoteSnapshot: snapshot }, "");
     const hash = target.pageKey ? pageAnchorId(targetNote.id, target.pageKey) : `note-${targetNote.id}`;
-    window.history.pushState({ studyNotePage: true }, "", `#${hash}`);
+    if (practiceRef.current) {
+      if (query.trim() && searchOpen) {
+        tutorialSearchSnapshot.current = snapshot;
+        if (!window.history.state?.tutorialGuard) { tutorialHistoryGuard.current = true; window.history.pushState({ tutorialGuard: true }, "", window.location.href); }
+      }
+    } else {
+      window.history.replaceState({ ...window.history.state, studyNoteSnapshot: snapshot }, "");
+      window.history.pushState({ studyNotePage: true }, "", `#${hash}`);
+    }
 
     if (targetCourse) setSelectedTerm(targetCourse.term);
     setCourseId(targetNote.courseId);
@@ -376,6 +394,7 @@ export default function NotebookApp({
   }
 
   async function togglePageStar(noteId: string, page: { key: string; pageNumber: number }) {
+    if (noteId.startsWith("tutorial-") && !practiceRef.current) return;
     const existing = workspace.noteStars.find((item) => item.noteId === noteId && item.pageKey === page.key);
     const optimisticStar: NoteStar = {
       userId: initialUser.id,
@@ -392,6 +411,7 @@ export default function NotebookApp({
         : [...current.noteStars, optimisticStar]
     }));
 
+    if (practiceRef.current) return;
     try {
       const response = await fetch("/api/stars", {
         method: existing ? "DELETE" : "PUT",
@@ -411,6 +431,7 @@ export default function NotebookApp({
   }
 
   async function savePageStarNote(noteId: string, page: { key: string; pageNumber: number }, note: string) {
+    if (noteId.startsWith("tutorial-") && !practiceRef.current) return;
     const existing = workspace.noteStars.find((item) => item.noteId === noteId && item.pageKey === page.key);
     const optimisticStar: NoteStar = {
       userId: initialUser.id,
@@ -426,6 +447,7 @@ export default function NotebookApp({
       noteStars: [...current.noteStars.filter((item) => !(item.noteId === noteId && item.pageKey === page.key)), optimisticStar]
     }));
 
+    if (practiceRef.current) return;
     try {
       const response = await fetch("/api/stars", {
         method: "PUT",
@@ -446,6 +468,7 @@ export default function NotebookApp({
   }
 
   function saveReadingProgress(noteId: string, page: { key: string; pageNumber: number }) {
+    if (noteId.startsWith("tutorial-") !== practiceRef.current) return;
     const progress: NoteReadingProgress = {
       userId: initialUser.id,
       noteId,
@@ -460,6 +483,7 @@ export default function NotebookApp({
         progress
       ]
     }));
+    if (practiceRef.current) return;
     void fetch("/api/reading-progress", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -470,10 +494,9 @@ export default function NotebookApp({
 
   function closeOnboarding() {
     setOnboardingOpen(false);
-    setGuidedPractice(false);
     if (!onboardingCompletedAt) {
       setOnboardingCompletedAt(new Date().toISOString());
-      void fetch("/api/onboarding", { method: "POST" })
+      void fetch("/api/onboarding", { method: "POST", keepalive: true })
         .then(async (response) => {
           if (!response.ok) return;
           const data = await response.json();
@@ -485,43 +508,62 @@ export default function NotebookApp({
     }
   }
 
-  const guideDestination = useMemo(() => {
-    if (!onboardingOpen && !guidedPractice) return { selector: "", context: "" };
-    const route = resolveGuideRoute(guideSteps[onboardingStep].id, workspace, selectedNote?.id, course?.id);
-    return guideSteps[onboardingStep].id === "focus" && focusMode ? { ...route, selector: ".focus-reader-toolbar" } : route;
-  }, [onboardingOpen, guidedPractice, onboardingStep, workspace.notes, workspace.courses, workspace.lessons, selectedNote?.id, course?.id, focusMode]);
-
-  function practiceGuide(requestedStep: number) {
-    const index = Math.max(0, Math.min(guideSteps.length - 1, requestedStep));
-    const action = guideSteps[index].id;
-    const route = resolveGuideRoute(action, workspace, selectedNote?.id, course?.id);
-    if (route.unavailable) {
-      setOnboardingStep(index);
-      setOnboardingOpen(true);
-      return;
-    }
-    setOnboardingStep(index);
-    setOnboardingOpen(false);
-    setGuidedPractice(true);
-    setThemePickerOpen(false);
-    setFocusMode(false);
-    setPendingJump(null);
-    setSearchOpen(false);
-    if (action !== "search") setQuery("");
-    if (action === "home" || action === "themes") {
-      returnHome();
-      if (action === "themes") setThemePickerOpen(true);
-    } else if (action === "courses" || action === "organizer") {
-      openCourse(route.courseId!);
-      if (action === "organizer") setOrganizerCollapsed(false);
-    } else if (route.noteId) {
-      const note = workspace.notes.find(item => item.id === route.noteId);
-      if (note) openNote(note);
-    } else if (action === "search") {
-      setSearchCourseId("");
-      setSearchOpen(true);
-    }
+  function prepareTutorialChapter(chapterId: string) {
+    const scene = tutorialChapters.find(c => c.id === chapterId)?.scene ?? "home";
+    setTutorialChapter(`${chapterId}-${Date.now()}`);
+    setFocusMode(false); setFocusDarkMode(false); setThemePickerOpen(false);
+    setOrganizerCollapsed(false); setPendingJump(null); setQuery(""); setSearchOpen(false); setSearchCourseId("");
+    tutorialSearchSnapshot.current = null;
+    setSelectedTerm(chapterId === "space" ? "2026年春季 · 教学练习" : tutorialTerm);
+    setCourseId(chapterId === "space" ? "tutorial-course-spring" : "tutorial-course");
+    setLessonId("tutorial-lesson"); setSelectedNoteId("tutorial-note");
+    setActiveLessonId(scene === "home" || scene === "organizer" ? null : "tutorial-lesson");
+    setAppView(scene === "home" ? "home" : "courses");
+    setWorkspace(current => ({ ...current, readingProgress: [], noteStars: scene === "stars" ? [{ userId: initialUser.id, noteId: "tutorial-note", pageKey: "page-2-1", pageNumber: 2, note: "教学示例：二刷时自己画一次知识地图", createdAt: new Date().toISOString() }] : [] }));
   }
+
+  function startTutorial(chapterId: string) {
+    personalSnapshot.current = { workspace, view: appView, nav: { selectedTerm, courseId, lessonId, activeLessonId, selectedNoteId, query, searchOpen, scrollTop: contentScrollRef.current?.scrollTop ?? 0 }, searchFilter: searchCourseId, homeScroll: homeScrollRef.current?.scrollTop ?? 0, collapsed: organizerCollapsed, dark: focusDarkMode, focus: focusMode, history: window.history.state, url: window.location.href };
+    practiceRef.current = true; setTutorialPractice(true);
+    setWorkspace(createTutorialWorkspace(initialUser.id, workspace.preferences));
+    prepareTutorialChapter(chapterId);
+  }
+
+  function stopTutorial() {
+    const previous = personalSnapshot.current;
+    if (!previous) return;
+    practiceRef.current = false; setTutorialPractice(false); personalSnapshot.current = null;
+    setWorkspace(previous.workspace); setAppView(previous.view);
+    setSelectedTerm(previous.nav.selectedTerm); setCourseId(previous.nav.courseId); setLessonId(previous.nav.lessonId);
+    setActiveLessonId(previous.nav.activeLessonId); setSelectedNoteId(previous.nav.selectedNoteId);
+    setQuery(previous.nav.query); setSearchOpen(previous.nav.searchOpen); setSearchCourseId(previous.searchFilter);
+    setFocusMode(previous.focus); setFocusDarkMode(previous.dark); setOrganizerCollapsed(previous.collapsed);
+    setPendingJump(null); setThemePickerOpen(false); setStarMessage("");
+    if (tutorialHistoryGuard.current && window.history.state?.tutorialGuard) { restoringPersonalHistory.current = true; tutorialHistoryGuard.current = false; window.history.back(); }
+    else window.history.replaceState(previous.history, "", previous.url);
+    requestAnimationFrame(() => { if (contentScrollRef.current) contentScrollRef.current.scrollTop = previous.nav.scrollTop; if (homeScrollRef.current) homeScrollRef.current.scrollTop = previous.homeScroll; });
+  }
+
+  function tutorialSearchBack() {
+    const snapshot = tutorialSearchSnapshot.current;
+    if (!snapshot || !practiceRef.current) return;
+    if (window.history.state?.tutorialGuard) { window.history.back(); return; }
+    setSelectedTerm(snapshot.selectedTerm); setCourseId(snapshot.courseId); setLessonId(snapshot.lessonId);
+    setActiveLessonId(snapshot.activeLessonId); setSelectedNoteId(snapshot.selectedNoteId);
+    setQuery(snapshot.query); setSearchOpen(true); setPendingJump(null);
+    tutorialEvent("search-back");
+  }
+
+  useEffect(() => {
+    if (!tutorialPractice) return;
+    // The practice search uses a same-URL history guard, never demo IDs or private content.
+    const back = (event: PopStateEvent) => {
+      if (!practiceRef.current || !tutorialSearchSnapshot.current) return;
+      tutorialHistoryGuard.current = false; event.stopImmediatePropagation(); tutorialSearchBack();
+    };
+    window.addEventListener("popstate", back, true);
+    return () => window.removeEventListener("popstate", back, true);
+  }, [tutorialPractice]);
 
   return (
     <main
@@ -553,6 +595,7 @@ export default function NotebookApp({
 
         <nav className="nav-menu" aria-label="主导航">
           <button
+            data-tutorial="home"
             className={`nav-item ${appView === "home" && !activeLesson ? "active" : ""}`}
             onClick={returnHome}
             type="button"
@@ -561,6 +604,7 @@ export default function NotebookApp({
             主页
           </button>
           <button
+            data-tutorial="courses"
             className={`nav-item ${appView === "courses" ? "active" : ""}`}
             onClick={() => {
               setFocusMode(false);
@@ -574,6 +618,7 @@ export default function NotebookApp({
             课程
           </button>
           <button
+            data-tutorial="organizer"
             className="nav-item"
             onClick={() => {
               setAppView("courses");
@@ -590,9 +635,9 @@ export default function NotebookApp({
             复习资产
           </button>
           <button
+            data-tutorial="tutorial"
             className="nav-item"
             onClick={() => {
-              if (!guidedPractice) setOnboardingStep(0);
               setThemePickerOpen(false);
               setOnboardingOpen(true);
             }}
@@ -630,7 +675,7 @@ export default function NotebookApp({
             <strong>{initialUser.name}</strong>
             <span>{initialUser.email}</span>
           </div>
-          <button className="ghost-button" disabled={!appHydrated} onClick={logout} type="button">
+          <button data-tutorial="logout" className="ghost-button" disabled={!appHydrated || tutorialPractice} onClick={logout} type="button">
             <LogOut size={17} />
             退出
           </button>
@@ -731,6 +776,8 @@ export default function NotebookApp({
           <div className="content-scroll" data-scroll-region="notes" ref={contentScrollRef}>
             {activeLesson ? (
               <LessonDetail
+                key={tutorialPractice ? tutorialChapter : "personal"}
+                practice={tutorialPractice}
                 course={course}
                 lesson={activeLesson}
                 notes={visibleNotes}
@@ -746,7 +793,7 @@ export default function NotebookApp({
                   setActiveLessonId(null);
                   setSelectedNoteId("");
                 }}
-                onToggleFocusMode={() => setFocusMode((value) => !value)}
+                onToggleFocusMode={() => { setFocusMode(!focusMode); if (focusMode) tutorialEvent("focus-exit"); }}
                 onToggleFocusDarkMode={toggleFocusDarkMode}
                 onReadingProgress={saveReadingProgress}
                 onSelectNote={setSelectedNoteId}
@@ -774,6 +821,8 @@ export default function NotebookApp({
 
           {course ? (
             <OrganizerPanel
+              key={tutorialPractice ? `tutorial-${tutorialChapter}` : "personal-organizer"}
+              practice={tutorialPractice}
               course={course}
               lessons={lessons}
               currentLessonId={activeLesson?.id ?? lessonId}
@@ -822,16 +871,17 @@ export default function NotebookApp({
       ) : null}
 
       {onboardingOpen ? (
-        <OnboardingGuide
-          completed={Boolean(onboardingCompletedAt)}
-          destination={guideDestination}
-          step={onboardingStep}
-          onStepChange={setOnboardingStep}
-          onPractice={practiceGuide}
+        <InteractiveTutorial
+          userId={initialUser.id}
+          firstUse={!onboardingCompletedAt}
+          theme={theme}
+          onStart={startTutorial}
+          onPrepare={prepareTutorialChapter}
+          onStop={stopTutorial}
+          onSearchBack={tutorialSearchBack}
           onClose={closeOnboarding}
         />
       ) : null}
-      {guidedPractice && !onboardingOpen ? <GuidedPractice step={onboardingStep} destination={guideDestination} onPractice={practiceGuide} onLibrary={() => { setThemePickerOpen(false); setOnboardingOpen(true); }} onClose={closeOnboarding} /> : null}
     </main>
   );
 }
@@ -1062,14 +1112,14 @@ function DashboardHome({
 
       {(recentNotes.length || recentStars.length) ? (
         <section className="home-lower-grid">
-          <div className="home-list-panel">
+          <div className="home-list-panel" data-tutorial="home-notes">
             <div className="home-section-heading compact"><div><span>RECENT</span><h2>最近笔记</h2></div></div>
             <div className="home-note-list">
               {recentNotes.map((note) => {
                 const noteCourse = courses.find((course) => course.id === note.courseId);
                 const noteLesson = lessons.find((lesson) => lesson.id === note.lessonId);
                 return (
-                  <button key={note.id} onClick={() => onOpenNote(note)} type="button">
+                  <button data-tutorial="home-note-item" key={note.id} onClick={() => onOpenNote(note)} type="button">
                     <span className="home-list-icon"><FileText size={17} /></span>
                     <span><strong>{note.title}</strong><small>{noteCourse?.code} · {noteLesson?.title}</small></span>
                     <ChevronRight size={16} />
@@ -1078,7 +1128,7 @@ function DashboardHome({
               })}
             </div>
           </div>
-          <div className="home-list-panel">
+          <div className="home-list-panel" data-tutorial="home-stars">
             <div className="home-section-heading compact"><div><span>STARRED</span><h2>最近加星</h2></div></div>
             <div className="home-note-list">
               {recentStars.length ? recentStars.map((star) => {
@@ -1179,6 +1229,7 @@ function HighlightedText({ text, query }: { text: string; query: string }) {
 }
 
 function LessonDetail({
+  practice = false,
   course,
   lesson,
   notes,
@@ -1200,6 +1251,7 @@ function LessonDetail({
   onJumpHandled,
   onWorkspaceUpdated
 }: {
+  practice?: boolean;
   course?: Course;
   lesson: Lesson;
   notes: Note[];
@@ -1226,8 +1278,8 @@ function LessonDetail({
     [selectedNote]
   );
   const sourceImagesByPage = useMemo(
-    () => (selectedNote ? extractPageSourceImages(selectedNote.contentMarkdown) : new Map()),
-    [selectedNote]
+    () => (practice ? new Map([1, 2, 3].map(n => [n, { src: tutorialImage, alt: `原创教学示例，第${n}页；非教师原课件` }])) : selectedNote ? extractPageSourceImages(selectedNote.contentMarkdown) : new Map()),
+    [selectedNote, practice]
   );
   const selectedNoteStars = selectedNote ? noteStars.filter((star) => star.noteId === selectedNote.id) : [];
   const starredPageKeys = useMemo(
@@ -1385,7 +1437,7 @@ function LessonDetail({
   return (
     <>
       {focusMode ? (
-        <div className="focus-reader-toolbar" role="toolbar" aria-label="专注阅读工具栏" tabIndex={0}>
+        <div className="focus-reader-toolbar" role="toolbar" aria-label="专注阅读工具栏" tabIndex={0} onMouseEnter={() => tutorialEvent("focus-tools")} onFocus={() => tutorialEvent("focus-tools")}>
           <span className="focus-reader-status">
             <span className="focus-reader-dot" aria-hidden="true" />
             <span>
@@ -1491,6 +1543,7 @@ function LessonDetail({
               </div>
               <div className="note-reader-actions">
                 <NoteImageInsert
+                  practice={practice}
                   key={selectedNote.id}
                   note={selectedNote}
                   onWorkspaceUpdated={onWorkspaceUpdated}
@@ -1521,7 +1574,7 @@ function LessonDetail({
               targetPageKey={targetPageKey}
             />
             {starMessage ? <div className="star-save-message" role="status">{starMessage}</div> : null}
-            <CoursewareImages key={`courseware-${selectedNote.id}`} note={selectedNote} onUpdate={onWorkspaceUpdated} />
+            <CoursewareImages practice={practice} key={`courseware-${selectedNote.id}`} note={selectedNote} onUpdate={onWorkspaceUpdated} />
             <MarkdownView
               content={selectedNote.contentMarkdown}
               pageStars={{
@@ -1682,9 +1735,11 @@ function StarredPagesPanel({
 }
 
 function NoteImageInsert({
+  practice = false,
   note,
   onWorkspaceUpdated
 }: {
+  practice?: boolean;
   note: Note;
   onWorkspaceUpdated: (workspace: Workspace) => void;
 }) {
@@ -1698,6 +1753,7 @@ function NoteImageInsert({
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (practice) { setMessage("教学练习区不上传图片、不修改笔记。"); return; }
     if (!image) {
       setMessage("请选择要插入的图片。");
       return;
@@ -1749,6 +1805,7 @@ function NoteImageInsert({
             <input
               accept="image/png,image/jpeg,image/webp,image/gif"
               aria-label="选择笔记图片"
+              disabled={practice}
               onChange={(event) => setImage(event.target.files?.[0] ?? null)}
               type="file"
             />
@@ -1785,7 +1842,7 @@ function NoteImageInsert({
               value={alt}
             />
           </label>
-          <button className="primary-button" disabled={busy} type="submit">
+          <button className="primary-button" disabled={busy || practice} type="submit">
             {busy ? "插入中..." : "确认插入"}
           </button>
         </form>
@@ -1800,6 +1857,7 @@ function lessonLabel(lesson: Lesson) {
 }
 
 function OrganizerPanel({
+  practice = false,
   course,
   lessons,
   currentLessonId,
@@ -1809,6 +1867,7 @@ function OrganizerPanel({
   onCommandApplied,
   onNoteCreated
 }: {
+  practice?: boolean;
   course: Course;
   lessons: Lesson[];
   currentLessonId: string;
@@ -1964,6 +2023,7 @@ function OrganizerPanel({
 
   async function submitCommand(event: FormEvent) {
     event.preventDefault();
+    if (practice) { setCommandMessage("教学练习区不执行 AI 命令。"); return; }
     const currentCommand = commandRef.current?.value ?? "";
     if (!currentCommand.trim()) {
       setCommandMessage("请输入要 AI 执行的命令。");
@@ -2020,6 +2080,7 @@ function OrganizerPanel({
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (practice) { setError("教学练习区不调用 AI、不保存练习内容。"); return; }
     const form = new FormData(event.currentTarget as HTMLFormElement);
     const currentText = textRef.current?.value ?? String(form.get("sourceText") ?? text);
 
@@ -2084,6 +2145,7 @@ function OrganizerPanel({
 
   return (
     <aside className="organizer">
+      {practice && <p className="tutorial-practice-notice">教学练习：可填写要求和切换模式；上传、整理和命令提交均已禁用，不调用 AI。</p>}
       <div className="panel-heading">
         <div>
           <h2>AI 整理台</h2>
@@ -2111,6 +2173,7 @@ function OrganizerPanel({
             <input
               accept="image/png,image/jpeg,image/webp,image/gif"
               aria-label="AI 命令图片"
+              disabled={practice}
               onChange={(event) => setCommandImage(event.target.files?.[0] ?? null)}
               ref={commandImageRef}
               type="file"
@@ -2137,7 +2200,7 @@ function OrganizerPanel({
         </div>
         <div className="status-row">
           <span className="small-muted">由真实 AI 理解上下文并执行经过校验的操作</span>
-          <button className="ghost-button" disabled={commandBusy || !hydrated} type="submit">
+          <button data-tutorial="command-submit" className="ghost-button" disabled={commandBusy || !hydrated || practice} type="submit">
             {commandBusy ? "执行中..." : <><Brain size={17} /> 执行命令</>}
           </button>
         </div>
@@ -2157,16 +2220,16 @@ function OrganizerPanel({
         </label>
 
         <div className="mode-tabs" aria-label="材料类型">
-          <button className={sourceType === "text" ? "active" : ""} onClick={() => setSourceType("text")} type="button">
+          <button data-tutorial="source-text" className={sourceType === "text" ? "active" : ""} onClick={() => setSourceType("text")} type="button">
             文字
           </button>
-          <button className={sourceType === "outline" ? "active" : ""} onClick={() => setSourceType("outline")} type="button">
+          <button data-tutorial="source-outline" className={sourceType === "outline" ? "active" : ""} onClick={() => setSourceType("outline")} type="button">
             大纲
           </button>
-          <button className={sourceType === "image" ? "active" : ""} onClick={() => setSourceType("image")} type="button">
+          <button data-tutorial="source-image" className={sourceType === "image" ? "active" : ""} onClick={() => setSourceType("image")} type="button">
             图片
           </button>
-          <button className={sourceType === "file" ? "active" : ""} onClick={() => setSourceType("file")} type="button">
+          <button data-tutorial="source-file" className={sourceType === "file" ? "active" : ""} onClick={() => setSourceType("file")} type="button">
             课件
           </button>
         </div>
@@ -2178,6 +2241,7 @@ function OrganizerPanel({
           <input
             accept="image/png,image/jpeg,image/webp,image/gif,.pdf,.pptx,.docx,.txt,.md,.markdown,.csv"
             multiple
+            disabled={practice}
             onChange={handleFiles}
             ref={fileRef}
             type="file"
@@ -2236,7 +2300,7 @@ function OrganizerPanel({
 
         <label className="field">
           <span>输出风格</span>
-          <select value={mode} onChange={(event) => setMode(event.target.value as Mode)}>
+          <select data-tutorial="output-mode" value={mode} onChange={(event) => setMode(event.target.value as Mode)}>
             <option value="standard">标准课堂笔记</option>
             <option value="exam">考试复习版</option>
             <option value="deep">深度理解版</option>
@@ -2245,7 +2309,7 @@ function OrganizerPanel({
 
         <div className="status-row">
           <span className="small-muted">AI 会选择已有章节，或自动新建章节</span>
-          <button className="primary-button" disabled={busy || !hydrated} type="submit">
+          <button data-tutorial="organize-submit" className="primary-button" disabled={busy || !hydrated || practice} type="submit">
             {busy ? `整理中 ${organizeProgress}%` : <><Sparkles size={17} /> 开始整理</>}
           </button>
         </div>

@@ -42,6 +42,7 @@ export default function AtmosphericHome(props: Props) {
     const keys = (event: KeyboardEvent) => {
       if (event.key === "Escape") { event.preventDefault(); setIndexOpen(null); trigger.current?.focus(); }
       if (event.key === "Tab") {
+        if (document.querySelector(".tutorial-layer")) return;
         const buttons = drawer.current?.querySelectorAll<HTMLButtonElement>("button");
         if (!buttons?.length) return;
         const first = buttons[0], last = buttons[buttons.length - 1];
@@ -88,10 +89,10 @@ export default function AtmosphericHome(props: Props) {
           <footer className="room-collection-colophon"><span>{visibleCourses.length} 门课程</span><span>{room.kind === "study" ? "一页一页，自有所得" : room.kind === "forest" ? "沿着自己的节奏" : "以好奇心为引力"}</span></footer>
         </section>
       </div>
-      <footer className="room-tools"><span className="room-space-note">{room.kind === "study" ? "THE LAMPLIT HOURS" : room.kind === "forest" ? "TAKE THE SLOW PATH" : "AD ASTRA / 向着群星"}</span><div className="world-index-actions">{(["notes", "stars"] as const).map(kind => <button type="button" key={kind} aria-expanded={indexOpen === kind} aria-controls="room-reading-index" onClick={event => { trigger.current = event.currentTarget; setIndexOpen(current => current === kind ? null : kind); }}>{kind === "notes" ? <FileText size={15} /> : <Star size={15} />}{kind === "notes" ? "最近笔记" : "加星索引"}<span>{kind === "notes" ? notes.length : noteStars.length}</span></button>)}</div></footer>
+      <footer className="room-tools"><span className="room-space-note">{room.kind === "study" ? "THE LAMPLIT HOURS" : room.kind === "forest" ? "TAKE THE SLOW PATH" : "AD ASTRA / 向着群星"}</span><div className="world-index-actions">{(["notes", "stars"] as const).map(kind => <button data-tutorial={`home-${kind}`} type="button" key={kind} aria-expanded={indexOpen === kind} aria-controls="room-reading-index" onClick={event => { trigger.current = event.currentTarget; setIndexOpen(current => current === kind ? null : kind); }}>{kind === "notes" ? <FileText size={15} /> : <Star size={15} />}{kind === "notes" ? "最近笔记" : "加星索引"}<span>{kind === "notes" ? notes.length : noteStars.length}</span></button>)}</div></footer>
     </div>
     {indexOpen && <div className="world-index-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) closeIndex(); }}><section ref={drawer} role="dialog" aria-modal="true" aria-label={indexOpen === "notes" ? "最近笔记索引" : "加星页面索引"} className="world-index-drawer" id="room-reading-index"><header><div><span>READING INDEX</span><h2>{indexOpen === "notes" ? "最近笔记" : "加星索引"}</h2></div><button type="button" aria-label="关闭阅读索引" onClick={closeIndex}><X size={20} /></button></header><div className="world-index-list">
-      {indexOpen === "notes" ? recentNotes.slice(0,12).map(note => <button type="button" key={note.id} onClick={() => onOpenNote(note)}><FileText size={17} /><span><strong>{note.title}</strong><small>{courses.find(course => course.id === note.courseId)?.code} · {lessons.find(lesson => lesson.id === note.lessonId)?.title}</small></span><ChevronRight size={16} /></button>) : [...noteStars].sort((a,b)=>b.createdAt.localeCompare(a.createdAt)).map(star => {
+      {indexOpen === "notes" ? recentNotes.slice(0,12).map(note => <button data-tutorial="home-note-item" type="button" key={note.id} onClick={() => onOpenNote(note)}><FileText size={17} /><span><strong>{note.title}</strong><small>{courses.find(course => course.id === note.courseId)?.code} · {lessons.find(lesson => lesson.id === note.lessonId)?.title}</small></span><ChevronRight size={16} /></button>) : [...noteStars].sort((a,b)=>b.createdAt.localeCompare(a.createdAt)).map(star => {
         const note = notes.find(item => item.id === star.noteId);
         if (!note) return null;
         const page = extractNotePages(note.contentMarkdown).find(item => item.key === star.pageKey);

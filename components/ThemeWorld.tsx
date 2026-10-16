@@ -8,7 +8,7 @@ import PoeticScenery from "@/components/PoeticScenery";
 
 const POEM_DURATION = 96_000;
 
-export function usePoeticFlow(enabled: boolean, userId: string) {
+export function usePoeticFlow(enabled: boolean, userId: string, persist = true) {
   const [index, setIndex] = useState(0);
   const [held, setHeld] = useState(false);
   const [ready, setReady] = useState(false);
@@ -16,6 +16,8 @@ export function usePoeticFlow(enabled: boolean, userId: string) {
   const [transition, setTransition] = useState<"flow" | "manual">("flow");
   const remaining = useRef(POEM_DURATION);
   const revision = useRef(0);
+  const personalPoem = useRef<{ index: number; held: boolean } | null>(null);
+  const restoringPoem = useRef(false);
 
   useEffect(() => {
     try {
@@ -31,9 +33,18 @@ export function usePoeticFlow(enabled: boolean, userId: string) {
   }, [userId]);
 
   useEffect(() => {
-    if (!ready) return;
+    if (!persist && !personalPoem.current) personalPoem.current = { index, held };
+    if (persist && personalPoem.current) {
+      const previous = personalPoem.current; personalPoem.current = null;
+      restoringPoem.current = true; setIndex(previous.index); setHeld(previous.held);
+    }
+  }, [persist]);
+
+  useEffect(() => {
+    if (!ready || !persist) return;
+    if (restoringPoem.current) { restoringPoem.current = false; return; }
     try { localStorage.setItem(`study-poetic-flow:${userId}`, JSON.stringify({ index, held })); } catch { /* Optional persistence. */ }
-  }, [held, index, ready, userId]);
+  }, [held, index, ready, userId, persist]);
 
   useEffect(() => {
     if (!ready || !enabled || held || !visible) return;

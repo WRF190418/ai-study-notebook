@@ -10,6 +10,8 @@ import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { pageAnchorId, parsePageHeading, type NotePageSection, type PageSourceImage } from "@/lib/note-pages";
+import { tutorialEvent } from "@/lib/tutorial";
+import { tutorialImage, tutorialOcrLayout } from "@/lib/tutorial-demo";
 
 type EnglishOcrLayout = {
   width: number;
@@ -147,11 +149,13 @@ function NotePageHeading({
     pageStars?.onSaveNote(pageReference, draft.trim());
     pageStars?.onCloseNoteEditor(pageKey);
     setEditorOpen(false);
+    tutorialEvent("memo-closed");
   }
 
   function closeEditor() {
     pageStars?.onCloseNoteEditor(pageKey);
     setEditorOpen(false);
+    tutorialEvent("memo-closed");
   }
 
   return (
@@ -242,7 +246,7 @@ function PageSourceImageButton({ image, pageNumber }: { image: PageSourceImage; 
         aria-label={`第${pageNumber}页原课件`}
         className="image-lightbox"
         onClick={(event) => { if (event.target === event.currentTarget) dialog.current?.close(); }}
-        onClose={() => setExpanded(false)}
+        onClose={() => { setExpanded(false); tutorialEvent("source-closed"); }}
         ref={dialog}
       >
         <button className="lightbox-close" aria-label="关闭原课件预览" title="关闭" onClick={() => dialog.current?.close()} type="button"><X size={22} /></button>
@@ -288,7 +292,11 @@ function NoteImage({ src, alt, caption }: { src?: string; alt: string; caption: 
   if (!imageSrc) return null;
 
   async function toggleOcr() {
+    if (imageSrc === tutorialImage && !ocrLayout) {
+      setOcrLayout(tutorialOcrLayout); setOcrActive(true); tutorialEvent("ocr-ready"); return;
+    }
     if (ocrLayout) {
+      if (!ocrActive) tutorialEvent("ocr-ready");
       setOcrActive((value) => !value);
       setSelectedText("");
       setCopied(false);
@@ -314,6 +322,7 @@ function NoteImage({ src, alt, caption }: { src?: string; alt: string; caption: 
       englishOcrCache.set(imageSrc, layout);
       setOcrLayout(layout);
       setOcrActive(true);
+      tutorialEvent("ocr-ready");
     } catch (error) {
       setOcrError(error instanceof Error && /[\u4e00-\u9fff]/.test(error.message) ? error.message : "英文识别失败，请稍后重试。");
     } finally {
@@ -329,6 +338,7 @@ function NoteImage({ src, alt, caption }: { src?: string; alt: string; caption: 
       if (text) {
         setSelectedText(text);
         setCopied(false);
+        tutorialEvent("ocr-selected");
       }
     }, 0);
   }
@@ -338,6 +348,7 @@ function NoteImage({ src, alt, caption }: { src?: string; alt: string; caption: 
     try {
       await navigator.clipboard.writeText(selectedText);
       setCopied(true);
+      tutorialEvent("ocr-copied");
       window.setTimeout(() => setCopied(false), 1600);
     } catch {
       setOcrError("复制失败，请使用右键菜单中的“复制”。");
@@ -356,6 +367,11 @@ function NoteImage({ src, alt, caption }: { src?: string; alt: string; caption: 
               aria-label="可选择的图片英文文字"
               className="ocr-text-layer"
               onMouseUp={captureSelectedText}
+              onKeyUp={captureSelectedText}
+              onCopy={(event) => {
+                const text = window.getSelection()?.toString().trim();
+                if (text && event.clipboardData) { event.clipboardData.setData("text/plain", text); event.preventDefault(); tutorialEvent("ocr-copied"); }
+              }}
               ref={ocrLayer}
             >
               {ocrLayout.words.map((word, index) => {
@@ -398,7 +414,7 @@ function NoteImage({ src, alt, caption }: { src?: string; alt: string; caption: 
           </span>
           {ocrActive ? (
             <span className="ocr-selection-bar">
-              <span>{selectedText ? `已选择：${selectedText.slice(0, 54)}${selectedText.length > 54 ? "…" : ""}` : "拖动选择英文，可直接右键复制"}</span>
+              <span>{selectedText ? `已选择：${selectedText.slice(0, 54)}${selectedText.length > 54 ? "…" : ""}` : imageSrc === tutorialImage ? "教学示例 · 预置文字层；拖动选择英文、数字和标点" : "拖动选择英文，可直接右键复制"}</span>
               {selectedText ? (
                 <button onClick={() => void copySelectedText()} type="button">
                   {copied ? <Check size={15} /> : <Copy size={15} />}
@@ -412,7 +428,7 @@ function NoteImage({ src, alt, caption }: { src?: string; alt: string; caption: 
       {ocrError ? <span className="ocr-error" role="status">{ocrError}</span> : null}
       {caption ? <span className="note-image-caption">{caption}</span> : null}
       {expanded ? createPortal(
-        <dialog className="image-lightbox" ref={dialog} aria-label="图片预览" onClose={() => setExpanded(false)} onClick={(event) => {
+        <dialog className="image-lightbox" ref={dialog} aria-label="图片预览" onClose={() => { setExpanded(false); tutorialEvent("image-closed"); }} onClick={(event) => {
           if (event.target === event.currentTarget) dialog.current?.close();
         }}>
           <button className="lightbox-close" aria-label="关闭图片预览" title="关闭" onClick={() => dialog.current?.close()}><X size={22} /></button>

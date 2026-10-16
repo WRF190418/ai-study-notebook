@@ -112,8 +112,8 @@ export default function ImmersiveHome(props: ImmersiveHomeProps) {
         <footer className="world-reading-desk">
           {resumeNote ? <button className="world-resume" onClick={() => onContinue(resumeNote, resumePage?.key)} type="button"><Bookmark size={18} /><span><small>接着上次读</small><strong>{resumeNote.title}</strong>{resumePage && <em>第 {resumePage.pageNumber} 页 · {resumePage.title}</em>}</span><ArrowRight size={17} /></button> : <div className="world-resume-empty">{magic ? "从架上选一本书，开启新的求索。" : "选一卷书笺，从这里落笔。"}</div>}
           <div className="world-index-actions">
-            <button aria-expanded={indexOpen === "notes"} aria-controls="world-reading-index" onClick={event => toggleIndex("notes", event.currentTarget)} type="button"><FileText size={15} />最近笔记 <span>{notes.length}</span></button>
-            <button aria-expanded={indexOpen === "stars"} aria-controls="world-reading-index" onClick={event => toggleIndex("stars", event.currentTarget)} type="button"><Star size={15} />加星索引 <span>{noteStars.length}</span></button>
+            <button data-tutorial="home-notes" aria-expanded={indexOpen === "notes"} aria-controls="world-reading-index" onClick={event => toggleIndex("notes", event.currentTarget)} type="button"><FileText size={15} />最近笔记 <span>{notes.length}</span></button>
+            <button data-tutorial="home-stars" aria-expanded={indexOpen === "stars"} aria-controls="world-reading-index" onClick={event => toggleIndex("stars", event.currentTarget)} type="button"><Star size={15} />加星索引 <span>{noteStars.length}</span></button>
           </div>
         </footer>
       </div>
@@ -121,7 +121,7 @@ export default function ImmersiveHome(props: ImmersiveHomeProps) {
         <section ref={drawerRef} role="region" aria-label={indexOpen === "notes" ? "最近笔记索引" : "加星页面索引"} className="world-index-drawer" id="world-reading-index">
           <header><div><span>{magic ? "READING INDEX" : "拾得一页"}</span><h2>{indexOpen === "notes" ? "最近笔记" : "加星索引"}</h2></div><button type="button" aria-label="关闭阅读索引" onClick={() => { setIndexOpen(null); entryRef.current?.focus(); }}><X size={20} /></button></header>
           <div className="world-index-list">
-            {indexOpen === "notes" ? recentNotes.slice(0,12).map(note => <button type="button" key={note.id} onClick={() => onOpenNote(note)}><FileText size={17} /><span><strong>{note.title}</strong><small>{courses.find(course => course.id === note.courseId)?.code} · {lessons.find(lesson => lesson.id === note.lessonId)?.title}</small></span><ChevronRight size={16} /></button>) : [...noteStars].sort((a,b)=>b.createdAt.localeCompare(a.createdAt)).map(star => {
+            {indexOpen === "notes" ? recentNotes.slice(0,12).map(note => <button data-tutorial="home-note-item" type="button" key={note.id} onClick={() => onOpenNote(note)}><FileText size={17} /><span><strong>{note.title}</strong><small>{courses.find(course => course.id === note.courseId)?.code} · {lessons.find(lesson => lesson.id === note.lessonId)?.title}</small></span><ChevronRight size={16} /></button>) : [...noteStars].sort((a,b)=>b.createdAt.localeCompare(a.createdAt)).map(star => {
               const note = notes.find(item => item.id === star.noteId);
               if (!note) return null;
               const page = starredPages.get(note.id)?.find(item => item.key === star.pageKey);
