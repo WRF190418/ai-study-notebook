@@ -5,6 +5,7 @@ import "./themes.css";
 import "./worlds.css";
 import "./course-spaces.css";
 import "./home-spaces.css";
+import "./onboarding.css";
 
 export const metadata: Metadata = {
   title: "StudyNote AI",

@@ -40,6 +40,9 @@ import ThemeLandscape, { usePoeticFlow } from "@/components/ThemeWorld";
 import AtmosphericHome from "@/components/AtmosphericHome";
 import ImmersiveHome from "@/components/ImmersiveHome";
 import CourseSpace from "@/components/CourseSpace";
+import OnboardingGuide, { GuidedPractice } from "@/components/OnboardingGuide";
+import { guideSteps } from "@/lib/onboarding";
+import { resolveGuideRoute } from "@/lib/onboarding-targets";
 import { poeticScenes, themeOptions } from "@/lib/themes";
 import { extractNotePages, extractPageSourceImages, makeExcerpt, markdownToPlainText, pageAnchorId, type NotePageSection } from "@/lib/note-pages";
 
@@ -136,6 +139,7 @@ export default function NotebookApp({
   const [onboardingCompletedAt, setOnboardingCompletedAt] = useState(initialUser.onboardingCompletedAt ?? "");
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
+  const [guidedPractice, setGuidedPractice] = useState(false);
   const [themePickerOpen, setThemePickerOpen] = useState(false);
   const [themeMessage, setThemeMessage] = useState("");
   const themeSaveQueue = useRef(Promise.resolve());
@@ -188,6 +192,8 @@ export default function NotebookApp({
 
   useEffect(() => {
     function closeSearchOnOutsideClick(event: MouseEvent) {
+      // The practice dock supports the current search; using it must not dismiss results.
+      if (event.target instanceof Element && event.target.closest(".guide-practice")) return;
       if (searchAreaRef.current && !searchAreaRef.current.contains(event.target as Node)) {
         setSearchOpen(false);
       }
@@ -199,7 +205,7 @@ export default function NotebookApp({
   useEffect(() => {
     if (!focusMode) return;
     const exitFocusMode = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setFocusMode(false);
+      if (event.key === "Escape" && !document.querySelector(".onboarding-backdrop")) setFocusMode(false);
     };
     window.addEventListener("keydown", exitFocusMode);
     return () => window.removeEventListener("keydown", exitFocusMode);
@@ -464,6 +470,7 @@ export default function NotebookApp({
 
   function closeOnboarding() {
     setOnboardingOpen(false);
+    setGuidedPractice(false);
     if (!onboardingCompletedAt) {
       setOnboardingCompletedAt(new Date().toISOString());
       void fetch("/api/onboarding", { method: "POST" })
@@ -475,6 +482,44 @@ export default function NotebookApp({
         .catch(() => {
           setOnboardingCompletedAt("");
         });
+    }
+  }
+
+  const guideDestination = useMemo(() => {
+    if (!onboardingOpen && !guidedPractice) return { selector: "", context: "" };
+    const route = resolveGuideRoute(guideSteps[onboardingStep].id, workspace, selectedNote?.id, course?.id);
+    return guideSteps[onboardingStep].id === "focus" && focusMode ? { ...route, selector: ".focus-reader-toolbar" } : route;
+  }, [onboardingOpen, guidedPractice, onboardingStep, workspace.notes, workspace.courses, workspace.lessons, selectedNote?.id, course?.id, focusMode]);
+
+  function practiceGuide(requestedStep: number) {
+    const index = Math.max(0, Math.min(guideSteps.length - 1, requestedStep));
+    const action = guideSteps[index].id;
+    const route = resolveGuideRoute(action, workspace, selectedNote?.id, course?.id);
+    if (route.unavailable) {
+      setOnboardingStep(index);
+      setOnboardingOpen(true);
+      return;
+    }
+    setOnboardingStep(index);
+    setOnboardingOpen(false);
+    setGuidedPractice(true);
+    setThemePickerOpen(false);
+    setFocusMode(false);
+    setPendingJump(null);
+    setSearchOpen(false);
+    if (action !== "search") setQuery("");
+    if (action === "home" || action === "themes") {
+      returnHome();
+      if (action === "themes") setThemePickerOpen(true);
+    } else if (action === "courses" || action === "organizer") {
+      openCourse(route.courseId!);
+      if (action === "organizer") setOrganizerCollapsed(false);
+    } else if (route.noteId) {
+      const note = workspace.notes.find(item => item.id === route.noteId);
+      if (note) openNote(note);
+    } else if (action === "search") {
+      setSearchCourseId("");
+      setSearchOpen(true);
     }
   }
 
@@ -547,7 +592,8 @@ export default function NotebookApp({
           <button
             className="nav-item"
             onClick={() => {
-              setOnboardingStep(0);
+              if (!guidedPractice) setOnboardingStep(0);
+              setThemePickerOpen(false);
               setOnboardingOpen(true);
             }}
             type="button"
@@ -778,11 +824,14 @@ export default function NotebookApp({
       {onboardingOpen ? (
         <OnboardingGuide
           completed={Boolean(onboardingCompletedAt)}
+          destination={guideDestination}
           step={onboardingStep}
           onStepChange={setOnboardingStep}
+          onPractice={practiceGuide}
           onClose={closeOnboarding}
         />
       ) : null}
+      {guidedPractice && !onboardingOpen ? <GuidedPractice step={onboardingStep} destination={guideDestination} onPractice={practiceGuide} onLibrary={() => { setThemePickerOpen(false); setOnboardingOpen(true); }} onClose={closeOnboarding} /> : null}
     </main>
   );
 }
@@ -1127,106 +1176,6 @@ function HighlightedText({ text, query }: { text: string; query: string }) {
   const pattern = new RegExp(`(${tokens.map(escapeRegExp).join("|")})`, "giu");
   const tokenSet = new Set(tokens.map((token) => token.toLocaleLowerCase()));
   return <>{text.split(pattern).map((part, index) => tokenSet.has(part.toLocaleLowerCase()) ? <mark key={`${part}-${index}`}>{part}</mark> : part)}</>;
-}
-
-const onboardingSteps = [
-  {
-    title: "把零散材料变成真正能复习的笔记",
-    body: "StudyNote AI 的核心不是普通记事本，而是把课堂截图、老师板书、课件片段和自己的草稿交给 AI，自动整理成清晰、有结构、可回看的课程笔记。",
-    highlights: ["截图/文字/大纲", "结构化 Markdown", "自动归档"]
-  },
-  {
-    title: "每门课都有自己的学习主页",
-    body: "按学期和课程管理你的学习空间。AI 会根据内容和你的要求选择章节；你写“整理到第二章”时，如果第二章还不存在，它会自动新建并保存进去。",
-    highlights: ["多学期", "多课程", "自动新建章节"]
-  },
-  {
-    title: "AI 不只排版，而是帮你重组知识",
-    body: "整理台会把原始内容压成重点、解释概念关系、渲染 LaTeX 公式、生成表格，并同时产出闪卡和思维导图，让一份材料直接变成复习资产。",
-    highlights: ["LaTeX 公式", "表格", "闪卡", "思维导图"]
-  },
-  {
-    title: "用自然语言管理整个笔记本",
-    body: "你可以直接说“删除刚才那篇笔记”“第一章颜色改成彩色”“新建一个 PHY1000 板块”。AI 会优先理解你的命令，再修改当前账号下的课程、章节、笔记和界面风格。",
-    highlights: ["AI 命令行", "个性化界面", "账号独立"]
-  },
-  {
-    title: "越用越像你的专属学习系统",
-    body: "每个账号都有自己的课程结构、笔记内容和视觉偏好。你可以持续补充材料、重整旧笔记、积累闪卡，让笔记本从“存资料”变成“帮你学习”。",
-    highlights: ["个人知识库", "持续重整", "主动复习"]
-  }
-];
-
-function OnboardingGuide({
-  completed,
-  step,
-  onStepChange,
-  onClose
-}: {
-  completed: boolean;
-  step: number;
-  onStepChange: (step: number) => void;
-  onClose: () => void | Promise<void>;
-}) {
-  const current = onboardingSteps[step] ?? onboardingSteps[0];
-  const isLast = step === onboardingSteps.length - 1;
-
-  return (
-    <div className="onboarding-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-label="新手指导">
-      <section className="onboarding-card" onClick={(event) => event.stopPropagation()}>
-        <div className="onboarding-kicker">
-          <Sparkles size={17} />
-          {completed ? "新手指导" : "首次进入 · 新手指导"}
-        </div>
-        <h2>{current.title}</h2>
-        <p>{current.body}</p>
-        <div className="onboarding-highlights" aria-label="核心能力">
-          {current.highlights.map((highlight) => (
-            <span key={highlight}>{highlight}</span>
-          ))}
-        </div>
-        <div className="onboarding-dots" aria-label="指导进度">
-          {onboardingSteps.map((item, index) => (
-            <button
-              aria-label={`跳到新手指导第 ${index + 1} 步`}
-              className={index === step ? "active" : ""}
-              key={item.title}
-              onClick={() => onStepChange(index)}
-              type="button"
-            />
-          ))}
-        </div>
-        <div className="onboarding-actions">
-          <button className="text-button" onClick={onClose} onPointerDown={onClose} type="button">
-            跳过
-          </button>
-          <div>
-            <button
-              className="ghost-button"
-              disabled={step === 0}
-              onClick={() => onStepChange(Math.max(0, step - 1))}
-              type="button"
-            >
-              上一步
-            </button>
-            <button
-              className="primary-button"
-              onClick={() => {
-                if (isLast) {
-                  void onClose();
-                } else {
-                  onStepChange(step + 1);
-                }
-              }}
-              type="button"
-            >
-              {isLast ? "完成" : "下一步"}
-            </button>
-          </div>
-        </div>
-      </section>
-    </div>
-  );
 }
 
 function LessonDetail({
