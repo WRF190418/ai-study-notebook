@@ -1,4 +1,4 @@
-export const themeIds = ["warm-study", "mist-forest", "midnight-atlas", "cognitive-lab", "poetic-realm", "arcane-library"] as const;
+export const themeIds = ["warm-study", "mist-forest", "midnight-atlas", "cognitive-lab", "poetic-realm", "arcane-library", "galactic-guide"] as const;
 
 export const themeOptions = [
   { id: "warm-study", name: "金灯书房", eyebrow: "胡桃木 · 黄铜 · 灯下书页", description: "夜色落在窗外，一盏金灯照亮书桌。翻开课程簿，把时间留给书与自己。", detail: "黄铜台灯 / 纸质课程簿 / 夜窗书桌" },
@@ -6,7 +6,8 @@ export const themeOptions = [
   { id: "midnight-atlas", name: "极夜星图", eyebrow: "深海蓝 · 星金 · 夜幕", description: "把课程连成星座，以好奇心为引力，在浩瀚夜空中找到下一处知识坐标。", detail: "课程星座 / 黄铜星仪 / 坐标网格" },
   { id: "cognitive-lab", name: "棱镜实验舱", eyebrow: "冰蓝 · 棱镜 · 神经网络", description: "悬浮的棱镜折射出知识的连接，进入清晰、冷静的研究空间。", detail: "光学棱镜 / 数据轨道 / 玻璃界面" },
   { id: "poetic-realm", name: "诗之境", eyebrow: "景随情生 · 诗意流转", description: "从相思到求索，从长风到清欢。情、景与诗缓缓交融，偶然与你相遇。", detail: "流动诗境 / 山水留白 / 留住此境" },
-  { id: "arcane-library", name: "秘法藏书院", eyebrow: "拱窗 · 烛光 · 古老秘典", description: "夜幕下的藏书院仍亮着烛火。翻开书页，知识自有隐秘的光。", detail: "原创秘法纹样 / 星仪 / 浮烛微光" }
+  { id: "arcane-library", name: "秘法藏书院", eyebrow: "拱窗 · 烛光 · 古老秘典", description: "夜幕下的藏书院仍亮着烛火。翻开书页，知识自有隐秘的光。", detail: "原创秘法纹样 / 星仪 / 浮烛微光" },
+  { id: "galactic-guide", name: "银河系搭车客指南", eyebrow: "随身指南 · 星际便车 · 编者附注", description: "指南仍在修订。宇宙暂未对此发表意见。", detail: "旧式电子指南 / 舷窗 / 不大可能事件" }
 ] as const;
 
 export const poeticMotifs = ["longing", "devotion", "journey", "courage", "freedom", "repose"] as const;

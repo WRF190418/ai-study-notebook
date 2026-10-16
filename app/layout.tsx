@@ -6,6 +6,7 @@ import "./worlds.css";
 import "./course-spaces.css";
 import "./home-spaces.css";
 import "./tutorial.css";
+import "./galactic-guide.css";
 
 export const metadata: Metadata = {
   title: "StudyNote AI",

@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { createNote } from "../lib/db";
 import { themeIds } from "../lib/themes";
 
-test("course directories have six distinct structures without changing chapter data or reading", async ({ page }, testInfo) => {
+test("course directories have distinct structures without changing chapter data or reading", async ({ page }, testInfo) => {
   test.setTimeout(180_000);
   const registered = await page.request.post("/api/auth/register", { data: { name: "课程空间读者", email: `course-space-${testInfo.project.name}-${Date.now()}@example.com`, password: "12345678" } });
   expect(registered.ok()).toBeTruthy();

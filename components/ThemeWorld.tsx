@@ -5,6 +5,7 @@ import { Pause, Play } from "lucide-react";
 import type { UserPreferences } from "@/lib/types";
 import { poeticScenes, themeOptions } from "@/lib/themes";
 import PoeticScenery from "@/components/PoeticScenery";
+import GalacticScenery from "@/components/GalacticScenery";
 
 const POEM_DURATION = 96_000;
 
@@ -101,6 +102,7 @@ export default function ThemeLandscape({ theme, poemIndex = 0, preview = false }
   const glow = theme === "warm-study" ? "#edb75d" : theme === "midnight-atlas" ? "#5263ab" : theme === "cognitive-lab" ? "#3acef0" : "#f7c875";
   const scene = poeticScenes[poemIndex];
   const name = themeOptions.find((item) => item.id === theme)?.name;
+  if (theme === "galactic-guide") return <span className="theme-landscape landscape-galactic-guide" aria-hidden="true"><GalacticScenery preview /></span>;
   if (theme === "poetic-realm") return (
     <span className={`theme-landscape landscape-poetic-realm${preview ? " landscape-preview" : ""}`} aria-hidden="true">
       <PoeticScenery poem={scene.id} />

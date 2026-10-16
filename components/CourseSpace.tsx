@@ -11,7 +11,8 @@ const spaces = {
   "midnight-atlas": { label: "知识星图", eyebrow: "ATLAS OF DISCOVERY", invitation: "每个章节，都是一处值得抵达的坐标。", collection: "章节坐标", action: "前往坐标", mark: "✧" },
   "cognitive-lab": { label: "研究索引", eyebrow: "COGNITION / RESEARCH INDEX", invitation: "从概念到连接，在这里展开新的探索。", collection: "章节索引", action: "打开章节", mark: "＋" },
   "poetic-realm": { label: "卷中目录", eyebrow: "一卷在手 · 心有山水", invitation: "循字入境，慢慢读，慢慢懂。", collection: "此卷篇目", action: "展读此章", mark: "卷" },
-  "arcane-library": { label: "藏书内页", eyebrow: "THE NOCTURNE ARCHIVE / CONTENTS", invitation: "书已展开，求索自此页开始。", collection: "秘典目录", action: "翻开此章", mark: "✦" }
+  "arcane-library": { label: "藏书内页", eyebrow: "THE NOCTURNE ARCHIVE / CONTENTS", invitation: "书已展开，求索自此页开始。", collection: "秘典目录", action: "翻开此章", mark: "✦" },
+  "galactic-guide": { label: "指南分册", eyebrow: "THE GUIDE / FIELD NOTES", invitation: "本分册按课程顺序编排。宇宙未必如此。", collection: "条目目录", action: "打开章节", mark: "42" }
 } as const;
 
 export default function CourseSpace({ theme, poemIndex, onNextPoem, course, lessons, notes, readingProgress, activeLessonId, lessonLayout, onEnterLesson }: {

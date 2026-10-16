@@ -85,7 +85,7 @@ export const tutorialSteps: TutorialStep[] = [
   s("space", "course-switch", "change", '[aria-label="选择课程"]', "切换一门课程", "切换课程前，先确认学期，再确认课程。接下来认识不会改变笔记内容的空间主题。"),
   s("space", "theme-entry", "click", ".theme-entry-button", "最后，挑一个愿意停留的空间", "最后，挑一个愿意停留的空间。主题会改变主页、课程目录与氛围，不改变笔记内容。"),
   s("space", "ambience", "click", '.ambience-switch button', "调节氛围强度", "氛围有极简、标准与沉浸几个强度，用来调节纹理和光影。再有氛围，也要让正文保持清楚。"),
-  s("space", "theme", "click", ".theme-card-poetic-realm", "进入一处流动的诗境", "选择“诗之境”后，会直接进入对应主页。六种空间各有特色，这里用流动诗境示范互动。"),
+  s("space", "theme", "click", ".theme-card-poetic-realm", "进入一处流动的诗境", "选择“诗之境”后，会直接进入对应主页。各个空间都有自己的结构和氛围，这里用流动诗境示范互动。"),
   s("space", "poem", "click", ".poetry-verses", "点诗句，换一境", "直接点诗句，就能换一境。诗与背景相呼应，不是固定的每日诗歌，景与情共同构成氛围。"),
   s("space", "hold", "click", ".poetry-hold", "喜欢此刻，就让它停留", "喜欢此刻，可以“留住此境”，也可恢复流转。教学主题与诗境变化不会覆盖个人偏好。"),
   s("space", "logout", "confirm", '[data-tutorial="logout"]', "离开之前，记住两个入口", "左侧“退出”用于退出账号；“新手指导”可随时重开或续看。退出教程不会退出登录。临时公网访问依赖电脑开机联网，服务停止后网址失效。", { button: "完成教程" })
