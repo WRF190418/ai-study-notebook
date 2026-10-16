@@ -1,0 +1,234 @@
+/* One object, from its cover to its working pages. Never transform actual text or images. */
+.app-shell[data-theme="galactic-guide"] {
+  --guide-paper:#f3efdd;
+  --guide-paper-left:#e8e3cf;
+  --guide-rule:#a5a48b70;
+  --guide-ink:#34443d;
+}
+.app-shell[data-theme="galactic-guide"]:not(.focus-mode) { grid-template-columns:120px minmax(0,1fr); }
+.app-shell[data-theme="galactic-guide"] .sidebar {
+  padding:24px 10px 16px; background:linear-gradient(90deg,#101c22,#233137 88%,#111c22);
+  border-right:1px solid #72807060; box-shadow:inset -5px 0 10px #0003;
+}
+.app-shell[data-theme="galactic-guide"] .nav-logo { justify-content:center; gap:5px; margin:0 0 24px; padding:0; }
+.app-shell[data-theme="galactic-guide"] .nav-logo>span:last-child { display:none; }
+.app-shell[data-theme="galactic-guide"] .nav-icon { background:transparent; border:1px solid #89977755; color:#b9bf98; border-radius:3px; }
+.guide-binding-label { display:grid; gap:15px; margin:0 7px 28px; padding-bottom:23px; border-bottom:1px solid #9ba17c40; color:#d4d49e; }
+.guide-binding-label>strong { font:900 21px/.98 Arial,sans-serif; letter-spacing:-.04em; }
+.guide-binding-label>span { font:7px/1.8 Consolas,monospace; color:#a2ad94; letter-spacing:.06em; }
+.app-shell[data-theme="galactic-guide"] .nav-menu { gap:9px; }
+.app-shell[data-theme="galactic-guide"] .nav-item { position:relative; flex-direction:column; justify-content:center; gap:7px; min-height:65px; padding:11px 5px; border:1px solid #84907830; border-radius:1px 5px 5px 1px; background:#71836c0a; color:#c1c8af; font-size:11px; }
+.app-shell[data-theme="galactic-guide"] .nav-item.active { border-left:3px solid #d6d198; color:#edebc7; background:linear-gradient(90deg,#8c987c30,#8c987c08); }
+.app-shell[data-theme="galactic-guide"] .sidebar-footer { gap:10px; }
+.app-shell[data-theme="galactic-guide"] .user-card { display:none; }
+.app-shell[data-theme="galactic-guide"] .theme-entry-button { justify-content:center; padding:9px; background:transparent; border:0; }
+.app-shell[data-theme="galactic-guide"] .theme-entry-button>span:nth-child(2),.app-shell[data-theme="galactic-guide"] .theme-entry-button>svg { display:none; }
+.app-shell[data-theme="galactic-guide"] .sidebar-footer>.ghost-button { flex-direction:column; padding:10px; font-size:10px; border:0; background:transparent; }
+.app-shell[data-theme="galactic-guide"] .sidebar-reading-tools { margin-top:16px; }
+.app-shell[data-theme="galactic-guide"] .sidebar-focus-button { flex-direction:column; padding:11px 4px; border-radius:3px; gap:8px; text-align:center; }
+.app-shell[data-theme="galactic-guide"] .sidebar-focus-button strong { font-size:11px; }
+.app-shell[data-theme="galactic-guide"] .sidebar-focus-button small { display:none; }
+.app-shell[data-theme="galactic-guide"]:not([data-world-home="true"]):not(.focus-mode) .main { padding:20px 25px 25px; }
+.app-shell[data-theme="galactic-guide"]:not([data-world-home="true"]) .topbar { margin-bottom:20px; }
+.app-shell[data-theme="galactic-guide"] .course-switcher :is(.term-select,select[aria-label="选择课程"]) { background:#233238; color:#d8dbc4; border-color:#8a96784d; border-radius:3px; }
+.app-shell[data-theme="galactic-guide"] .course-switcher select { color:inherit; }
+.app-shell[data-theme="galactic-guide"] .course-switcher option { color:#34443d; background:#f3efdd; }
+.app-shell[data-theme="galactic-guide"] .search-box { border-radius:3px; }
+
+/* Front matter: facing pages, not a screen inside a screen. */
+.guide-front { max-width:1640px; padding:26px 4vw 30px; grid-template-columns:minmax(0,1fr) 130px; gap:0 28px; }
+.guide-arrival { min-height:48px; }
+.guide-opening { min-height:75px; padding:7px 5px 17px; }
+.app-shell .guide-opening h1 { font-size:24px; }
+.guide-open-volume { border:0; border-radius:4px 9px 10px 4px; padding:9px 10px 10px; background:#203137; box-shadow:0 2px 0 #a9ab92,0 5px 0 #e0dac3,0 7px 0 #747e6b,0 11px 0 #1b2c31,0 34px 65px #0007; }
+.guide-open-volume .guide-device-spine { left:-11px; width:13px; }
+.guide-open-volume .guide-device-spine>* { visibility:hidden; }
+.guide-open-volume .guide-device-bezel { min-height:34px; padding:0 26px; background:#e9e4d0; color:#68735e; border-radius:3px 4px 0 0; font-size:9px; letter-spacing:.08em; }
+.guide-open-volume .guide-device-bezel small { color:#7e826b; }
+.guide-open-volume .guide-device-bezel i { display:none; }
+.guide-open-volume .guide-page-tabs { background:#e9e4d0; padding-left:24px; border:0; border-bottom:1px solid #b4b19a65; border-radius:0; }
+.guide-open-volume .guide-page-tabs>span { color:#41543f; background:transparent; border-bottom:2px solid #6c7a58; margin:0; border-radius:0; }
+.guide-open-volume .guide-page-tabs>button { color:#617055; }
+.guide-open-volume .guide-page-tabs>button:hover { color:#34443d; background:#b8c3a23b; }
+.guide-open-volume .guide-screen { position:relative; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); border:0; border-radius:0; overflow:visible; background:var(--guide-paper); box-shadow:none; }
+.guide-open-volume .guide-screen:after { content:""; position:absolute; left:52.38%; top:0; bottom:0; width:34px; transform:translateX(-50%); pointer-events:none; background:linear-gradient(90deg,transparent,#78775a12 25%,#4b503c38 47%,#faf6df75 54%,#8f8a6415 70%,transparent); }
+.guide-open-volume .guide-directory { border:0; padding:25px 35px 22px; background:linear-gradient(90deg,#d9d4be,#f1ecd9 8%,#ece7d3 90%,#d6d1b9); }
+.guide-index-frontispiece { position:relative; padding:0 0 17px; margin-bottom:19px; border-bottom:3px double #9b9e8060; }
+.guide-index-frontispiece>span { font:9px/1.6 Consolas,monospace; letter-spacing:.18em; color:#798169; }
+.guide-index-frontispiece>strong { display:block; margin:12px 0 10px; font:33px/1.25 Georgia,"STSong","SimSun",serif; letter-spacing:.06em; font-weight:400; color:#344b3b; }
+.guide-index-frontispiece>p { margin:0; font-size:11px; line-height:1.8; color:#748065; }
+.guide-index-frontispiece>i { position:absolute; right:0; top:38px; color:#9b9e81; font:43px Georgia,serif; }
+.guide-open-volume .guide-page-heading { flex-wrap:wrap; margin-bottom:12px; }
+.guide-open-volume .guide-page-heading h2 { font-size:19px; }
+.guide-open-volume .guide-page-heading>div>span { font-size:8px; }
+.app-shell .guide-open-volume .guide-course { min-height:61px; padding-top:7px; padding-bottom:7px; }
+.guide-open-volume .guide-index-footnote { margin-top:20px; }
+.guide-open-volume .guide-log { align-self:stretch; margin:0; padding:38px 33px 25px; min-height:0; border:0; background:linear-gradient(90deg,#d5d0b966,#f3efdd 9%,#f4f0df 92%,#e2dcc6); box-shadow:none; }
+.guide-open-volume .guide-log:before { content:none; }
+.guide-bookplate { display:grid; justify-items:center; gap:8px; border:3px double #92977a70; margin:0 auto 32px; padding:18px 16px; width:100%; max-width:265px; color:#727b63; text-align:center; }
+.guide-bookplate>span { font:8px/1.5 Consolas,monospace; letter-spacing:.2em; }
+.guide-bookplate>strong { font:24px/1.5 Georgia,"STSong",serif; color:#455a43; font-weight:400; letter-spacing:.1em; }
+.guide-bookplate>small { font-size:9px; letter-spacing:.15em; }
+.guide-open-volume .guide-location-slip { margin:12px 0 22px; border-left:0; padding:0; }
+.guide-open-volume .guide-location-slip>strong { font-size:45px; margin:10px 0; }
+.guide-open-volume .guide-resume { background:transparent; border:0; border-top:1px solid #9aa18470; border-bottom:1px solid #9aa18470; border-radius:0; padding:18px 0; }
+.guide-open-volume .guide-fiction { margin-top:28px; }
+.guide-open-volume .guide-log-foot { margin-top:auto; padding-top:34px; font:13px/1.8 Georgia,"STSong",serif; color:#79816b; letter-spacing:.08em; }
+.guide-open-volume .guide-device-footer { color:#768068; padding:12px 26px; background:#e9e4d0; border-top:1px solid #a4a88b50; border-radius:0 0 3px 3px; }
+.guide-beside { padding-bottom:10px; }
+.guide-incident>div>p { font-size:11px; }
+
+/* The course is a volume's title page facing its real contents. */
+.app-shell[data-theme="galactic-guide"] .course-space-galactic-guide { display:grid; grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr); align-items:stretch; min-height:calc(100dvh - 120px); padding:8px; border:1px solid #77846d80; border-radius:5px 8px 8px 5px; background:#203137; box-shadow:0 3px #c4c0a7,0 6px #787e68,0 10px #213239,0 25px 45px #0005; }
+.app-shell .course-space-galactic-guide .course-hero { display:flex; flex-direction:column; margin:0; padding:30px clamp(22px,3vw,48px); background:linear-gradient(90deg,#d8d2bb,#f1ecd9 9%,#e9e4d0 90%,#d0ccb5); box-shadow:inset -7px 0 12px #625d441a; overflow:visible; }
+.course-space-galactic-guide .course-titlepage-main { max-width:100%; }
+.guide-volume-frontispiece { color:#68765b; padding:25px 0 10px; }
+.guide-volume-frontispiece>span { font:9px Consolas,monospace; letter-spacing:.3em; }
+.guide-volume-frontispiece>strong { display:block; font:900 clamp(38px,4vw,65px)/.95 Arial,sans-serif; color:#3c5345; letter-spacing:-.04em; margin:18px 0 25px; }
+.guide-volume-frontispiece>svg { width:100%; max-width:260px; height:100px; display:block; margin:15px -9px 25px; }
+.course-space-galactic-guide .course-world-art { display:none; }
+.app-shell .course-space-galactic-guide .course-hero h1 { font-size:clamp(24px,2.2vw,34px); }
+.course-space-galactic-guide .course-call-number { font:11px Consolas,monospace; }
+.course-space-galactic-guide .course-titlepage-footer { margin-top:auto; padding-top:28px; }
+.course-space-galactic-guide .course-guide-crossref { flex-direction:column; align-items:start; gap:6px; line-height:1.8; }
+.course-space-galactic-guide .course-contents { min-width:0; padding:34px 30px 25px; background:linear-gradient(90deg,#d6d0b9,#f3efdd 9%,#f3efdd 93%,#ded8c1); }
+.course-space-galactic-guide .course-contents-heading { border-top:0; padding-top:0; margin-top:0; }
+.app-shell .course-space-galactic-guide .course-chapter { min-height:102px; grid-template-columns:37px minmax(0,1fr); gap:11px; padding:17px 0; }
+.course-space-galactic-guide .chapter-index { font:17px Georgia,serif; }
+.app-shell .course-space-galactic-guide .chapter-open { grid-column:2; justify-self:start; margin-top:0; font-size:10px; }
+.app-shell .course-space-galactic-guide .lesson-body h3 { font-size:16px; line-height:1.65; }
+.course-space-galactic-guide .lesson-body p { font-size:11px; }
+.course-space-galactic-guide .course-colophon { flex-wrap:wrap; }
+
+/* An open reader: the left leaf is a live index, not decorative lorem ipsum. */
+.guide-reader-spread { position:relative; display:grid; grid-template-columns:minmax(200px,.32fr) minmax(0,1fr); align-items:start; max-width:1440px; min-height:calc(100dvh - 115px); margin:0 auto 18px; padding:8px; border:1px solid #82907870; border-radius:4px 9px 9px 4px; background:#203137; box-shadow:0 3px #c4c0a7,0 6px #787e68,0 10px #213239,0 25px 45px #0005; }
+.guide-reader-spread:before { content:""; position:absolute; inset:8px; border-radius:2px; background:linear-gradient(90deg,#e3dec9 0%,#eee9d5 22%,#c3bfa7 24%,#f3efdd 27%); pointer-events:none; }
+.guide-reader-spread>.back-button { position:absolute; top:22px; left:25px; z-index:2; margin:0; min-height:28px; padding:3px 0; border:0; background:transparent; color:#657156; font-size:10px; }
+.guide-reader-spread .lesson-document-index { display:block; position:sticky; top:0; grid-column:1; padding:64px 23px 24px; min-width:0; max-height:calc(100dvh - 115px); overflow-y:auto; scrollbar-width:thin; scrollbar-color:#a5ab9060 transparent; }
+.guide-entry-imprint { display:grid; gap:11px; padding-bottom:24px; border-bottom:1px solid #949d7b60; }
+.guide-entry-imprint>span { font:7px/1.7 Consolas,monospace; letter-spacing:.15em; color:#7b846b; }
+.guide-entry-imprint>strong { font:26px/1.3 Georgia,serif; color:#42583f; font-weight:400; letter-spacing:.05em; overflow-wrap:anywhere; }
+.guide-entry-imprint>small { font:10px/1.8 "Microsoft YaHei",sans-serif; color:#788269; }
+.app-shell .guide-reader-spread .lesson-detail-hero { display:block; padding:23px 0 18px; margin:0; min-height:0; border:0; border-radius:0; box-shadow:none; background:transparent; color:#34443d; }
+.app-shell .guide-reader-spread .lesson-detail-hero h1 { color:#34443d; font:22px/1.6 Georgia,"STSong",serif; letter-spacing:.03em; margin:10px 0; overflow-wrap:anywhere; }
+.app-shell .guide-reader-spread .lesson-detail-hero p { color:#788269; font-size:10px; line-height:1.9; }
+.guide-reader-spread .lesson-detail-kicker { background:transparent; padding:0; color:#748064; border-radius:0; font:9px Consolas,monospace; }
+.guide-reader-spread .lesson-document-index>.section-title { margin:17px 0 10px; color:#5f6e52; }
+.guide-reader-spread .lesson-document-index>.section-title h2 { font:11px "Microsoft YaHei",sans-serif; color:inherit; }
+.guide-reader-spread .lesson-document-index>.section-title svg { display:none; }
+.guide-reader-spread .small-muted { font-size:10px; }
+.guide-reader-spread .notes-list { gap:0; margin:0; }
+.app-shell .guide-reader-spread .note-item { min-width:0; width:100%; padding:11px 0 11px 9px; border:0; border-left:2px solid transparent; border-radius:0; background:transparent; box-shadow:none; }
+.app-shell .guide-reader-spread .note-item.active { border-left-color:#697c4f; background:#9aaa7e15; }
+.guide-reader-spread .note-item strong { color:#44583e; font-size:11px; line-height:1.8; overflow-wrap:anywhere; }
+.guide-reader-spread .note-item>span>span { display:none; }
+.guide-reader-spread .note-item>svg { flex-shrink:0; width:12px; color:#879171; }
+.guide-leaf-directory { margin-top:27px; border-top:1px solid #9ba18460; padding-top:16px; }
+.guide-leaf-directory>header { display:flex; justify-content:space-between; gap:8px; margin-bottom:12px; color:#6c795e; font-size:10px; }
+.guide-leaf-directory>header>small { font:8px Consolas,monospace; }
+.guide-leaf-directory>button { display:grid; width:100%; grid-template-columns:23px minmax(0,1fr) 11px; align-items:baseline; gap:5px; padding:8px 3px; border:0; border-bottom:1px dotted #a3a78b40; background:transparent; color:#69775c; font-size:10px; text-align:left; line-height:1.75; cursor:pointer; }
+.guide-leaf-directory>button>span:first-child { font:10px/1.8 Georgia,serif; color:#92987b; }
+.guide-leaf-directory>button:is(:hover,[aria-current="location"]) { color:#344d35; background:#a5b18222; }
+.guide-leaf-directory>button>svg { color:#957d43; }
+.guide-leaf-directory>p { font-size:11px; line-height:1.8; color:#778368; }
+.guide-entry-colophon { display:grid; gap:10px; margin-top:40px; padding-top:20px; border-top:3px double #9ba18450; color:#7b8268; }
+.guide-entry-colophon>span { font:900 16px Arial,sans-serif; letter-spacing:-.04em; }
+.guide-entry-colophon>small { font-size:9px; line-height:1.8; }
+.guide-reader-spread .lesson-document-paper { position:relative; display:block; grid-column:2; min-width:0; min-height:calc(100dvh - 135px); padding:26px clamp(25px,3vw,52px) 20px; background:linear-gradient(90deg,#c5bea43b,#f3efdd 4%,#f3efdd 97%,#e1dbc4); box-shadow:inset 8px 0 15px #60573a12; perspective:1800px; }
+.guide-running-head,.guide-paper-folio { display:flex; justify-content:space-between; gap:15px; color:#7d836d; font:8px/1.8 Consolas,"Microsoft YaHei",monospace; letter-spacing:.07em; padding-bottom:14px; border-bottom:1px solid #a2a78b60; }
+.guide-paper-folio { margin-top:35px; padding:16px 0 0; border-top:1px solid #a2a78b60; border-bottom:0; font-size:7px; }
+.app-shell[data-theme="galactic-guide"]:not(.focus-mode) .guide-reader-spread .note-reader { margin:0; padding:28px 0 0; border:0; border-radius:0; background:transparent; box-shadow:none; }
+.guide-reader-spread .note-reader>.panel-heading { padding-bottom:22px; border-bottom:3px double #a2a78b60; margin-bottom:25px; }
+.guide-reader-spread .note-reader>.panel-heading h2 { font:26px/1.55 Georgia,"STSong",serif; letter-spacing:.04em; }
+.guide-reader-spread .note-reader>.panel-heading p { font-size:12px; line-height:1.9; margin-top:12px; }
+.guide-reader-spread .note-reader .markdown { font-size:16px; line-height:1.95; }
+.guide-reader-spread .markdown .note-page-heading { padding-bottom:14px; border-bottom:1px solid #a2a78b50; }
+.guide-reader-spread .markdown h3 { font-family:Georgia,"STSong",serif; font-size:21px; line-height:1.7; }
+.guide-reader-spread .starred-pages-panel { border-radius:2px; box-shadow:none; border-color:#b9ae7b60; }
+.guide-reader-spread .starred-pages-heading { border-radius:1px; background:#e6e0c5; }
+.guide-reader-spread .artifact-grid { margin-top:30px; }
+.guide-reader-spread .artifact-grid>section { box-shadow:none; background:transparent; border-radius:0; }
+.guide-turn-leaf { position:absolute; z-index:3; pointer-events:none; inset:0 0 auto; height:min(70vh,680px); transform-origin:left center; background:linear-gradient(90deg,#d6cfb7,#f1ecd7 8%,#e6dfc6); backface-visibility:hidden; animation:guide-open-leaf .7s cubic-bezier(.2,.65,.2,1) both; }
+.guide-unwritten-entry { padding:100px 0; color:#6c785e; }
+.guide-unwritten-entry>span { font:9px Consolas,monospace; letter-spacing:.15em; }
+.guide-unwritten-entry>h2 { font:26px/1.7 Georgia,"STSong",serif; margin:20px 0; }
+.guide-unwritten-entry>p { max-width:370px; font-size:13px; line-height:2; }
+@keyframes guide-open-leaf { 0% { opacity:.75; transform:rotateY(-65deg); } 70% { opacity:.12; } 100% { opacity:0; transform:rotateY(0); visibility:hidden; } }
+
+/* AI is an actual retractable working sheet. It never submits by opening. */
+@media(min-width:1181px) {
+  .app-shell[data-theme="galactic-guide"] .workspace { position:relative; max-width:1720px; grid-template-columns:minmax(0,1fr) 44px; gap:19px; }
+  .app-shell[data-theme="galactic-guide"] .workspace:not(.organizer-collapsed) { grid-template-columns:minmax(0,1fr); padding-right:63px; }
+  .app-shell[data-theme="galactic-guide"] .workspace>.organizer:not(.organizer-rail) { position:absolute; right:0; top:0; bottom:0; width:380px; z-index:45; box-shadow:-18px 9px 45px #08141880; }
+  .app-shell[data-theme="galactic-guide"] .workspace:has(.page-note-editor)>.content-scroll { position:relative; z-index:46; }
+}
+.app-shell[data-theme="galactic-guide"] .organizer { background:#ece7d4; border-radius:2px; border:1px solid #a4a68988; }
+.app-shell[data-theme="galactic-guide"] .organizer:not(.organizer-rail):before { content:"THE GUIDE / 编纂工作页"; display:block; padding:0 0 18px; margin-bottom:22px; border-bottom:3px double #919c7a60; color:#778467; font:9px/1.8 Consolas,"Microsoft YaHei",monospace; letter-spacing:.08em; }
+.app-shell[data-theme="galactic-guide"] .organizer-rail { padding:0; background:transparent; border:0; }
+.app-shell[data-theme="galactic-guide"] .organizer-rail-button { width:42px; min-height:150px; padding:17px 7px; border:1px solid #9c9e7680; border-radius:2px 5px 5px 2px; background:linear-gradient(90deg,#b5b38b,#dfd9b5); color:#384b3d; box-shadow:0 4px 8px #0003; font-size:11px; }
+.app-shell[data-theme="galactic-guide"] .organizer-rail-button span { writing-mode:vertical-rl; letter-spacing:.12em; }
+
+/* Focus closes the index leaf, leaving a slim binding rather than a generic blank screen. */
+.app-shell[data-theme="galactic-guide"].focus-mode .guide-reader-spread { display:block; max-width:1200px; padding:8px 8px 8px 30px; min-height:100%; }
+.app-shell[data-theme="galactic-guide"].focus-mode .guide-reader-spread>.back-button,
+.app-shell[data-theme="galactic-guide"].focus-mode .lesson-document-index { display:none; }
+.app-shell[data-theme="galactic-guide"].focus-mode .lesson-document-paper { display:block; padding:22px clamp(20px,4vw,55px); }
+.app-shell[data-theme="galactic-guide"].focus-mode .note-reader { padding:25px 0 0; max-width:none; box-shadow:none; border:0; background:transparent; }
+.app-shell[data-theme="galactic-guide"].focus-mode .main { background:#152127; }
+.app-shell[data-theme="galactic-guide"].focus-mode.focus-dark .guide-reader-spread { background:#122128; }
+.app-shell[data-theme="galactic-guide"].focus-mode.focus-dark .guide-reader-spread:before { background:#1b2522; }
+.app-shell[data-theme="galactic-guide"].focus-mode.focus-dark .lesson-document-paper { background:linear-gradient(90deg,#111d1b,#19231f 5%); }
+.app-shell[data-theme="galactic-guide"].focus-mode.focus-dark .note-reader { background:#19231f; }
+.app-shell[data-theme="galactic-guide"].focus-mode.focus-dark :is(.guide-running-head,.guide-paper-folio) { color:#a9b59c; border-color:#46523f; }
+.app-shell[data-theme="galactic-guide"].focus-mode.focus-dark .starred-pages-heading { background:#2a3529; }
+.app-shell[data-theme="galactic-guide"].focus-mode .guide-turn-leaf { display:none; }
+@media(max-width:1250px) {
+  .guide-front { grid-template-columns:minmax(0,1fr); }
+  .guide-open-volume .guide-directory { padding:28px 25px; }
+  .guide-open-volume .guide-log { padding:32px 25px; }
+  .guide-beside { padding-top:28px; }
+  .guide-index-frontispiece>strong { font-size:33px; }
+}
+@media(min-width:761px) and (max-width:1180px) {
+  .app-shell[data-theme="galactic-guide"]:not(.focus-mode) { height:100dvh; min-height:0; overflow:hidden; }
+  .app-shell[data-theme="galactic-guide"]:not(.focus-mode) .main { height:100dvh; overflow:hidden; }
+  .app-shell[data-theme="galactic-guide"] .workspace { overflow:hidden; }
+  .app-shell[data-theme="galactic-guide"] .content-scroll { overflow-y:auto; }
+  .app-shell[data-theme="galactic-guide"] .organizer:not(.organizer-rail) { position:fixed; z-index:100; top:95px; right:22px; bottom:22px; width:360px; overflow:auto; box-shadow:-20px 12px 40px #0006; }
+  .guide-reader-spread { grid-template-columns:200px minmax(0,1fr); }
+  .guide-reader-spread .lesson-document-index { padding-left:17px; padding-right:17px; }
+  .guide-reader-spread .lesson-document-paper { padding-left:25px; padding-right:25px; }
+}
+@media(max-width:760px) {
+  .app-shell[data-theme="galactic-guide"]:not(.focus-mode) { grid-template-columns:minmax(0,1fr); }
+  .app-shell[data-theme="galactic-guide"] .sidebar { padding:10px 14px; box-shadow:none; }
+  .guide-binding-label { display:none; }
+  .app-shell[data-theme="galactic-guide"] .nav-logo { margin:0; }
+  .app-shell[data-theme="galactic-guide"] .nav-menu { gap:5px; }
+  .app-shell[data-theme="galactic-guide"] .nav-item { min-height:48px; border:0; padding:8px 5px; font-size:10px; }
+  .app-shell[data-theme="galactic-guide"]:not([data-world-home="true"]):not(.focus-mode) .main { padding:15px; }
+  .guide-front { padding:100px 18px 25px; }
+  .guide-open-volume .guide-screen { grid-template-columns:minmax(0,1fr); }
+  .guide-open-volume .guide-screen:after { content:none; }
+  .guide-open-volume .guide-directory { padding:24px 20px; }
+  .guide-open-volume .guide-log { padding:28px 20px; border-top:3px double #92997e70; }
+  .guide-open-volume .guide-device-bezel { padding:0 12px; }
+  .guide-open-volume .guide-page-tabs { padding-left:8px; }
+  .guide-open-volume .guide-device-footer { padding:12px; }
+  .guide-reader-spread { display:block; padding:6px; }
+  .guide-reader-spread:before { background:#ece7d3; }
+  .guide-reader-spread .lesson-document-index { position:relative; top:auto; max-height:none; padding:55px 22px 25px; }
+  .guide-leaf-directory { max-height:220px; overflow:auto; }
+  .guide-entry-colophon { display:none; }
+  .guide-reader-spread .lesson-document-paper { padding:20px 20px; border-top:3px double #969c7d70; }
+  .guide-reader-spread .note-reader>.panel-heading h2 { font-size:23px; }
+  .app-shell[data-theme="galactic-guide"] .course-space-galactic-guide { display:block; }
+  .course-space-galactic-guide .course-contents { padding:28px 20px; }
+  .guide-volume-frontispiece>strong { font-size:47px; }
+  .guide-volume-frontispiece>svg { margin-bottom:10px; }
+  .app-shell[data-theme="galactic-guide"] .organizer-rail-button { width:44px; min-height:44px; }
+  .app-shell[data-theme="galactic-guide"].focus-mode .guide-reader-spread { padding-left:13px; }
+  .app-shell[data-theme="galactic-guide"].focus-mode .lesson-document-paper { padding:20px 14px; }
+  .guide-running-head,.guide-paper-folio { flex-wrap:wrap; gap:5px 15px; }
+}
+@media(prefers-reduced-motion:reduce) { .guide-turn-leaf { display:none; animation:none; } }

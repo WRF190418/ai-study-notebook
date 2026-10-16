@@ -54,12 +54,13 @@ export default function GalacticHome(props: Props) {
       <section className="guide-opening" aria-label="银河系搭车客指南">
         <div><span className="guide-edition-label">PERSONAL FIELD COPY / 地球随身本</span><h1>银河系搭车客指南<span>随身携带 · 不必上交</span></h1></div>
       </section>
-      <section className="guide-device" aria-label="随身电子指南">
+      <section className="guide-device guide-open-volume" aria-label="展开的随身指南">
         <div className="guide-device-spine" aria-hidden="true"><span>DON’T PANIC.</span><i /><small>FIELD COPY · 0042</small></div>
         <header className="guide-device-bezel"><span><i /> THE GUIDE <small>REVISED / MORE OR LESS</small></span><span>NO. 0042 <i className="guide-screw" /></span></header>
         <nav className="guide-page-tabs" aria-label="指南交叉索引"><span aria-current="page">01 / 课程索引</span>{(["notes", "stars"] as const).map(kind => <button key={kind} type="button" data-tutorial={`home-${kind}`} aria-expanded={indexOpen === kind} aria-controls="guide-reading-index" onClick={e => { trigger.current = e.currentTarget; setIndexOpen(kind); }}>{kind === "notes" ? <FileText size={13} /> : <Star size={13} />}<span>{kind === "notes" ? "最近笔记" : "加星索引"}</span><small>{String(kind === "notes" ? notes.length : noteStars.length).padStart(2, "0")}</small></button>)}</nav>
         <div className="guide-screen">
           <section className="guide-directory" aria-label="课程索引">
+            <div className="guide-index-frontispiece"><span>CONTENTS / 暂定目录</span><strong>已知宇宙的<br />一小部分。</strong><p>收录于此的，是你正在理解的事情。</p><i aria-hidden="true">※</i></div>
             <header className="guide-page-heading"><div><span>A–Z / 已知知识的暂定分类</span><h2 tabIndex={-1} ref={indexHeading}>已知领域</h2></div><label className="guide-term"><select aria-label="主页选择学期" value={selectedTerm} onChange={e => onTermChange(e.target.value)}>{terms.map(t => <option key={t} value={t}>{t}</option>)}</select><ChevronDown size={12} /></label></header>
             <div className="guide-manifest">
               {visible.map((c, i) => <button key={c.id} className={`home-course-card guide-course${searchCourseIds?.includes(c.id) ? " course-search-match" : ""}`} type="button" onClick={() => onOpenCourse(c.id)} aria-label={`打开课程：${c.code} ${c.title}`}><span className="guide-entry-number">{String(i + 1).padStart(2, "0")}</span><span className="guide-entry-text"><small>{c.code}</small><h3>{c.title.startsWith(c.code) ? c.title.slice(c.code.length).trim() : c.title}</h3><em>{lessons.filter(l => l.courseId === c.id).length} 章 / {notes.filter(n => n.courseId === c.id).length} 篇笔记</em></span><ChevronRight size={16} /></button>)}
@@ -68,11 +69,12 @@ export default function GalacticHome(props: Props) {
             <footer className="guide-index-footnote"><span>编者附注 {String(margin + 1).padStart(2, "0")}</span><button type="button" className="guide-margin-note" aria-label="翻阅编者边注" title="点击边注，翻一条" onClick={() => setMargin(n => (n + 1) % guideMarginalia.length)}><span key={margin}>{guideMarginalia[margin]}</span><small>↗</small></button></footer>
           </section>
           <aside className="guide-log" aria-label="阅读记录">
+            <div className="guide-bookplate" aria-hidden="true"><span>THIS GUIDE BELONGS TO</span><strong>{name}</strong><small>地球 · 随身本 · 非卖品</small></div>
             <header className="guide-page-heading"><div><span>夹页 / PERSONAL BOOKMARK</span><h2>上次读到这里</h2></div><Bookmark size={18} /></header>
             <div className="guide-location-slip"><span>最后确认位置</span>{resume ? <><strong>{resumePage ? `第 ${resumePage.pageNumber} 页` : "最近的笔记"}</strong><p>{resumePage?.title || resume.title}</p><small>{resumePage ? "至于为什么来到这里，记录中没有说明。" : "尚无具体页码记录。"}</small></> : <><strong>暂无记录</strong><p>从左侧课程索引开始阅读。</p></>}</div>
             {resume && <button className="world-resume guide-resume" type="button" onClick={() => onContinue(resume, resumePage?.key)} aria-label={`继续阅读：${resume.title}`}><span><small>{courses.find(c => c.id === resume.courseId)?.code} · 接着上次读</small><strong>{resume.title}</strong><em>继续阅读</em></span><ArrowRight size={19} /></button>}
             <div className="guide-fiction"><span>编者夹页 · 虚构条目</span>{fiction === null ? <button type="button" className="guide-fiction-open" onClick={() => setFiction(0)}>宇宙，以及其他 <ArrowRight size={14} /></button> : <section aria-label="指南虚构条目"><header><small>{guideFiction[fiction].number}</small><button type="button" aria-label="收起虚构条目" onClick={() => setFiction(null)}><X size={13} /></button></header><h3>{guideFiction[fiction].title}</h3><p>{guideFiction[fiction].body}</p><button type="button" className="guide-cross-reference" onClick={() => setFiction(n => (n! + 1) % guideFiction.length)}>{guideFiction[fiction].reference} ↗</button></section>}</div>
-            <span className="guide-log-foot">页码记在这里。旅途继续。</span>
+            <span className="guide-log-foot">书签在这里。<br />宇宙的其余部分可以稍等。</span>
           </aside>
         </div>
         <footer className="guide-device-footer"><span>条目可增补。宇宙不提供校样。</span><div className="guide-hardware"><span>IMPROBABILITY</span><button className="guide-improbability" type="button" onClick={nextIncident} aria-label="触发一次不大可能事件" title="不大可能按键 · 只影响主题场景"><i aria-hidden="true" /><span aria-hidden="true">↗</span></button><span>0042</span></div></footer>

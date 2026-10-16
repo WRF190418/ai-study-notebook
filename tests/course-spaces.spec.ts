@@ -25,6 +25,8 @@ test("course directories have distinct structures without changing chapter data 
     const grid = await directory.locator(".course-chapters").evaluate(element => getComputedStyle(element).gridTemplateColumns.split(" ").length);
     expect(grid).toBe(theme === "midnight-atlas" && testInfo.project.name === "desktop" ? 2 : 1);
     await page.screenshot({ path: `test-results/course-space-${theme}-${testInfo.project.name}.png` });
+    // The guide starts with the working sheet folded away to preserve the open volume.
+    if (theme === "galactic-guide") await page.getByTitle("展开 AI 整理台", { exact: true }).click();
     await page.getByTitle("收起 AI 整理台", { exact: true }).click();
     await expect(page.locator(".organizer-rail")).toBeVisible();
     await page.getByTitle("展开 AI 整理台", { exact: true }).click();

@@ -134,6 +134,7 @@ export default function NotebookApp({
   const [pendingJump, setPendingJump] = useState<PageJump | null>(null);
   const [starMessage, setStarMessage] = useState("");
   const [organizerCollapsed, setOrganizerCollapsed] = useState(false);
+  const [guideWorkbenchOpen, setGuideWorkbenchOpen] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const [focusDarkMode, setFocusDarkMode] = useState(false);
   const [appHydrated, setAppHydrated] = useState(false);
@@ -154,6 +155,7 @@ export default function NotebookApp({
   const savedThemePreferences = useRef(initialWorkspace.preferences);
   const [greeting, setGreeting] = useState("欢迎回来");
   const theme = workspace.preferences.theme ?? "mist-forest";
+  const effectiveOrganizerCollapsed = theme === "galactic-guide" && !tutorialPractice ? !guideWorkbenchOpen : organizerCollapsed;
   useEffect(() => {
     if (theme !== "galactic-guide" || appView !== "home" || activeLessonId || tutorialPractice) setGuideCoverRequested(false);
   }, [theme, appView, activeLessonId, tutorialPractice]);
@@ -519,7 +521,7 @@ export default function NotebookApp({
     const scene = tutorialChapters.find(c => c.id === chapterId)?.scene ?? "home";
     setTutorialChapter(`${chapterId}-${Date.now()}`);
     setFocusMode(false); setFocusDarkMode(false); setThemePickerOpen(false);
-    setOrganizerCollapsed(false); setPendingJump(null); setQuery(""); setSearchOpen(false); setSearchCourseId("");
+    setOrganizerCollapsed(theme === "galactic-guide" && scene !== "organizer"); setPendingJump(null); setQuery(""); setSearchOpen(false); setSearchCourseId("");
     tutorialSearchSnapshot.current = null;
     setSelectedTerm(chapterId === "space" ? "2026年春季 · 教学练习" : tutorialTerm);
     setCourseId(chapterId === "space" ? "tutorial-course-spring" : "tutorial-course");
@@ -597,8 +599,9 @@ export default function NotebookApp({
           <span className="nav-icon">
             <BookOpen size={21} />
           </span>
-          <span>StudyNote AI</span>
+          <span>{theme === "galactic-guide" ? "THE GUIDE" : "StudyNote AI"}</span>
         </div>
+        {theme === "galactic-guide" && <div className="guide-binding-label" aria-hidden="true"><strong>DON’T<br />PANIC.</strong><span>PERSONAL FIELD COPY<br />NO. 0042</span></div>}
 
         <nav className="nav-menu" aria-label="主导航">
           <button
@@ -631,6 +634,7 @@ export default function NotebookApp({
               setAppView("courses");
               setActiveLessonId(null);
               setOrganizerCollapsed(false);
+              if (!practiceRef.current) setGuideWorkbenchOpen(true);
             }}
             type="button"
           >
@@ -781,10 +785,11 @@ export default function NotebookApp({
             />
           </div>
         ) : (
-        <div className={`workspace ${organizerCollapsed ? "organizer-collapsed" : ""}`}>
+        <div className={`workspace ${effectiveOrganizerCollapsed ? "organizer-collapsed" : ""}`}>
           <div className="content-scroll" data-scroll-region="notes" ref={contentScrollRef}>
             {activeLesson ? (
               <LessonDetail
+                guide={theme === "galactic-guide"}
                 key={tutorialPractice ? tutorialChapter : "personal"}
                 practice={tutorialPractice}
                 course={course}
@@ -836,8 +841,8 @@ export default function NotebookApp({
               lessons={lessons}
               currentLessonId={activeLesson?.id ?? lessonId}
               currentNoteId={selectedNote?.id ?? ""}
-              collapsed={organizerCollapsed}
-              onToggleCollapsed={() => setOrganizerCollapsed((value) => !value)}
+              collapsed={effectiveOrganizerCollapsed}
+              onToggleCollapsed={() => theme === "galactic-guide" && !tutorialPractice ? setGuideWorkbenchOpen(value => !value) : setOrganizerCollapsed(value => !value)}
               onCommandApplied={(payload) => {
                 setAppView("courses");
                 setWorkspace(payload.workspace);
@@ -1245,6 +1250,7 @@ function HighlightedText({ text, query }: { text: string; query: string }) {
 }
 
 function LessonDetail({
+  guide = false,
   practice = false,
   course,
   lesson,
@@ -1267,6 +1273,7 @@ function LessonDetail({
   onJumpHandled,
   onWorkspaceUpdated
 }: {
+  guide?: boolean;
   practice?: boolean;
   course?: Course;
   lesson: Lesson;
@@ -1451,7 +1458,7 @@ function LessonDetail({
   }, [onJumpHandled, pendingJump, selectedNote]);
 
   return (
-    <>
+    <div className={guide ? "guide-reader-spread" : "lesson-document"}>
       {focusMode ? (
         <div className="focus-reader-toolbar" role="toolbar" aria-label="专注阅读工具栏" tabIndex={0} onMouseEnter={() => tutorialEvent("focus-tools")} onFocus={() => tutorialEvent("focus-tools")}>
           <span className="focus-reader-status">
@@ -1504,6 +1511,8 @@ function LessonDetail({
         返回课程章节
       </button>
 
+      <div className="lesson-document-index">
+      {guide && <header className="guide-entry-imprint"><span>THE GUIDE / FIELD NOTES</span><strong>{course?.code || "FIELD COPY"}</strong><small>分册 {String(lesson.order).padStart(2, "0")} · 个人学习条目</small></header>}
       <section className={`lesson-detail-hero ${lesson.accent}`}>
         <div>
           <span className="lesson-detail-kicker">{lessonLabel(lesson)}</span>
@@ -1549,6 +1558,11 @@ function LessonDetail({
         )}
       </div>
 
+      {guide && <nav className="guide-leaf-directory" aria-label="本篇逐页目录"><header><span>本篇页码</span><small>{pages.length} PAGES</small></header>{pages.length ? pages.map(page => <button key={page.key} type="button" aria-current={currentReadingPage?.key === page.key ? "location" : undefined} onClick={() => selectedNote && onNavigateToPage({ noteId: selectedNote.id, pageKey: page.key })}><span>{String(page.pageNumber).padStart(2, "0")}</span><span>{page.title}</span>{starredPageKeys.has(page.key) && <Star size={11} fill="currentColor" />}</button>) : <p>整理完成后，逐页目录会出现在这里。</p>}</nav>}
+      {guide && <footer className="guide-entry-colophon"><span>DON’T PANIC.</span><small>条目仍在增补。<br />请以原课件为准。</small></footer>}
+      </div>
+      <div className="lesson-document-paper" key={guide ? selectedNote?.id ?? lesson.id : "paper"}>
+      {guide && <><div className="guide-turn-leaf" aria-hidden="true" /><header className="guide-running-head"><span>{course?.code} / {lessonLabel(lesson)}</span><span>{currentReadingPage ? `正在阅读 · 第 ${currentReadingPage.pageNumber} 页` : "随身本 / 正文"}</span></header></>}
       {selectedNote ? (
         <>
           <section className="note-reader" id={`note-${selectedNote.id}`}>
@@ -1619,7 +1633,10 @@ function LessonDetail({
           <LearningArtifacts note={selectedNote} />
         </>
       ) : null}
-    </>
+      {guide && !selectedNote && <div className="guide-unwritten-entry"><span>FIELD NOTES / 待编纂</span><h2>这一页还没有写下。</h2><p>当前章节暂无笔记。展开右侧「AI 整理台」，可以添加课件、文字或整理要求。</p></div>}
+      {guide && <footer className="guide-paper-folio"><span>THE HITCHHIKER’S GUIDE TO THE GALAXY</span><span>{pages.length ? `${pages.length} 页课件 · 逐页讲解` : "等待新条目"}</span></footer>}
+      </div>
+    </div>
   );
 }
 

@@ -88,6 +88,25 @@ test("the personal galactic guide has a working index, safe scenery and a quiet 
   await expect(page.locator(".note-reader")).toContainText(note.title);
   await expect(page.locator(".guide-scenery")).toHaveCount(0);
   await expect(page.locator(".note-reader .katex")).toHaveCount(1);
+  await expect(page.getByRole("navigation", { name: "本篇逐页目录" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "本篇逐页目录" }).getByRole("button")).toHaveCount(2);
+  await expect(page.locator(".organizer-rail")).toBeVisible();
+  if (info.project.name === "desktop") {
+    const leaves = await page.evaluate(() => {
+      const a = document.querySelector(".lesson-document-index")!.getBoundingClientRect();
+      const b = document.querySelector(".lesson-document-paper")!.getBoundingClientRect();
+      return { left: a.left, right: a.right, body: b.left, width: b.width };
+    });
+    expect(leaves.right).toBeLessThanOrEqual(leaves.body + 1);
+    expect(leaves.width).toBeGreaterThan(650);
+    await page.getByRole("navigation", { name: "本篇逐页目录" }).getByRole("button", { name: /02.*问题与理解/ }).click();
+    await expect(page.getByRole("heading", { name: /第2页.*问题与理解/ })).toBeInViewport();
+    await page.getByTitle("展开 AI 整理台", { exact: true }).click();
+    await expect(page.getByLabel("AI 命令行", { exact: true })).toBeVisible();
+    await expect(page.locator(".guide-reader-spread")).toBeVisible();
+    await page.getByTitle("收起 AI 整理台", { exact: true }).click();
+  }
+  await page.locator('[data-scroll-region="notes"]').evaluate(el => { el.scrollTop = 0; });
   await page.screenshot({ path: `test-results/galactic-reader-${info.project.name}.png`, animations: "disabled" });
   if (info.project.name === "desktop") {
     await page.locator(".sidebar-focus-button").click();

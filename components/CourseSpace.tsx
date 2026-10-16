@@ -32,6 +32,7 @@ export default function CourseSpace({ theme, poemIndex, onNextPoem, course, less
     {course && <section className="course-hero course-titlepage" aria-label={space.label}>
       <div className="course-space-eyebrow"><span>{space.eyebrow}</span><span className="course-volume-mark" aria-hidden="true">{space.mark}</span></div>
       <div className="course-titlepage-main">
+        {theme === "galactic-guide" && <div className="guide-volume-frontispiece" aria-hidden="true"><span>THE GUIDE</span><strong>DON’T<br />PANIC.</strong><svg viewBox="0 0 240 100"><ellipse cx="120" cy="50" rx="105" ry="30" fill="none" stroke="currentColor" strokeWidth=".6" transform="rotate(-16 120 50)" /><circle cx="120" cy="50" r="24" fill="none" stroke="currentColor" strokeWidth=".8" /><circle cx="38" cy="52" r="3" fill="currentColor" /><path d="M120 17v66M87 50h66" stroke="currentColor" strokeWidth=".5" strokeDasharray="2 4" /></svg></div>}
         <span className="course-call-number">{course.code}</span>
         <h1>{title || course.title}</h1>
         <p className="course-description">{course.description}</p>

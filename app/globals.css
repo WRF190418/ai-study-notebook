@@ -1752,6 +1752,12 @@ button {
   display: none;
 }
 
+/* Structural reader wrappers preserve the existing layout in other themes. */
+.lesson-document, .lesson-document-index, .lesson-document-paper { display: contents; }
+.app-shell.focus-mode .lesson-document-index,
+.app-shell.focus-mode .lesson-document > .back-button,
+.app-shell.focus-mode .lesson-document-paper > .artifact-grid { display: none; }
+
 .app-shell.focus-mode .main {
   padding: 0;
   background:
