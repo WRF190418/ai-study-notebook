@@ -24,10 +24,13 @@
 
 ## 验证
 
+整理台顶部使用明确的「收起」按钮，标题栏随面板滚动吸顶，滚到底部仍可关闭；收起后从侧签重新展开。命令、整理要求和原始文字草稿保留在当前页面内存中，折叠不提交、不清空输入；刷新或离开页面不承诺保留草稿。
+
 隔离账号用六门课程验证封面聚焦/打开/跳过/Esc/减少动画、保存失败可见、不重复入境、事件与边注和虚构交叉参阅无写请求、索引、搜索、正文公式、续读与专注深浅模式，以及课程和笔记等保持不变。另运行跨主题入口/目录回归和本主题完整自动教程。测试不读取或修改个人笔记。
 
 ```text
 npx playwright test tests/galactic-guide.spec.ts --workers=1
+npx playwright test tests/organizer-collapse.spec.ts --project=desktop --workers=1
 npx playwright test tests/galactic-book.spec.ts tests/stars-search.spec.ts tests/quick-back.spec.ts --project=desktop --workers=1
 npx playwright test tests/theme-entry.spec.ts tests/course-spaces.spec.ts tests/reading-focus.spec.ts --project=desktop --workers=1
 npx playwright test tests/tutorial.spec.ts --project=desktop --workers=1 --grep "safely in galactic-guide"

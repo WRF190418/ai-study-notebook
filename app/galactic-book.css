@@ -163,6 +163,8 @@
   .app-shell[data-theme="galactic-guide"] .workspace:has(.page-note-editor)>.content-scroll { position:relative; z-index:46; }
 }
 .app-shell[data-theme="galactic-guide"] .organizer { background:#ece7d4; border-radius:2px; border:1px solid #a4a68988; }
+.app-shell[data-theme="galactic-guide"] .organizer-heading { background:#ece7d4; border-bottom:3px double #919c7a60; }
+.app-shell[data-theme="galactic-guide"] .organizer-heading .collapse-button { border:1px solid #8f9b7466; background:#f6f1dc; color:#42583e; border-radius:3px; }
 .app-shell[data-theme="galactic-guide"] .organizer:not(.organizer-rail):before { content:"THE GUIDE / 编纂工作页"; display:block; padding:0 0 18px; margin-bottom:22px; border-bottom:3px double #919c7a60; color:#778467; font:9px/1.8 Consolas,"Microsoft YaHei",monospace; letter-spacing:.08em; }
 .app-shell[data-theme="galactic-guide"] .organizer-rail { padding:0; background:transparent; border:0; }
 .app-shell[data-theme="galactic-guide"] .organizer-rail-button { width:42px; min-height:150px; padding:17px 7px; border:1px solid #9c9e7680; border-radius:2px 5px 5px 2px; background:linear-gradient(90deg,#b5b38b,#dfd9b5); color:#384b3d; box-shadow:0 4px 8px #0003; font-size:11px; }

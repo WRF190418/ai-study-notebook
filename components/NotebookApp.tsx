@@ -1946,6 +1946,7 @@ function OrganizerPanel({
   const [error, setError] = useState("");
   const [hydrated, setHydrated] = useState(false);
   const commandRef = useRef<HTMLTextAreaElement>(null);
+  const commandDraft = useRef("");
   const commandImageRef = useRef<HTMLInputElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -2001,7 +2002,7 @@ function OrganizerPanel({
     if (!images.length) return;
 
     event.preventDefault();
-    pasteClipboardText(event.currentTarget, event.clipboardData.getData("text/plain"));
+    commandDraft.current = pasteClipboardText(event.currentTarget, event.clipboardData.getData("text/plain"));
     const accepted = images.filter(isSupportedClipboardImage);
     if (!accepted.length) {
       setCommandMessage(getClipboardImageError(images));
@@ -2099,6 +2100,7 @@ function OrganizerPanel({
 
       onCommandApplied(data);
       if (commandRef.current) commandRef.current.value = "";
+      commandDraft.current = "";
       if (commandImageRef.current) commandImageRef.current.value = "";
       setCommandImage(null);
       setCommandMessage(
@@ -2168,7 +2170,7 @@ function OrganizerPanel({
   if (collapsed) {
     return (
       <aside className="organizer organizer-rail">
-        <button className="organizer-rail-button" onClick={onToggleCollapsed} type="button" title="展开 AI 整理台">
+        <button className="organizer-rail-button" onClick={onToggleCollapsed} type="button" title="展开 AI 整理台" aria-label="展开 AI 整理台" aria-expanded={false}>
           <Brain size={22} />
           <span>AI 整理台</span>
         </button>
@@ -2179,13 +2181,14 @@ function OrganizerPanel({
   return (
     <aside className="organizer">
       {practice && <p className="tutorial-practice-notice">教学练习：可填写要求和切换模式；上传、整理和命令提交均已禁用，不调用 AI。</p>}
-      <div className="panel-heading">
+      <div className="panel-heading organizer-heading">
         <div>
           <h2>AI 整理台</h2>
           <p>截图、文字、大纲都会自动归档到合适章节。</p>
         </div>
-        <button className="icon-button collapse-button" onClick={onToggleCollapsed} type="button" title="收起 AI 整理台">
-          <ChevronRight size={18} />
+        <button className="icon-button collapse-button" onClick={onToggleCollapsed} type="button" title="收起 AI 整理台" aria-label="收起 AI 整理台" aria-expanded={true}>
+          <ChevronRight size={16} aria-hidden="true" />
+          <span>收起</span>
         </button>
       </div>
 
@@ -2195,6 +2198,9 @@ function OrganizerPanel({
           <textarea
             ref={commandRef}
             className="command-box"
+            aria-label="AI 命令行"
+            defaultValue={commandDraft.current}
+            onInput={event => { commandDraft.current = event.currentTarget.value; }}
             onPaste={handleCommandPaste}
             placeholder="例如：删除刚才那篇笔记；把牛顿第二定律改成考试复习版；新建一个高等数学板块，学期为 2026 秋季。"
           />
@@ -2246,6 +2252,7 @@ function OrganizerPanel({
           <span>整理要求</span>
           <textarea
             className="request-box"
+            aria-label="整理要求"
             value={targetInstruction}
             onChange={(event) => setTargetInstruction(event.target.value)}
             placeholder="例如：整理到近代物理学；偏考试复习；如果没有合适章节就新建一个“力学基础”。不填则由 AI 根据内容判断。"
@@ -2306,7 +2313,9 @@ function OrganizerPanel({
           <textarea
             ref={textRef}
             name="sourceText"
+            aria-label={sourceType === "outline" ? "课程大纲" : sourceType === "image" || sourceType === "file" ? "补充说明" : "原始文字"}
             onInput={(event) => setText(event.currentTarget.value)}
+            defaultValue={text}
             onPaste={handleSourcePaste}
             placeholder={
               sourceType === "outline"
