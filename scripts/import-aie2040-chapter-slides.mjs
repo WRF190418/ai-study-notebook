@@ -285,6 +285,270 @@ function buildAppendix(material, assets) {
   return `${appendixMarker.trimStart()}\n\n## 逐页课件核对\n\n来源：${material.sourceFile}，共 ${material.pageCount} 页。原 PDF 为整页图片；以下 OCR 仅用于检索，可能误认公式、上下标、希腊字母和多栏顺序，完整原页图才是版面与公式核对依据。正文每个页标题右侧的原课件按钮与这里同页原图一一匹配。\n\n${pages}`;
 }
 
+function vocabularyFor(key) {
+  const groups = {
+    chapter1: [
+      ["试验与事件", "experiment", "随机试验", "说明可能结果以及概率模型适用的重复机制"],
+      ["试验与事件", "outcome", "结果／样本点", "样本空间中的一个基本结果，常记为 ω"],
+      ["试验与事件", "sample space", "样本空间", "所有可能结果的集合，记为 S 或 Ω"],
+      ["试验与事件", "event", "事件", "样本空间的子集"],
+      ["集合运算", "union", "并集", "A∪B：至少一个事件发生"],
+      ["集合运算", "intersection", "交集", "A∩B：两个事件同时发生"],
+      ["集合运算", "complement", "补集", "Aᶜ：事件 A 不发生"],
+      ["集合运算", "difference", "差集", "A\\B：A 发生但 B 不发生"],
+      ["集合运算", "disjoint / mutually exclusive", "不相交／互斥", "不能同时发生；不要与 independent 混淆"],
+      ["概率规则", "probability axiom", "概率公理", "非负、全集为 1、互斥可加"],
+      ["概率规则", "relative frequency", "相对频率", "重复试验中事件出现次数除以总次数"],
+      ["概率规则", "monotonicity", "单调性", "A⊆B 时 P(A)≤P(B)"],
+      ["概率规则", "addition rule", "加法公式", "相加后减去被重复计算的交集"],
+      ["概率规则", "inclusion-exclusion", "容斥原理", "多个事件并集的系统修正公式"],
+      ["概率规则", "union bound", "并集上界", "P(∪Aᵢ)≤ΣP(Aᵢ)，不要求独立"],
+      ["计数", "multiplication principle", "乘法原理", "分阶段选择数相乘，需明确每阶段可选数"],
+      ["计数", "ordered sample", "有序样本", "结果顺序不同视为不同"],
+      ["计数", "with replacement", "有放回", "每次选择后对象回到总体"],
+      ["计数", "without replacement", "无放回", "可选总体随抽取缩小"],
+      ["计数", "permutation", "排列", "顺序重要的不放回选择"],
+      ["计数", "combination", "组合", "只关心选中集合，不关心顺序"],
+      ["计数", "binomial coefficient", "二项式系数", "C(n,r)，同时表示组合数"],
+      ["计数", "Pascal recursion", "Pascal 递推", "按指定对象是否被选入进行分类"],
+      ["计数", "multinomial coefficient", "多项式系数", "把不同对象分入多个有标签组"],
+      ["计数", "stars and bars", "隔板法", "计数非负整数解或有放回无序选择"],
+      ["条件概率", "conditional probability", "条件概率", "P(A|B)：在 B 已发生的范围内讨论 A"],
+      ["条件概率", "renormalize", "重新归一化", "把保留区域的总概率缩放为 1"],
+      ["条件概率", "multiplication rule", "乘法公式", "P(A∩B)=P(A)P(B|A)"],
+      ["条件概率", "chain rule", "链式法则", "联合事件按连续条件概率展开"],
+      ["条件概率", "probability tree", "概率树", "沿路径相乘，互斥路径相加"],
+      ["独立性", "independent events", "独立事件", "联合概率等于边缘概率乘积"],
+      ["独立性", "pairwise independence", "两两独立", "只检查每一对事件"],
+      ["独立性", "mutual independence", "相互独立", "所有非空子集合都满足乘积规则"],
+      ["独立性", "repeated trials", "重复试验", "常配合补事件求至少一次成功"],
+      ["独立性", "reliability", "可靠性", "系统结构决定使用串联还是并联事件"],
+      ["独立性", "conditional independence", "条件独立", "给定第三个条件后联合概率才分解"],
+      ["Bayes", "partition", "分区", "互斥且并集覆盖整个样本空间"],
+      ["Bayes", "law of total probability", "全概率公式", "按可能来源加权汇总目标概率"],
+      ["Bayes", "prior probability", "先验概率", "观察当前证据前对假设的概率"],
+      ["Bayes", "likelihood", "似然", "给定假设时观察到证据的概率"],
+      ["Bayes", "evidence", "证据", "Bayes 公式的归一化分母"],
+      ["Bayes", "posterior probability", "后验概率", "观察证据后更新的假设概率"],
+      ["Bayes", "likelihood ratio", "似然比", "证据在两个假设下支持强度的比值"],
+      ["Bayes", "posterior odds", "后验优势比", "先验优势比乘似然比"],
+      ["Bayes", "prevalence", "基准发生率／流行率", "罕见事件检测中决定 precision 的关键先验"],
+      ["Bayes", "sensitivity", "灵敏度", "P(+|真实为正)"],
+      ["Bayes", "false positive rate", "假阳性率", "P(+|真实为负)"],
+      ["Bayes", "precision", "精确率／阳性预测值", "P(真实为正|检测为正)"],
+      ["Bayes", "Naive Bayes", "朴素 Bayes", "假设给定类别后各特征条件独立"]
+    ],
+    chapter2: [
+      ["随机变量", "random variable", "随机变量", "把试验结果映射为实数的函数"],
+      ["随机变量", "discrete random variable", "离散随机变量", "支持集有限或可数"],
+      ["随机变量", "support", "支持集", "随机变量可能取到且有正概率的值"],
+      ["分布函数", "probability mass function (PMF)", "概率质量函数", "pX(x)=P(X=x)，质量总和为 1"],
+      ["分布函数", "cumulative distribution function (CDF)", "累积分布函数", "FX(t)=P(X≤t)，离散情形为阶梯函数"],
+      ["分布函数", "jump size", "跳跃大小", "CDF 在某点的跳跃等于该点概率"],
+      ["分布函数", "normalization", "归一化", "选择常数使全部概率质量和为 1"],
+      ["变量函数", "transformation", "变量变换", "Y=g(X)，相同输出的输入概率要相加"],
+      ["变量函数", "many-to-one", "多对一", "多个 X 值映射到同一个 Y 值"],
+      ["抽样模型", "hypergeometric distribution", "超几何分布", "有限总体无放回抽样的成功数"],
+      ["抽样模型", "finite population", "有限总体", "对象总数 N 固定且成功对象数 K 固定"],
+      ["矩", "expectation / expected value", "期望／数学期望", "按概率加权的平均"],
+      ["矩", "probability-weighted average", "概率加权平均", "每个取值乘其概率再求和"],
+      ["矩", "linearity of expectation", "期望线性性", "不要求随机变量独立"],
+      ["矩", "indicator variable", "指示变量", "事件发生取 1，否则取 0"],
+      ["矩", "tail-sum identity", "尾和公式", "非负整数变量的期望可由尾概率求和"],
+      ["矩", "variance", "方差", "相对均值的平方偏离期望"],
+      ["矩", "standard deviation", "标准差", "方差平方根，与原变量单位相同"],
+      ["矩", "factorial moment", "阶乘矩", "E[X(X-1)…]，计数分布中常简化推导"],
+      ["矩", "moment-generating function (MGF)", "矩母函数", "MX(t)=E[e^{tX}]"],
+      ["矩", "moment", "矩", "MGF 在 0 处的导数给原点矩"],
+      ["矩", "uniqueness theorem", "唯一性定理", "零点邻域内相同 MGF 对应相同分布"],
+      ["Bernoulli/Binomial", "Bernoulli trial", "Bernoulli 试验", "一次只有成功与失败两种结果"],
+      ["Bernoulli/Binomial", "success probability", "成功概率", "通常记为 p，失败概率 q=1-p"],
+      ["Bernoulli/Binomial", "binomial distribution", "二项分布", "固定 n 次独立同成功率试验的成功数"],
+      ["Bernoulli/Binomial", "success count", "成功次数", "Binomial 随机变量实际计数的对象"],
+      ["Bernoulli/Binomial", "sample proportion", "样本比例", "成功数 X 除以试验次数 n"],
+      ["Bernoulli/Binomial", "tail probability", "尾概率", "超过或不超过阈值的一组质量之和"],
+      ["Bernoulli/Binomial", "probability recurrence", "概率递推", "利用相邻质量比避免重复算阶乘"],
+      ["等待分布", "stopping rule", "停止规则", "决定随机变量何时停止计数"],
+      ["等待分布", "geometric distribution", "几何分布", "直到第一次成功的试验次数"],
+      ["等待分布", "memorylessness", "无记忆性", "已等待时间不改变剩余等待分布"],
+      ["等待分布", "negative binomial distribution", "负二项分布", "直到第 r 次成功的试验次数"],
+      ["等待分布", "trial-count convention", "试验次数口径", "把成功的最终试验也计入"],
+      ["等待分布", "failure-count convention", "失败次数口径", "只数第 r 次成功前的失败数"],
+      ["Poisson", "Poisson process", "Poisson 过程", "按连续曝光量产生事件的计数过程"],
+      ["Poisson", "rate", "速率", "每单位时间或长度的平均事件数"],
+      ["Poisson", "exposure", "曝光量", "观察时间、长度、面积等规模"],
+      ["Poisson", "Poisson distribution", "Poisson 分布", "参数 λ 的事件计数模型"],
+      ["Poisson", "rare-event approximation", "稀有事件近似", "n 大、p 小、np 稳定时 Binomial 近似 Poisson"],
+      ["模型比较", "sampling mechanism", "抽样机制", "判断 Binomial 与 Hypergeometric 的首要依据"],
+      ["模型比较", "overdispersion", "过度离散", "实际方差大于 Poisson 均值"],
+      ["模型比较", "underdispersion", "不足离散", "实际方差小于 Poisson 均值"]
+    ],
+    chapter3: [
+      ["连续基础", "continuous random variable", "连续随机变量", "概率由区间积分给出"],
+      ["连续基础", "probability density function (PDF)", "概率密度函数", "非负且全域积分为 1"],
+      ["连续基础", "density", "密度", "有倒数单位，可以大于 1，不是单点概率"],
+      ["连续基础", "area under the curve", "曲线下面积", "连续概率的几何解释"],
+      ["连续基础", "cumulative distribution function (CDF)", "累积分布函数", "从负无穷累计到阈值的概率"],
+      ["连续基础", "point probability", "单点概率", "连续分布中 P(X=x)=0"],
+      ["连续基础", "uniform distribution", "均匀分布", "有限区间上密度恒定"],
+      ["连续基础", "quantile", "分位数", "累计概率达到指定 p 的阈值"],
+      ["连续基础", "median", "中位数", "下方累计概率至少为 1/2 的分位数"],
+      ["连续基础", "inverse CDF", "逆累积分布函数", "从概率水平反求变量值"],
+      ["矩与尾部", "integrability", "可积性", "确保期望绝对收敛"],
+      ["矩与尾部", "heavy tail", "重尾", "尾部衰减慢，可能使高阶矩发散"],
+      ["矩与尾部", "finite moment", "有限矩", "相应积分存在且有限"],
+      ["Exponential", "waiting time", "等待时间", "事件发生前经过的连续时间"],
+      ["Exponential", "exponential distribution", "指数分布", "常数 hazard 的正值等待模型"],
+      ["Exponential", "rate parameter", "速率参数", "单位时间事件率 λ"],
+      ["Exponential", "scale parameter", "尺度参数", "θ=1/λ，也是指数分布均值"],
+      ["Exponential", "survival function", "生存函数", "S(t)=P(T>t)"],
+      ["Exponential", "memorylessness", "无记忆性", "经过时间不改变剩余等待分布"],
+      ["Gamma/Chi-square", "gamma function", "Gamma 函数", "把阶乘推广到正实数"],
+      ["Gamma/Chi-square", "gamma distribution", "Gamma 分布", "正值变量的 shape-scale 分布族"],
+      ["Gamma/Chi-square", "shape parameter", "形状参数", "控制密度形状与偏度"],
+      ["Gamma/Chi-square", "scale parameter", "尺度参数", "控制横向伸缩与均值"],
+      ["Gamma/Chi-square", "Erlang distribution", "Erlang 分布", "整数 shape 的 Gamma，到达时间解释"],
+      ["Gamma/Chi-square", "chi-square distribution", "卡方分布", "独立标准正态平方和的分布"],
+      ["Gamma/Chi-square", "degrees of freedom", "自由度", "独立平方项或独立残差方向的数量"],
+      ["Gamma/Chi-square", "upper-tail cutoff", "上尾临界值", "右侧尾概率等于指定水平的截点"],
+      ["Normal", "normal / Gaussian distribution", "正态／高斯分布", "由均值 μ 与方差 σ² 决定"],
+      ["Normal", "Gaussian integral", "高斯积分", "证明正态核归一化的关键积分"],
+      ["Normal", "standard normal", "标准正态", "均值 0、方差 1 的正态变量"],
+      ["Normal", "standardization", "标准化", "减均值再除以标准差"],
+      ["Normal", "z-score", "标准分数", "距均值多少个标准差"],
+      ["Normal", "symmetry", "对称性", "左右尾概率可互相转换"],
+      ["Normal", "percentile", "百分位数", "给定累计比例对应的变量值"],
+      ["寿命模型", "lifetime model", "寿命模型", "描述失效或事件时间的概率模型"],
+      ["寿命模型", "hazard rate", "风险率／失效率", "已存活到 t 后的瞬时失败率"],
+      ["寿命模型", "cumulative hazard", "累计风险", "H(t)=∫h(u)du，决定 survival"],
+      ["寿命模型", "Weibull distribution", "Weibull 分布", "可表示递减、常数或递增 hazard"],
+      ["寿命模型", "aging", "老化效应", "hazard 随时间上升"],
+      ["寿命模型", "Gompertz distribution", "Gompertz 分布", "hazard 随时间指数增长"],
+      ["混合与观测", "mixed distribution", "混合分布", "同时含点质量与连续密度"],
+      ["混合与观测", "atom / point mass", "原子／点质量", "某个单点有正概率"],
+      ["混合与观测", "zero-inflated", "零膨胀", "零点拥有额外概率质量"],
+      ["混合与观测", "ReLU", "修正线性单元", "max(0,Z)，在 0 处产生点质量"],
+      ["混合与观测", "censoring", "删失", "保留样本但只知道超过或低于界限"],
+      ["混合与观测", "right censoring", "右删失", "真实值超过观测上限"],
+      ["混合与观测", "truncation", "截断", "不满足范围的对象不进入样本"],
+      ["混合与观测", "endpoint atom", "端点原子", "capping 后集中在上限处的概率质量"]
+    ],
+    chapter4: [
+      ["联合分布", "bivariate distribution", "二元分布", "同时描述两个随机变量"],
+      ["联合分布", "joint PMF", "联合概率质量函数", "离散变量一对取值的联合概率"],
+      ["联合分布", "joint PDF", "联合概率密度函数", "二维区域概率的积分核"],
+      ["联合分布", "joint support", "联合支持集", "允许的 (x,y) 取值区域"],
+      ["联合分布", "marginal distribution", "边缘分布", "忽略另一个变量后的单变量分布"],
+      ["联合分布", "marginalization", "边缘化", "对另一变量求和或积分"],
+      ["联合分布", "factorization", "因子分解", "独立时联合分布等于边缘分布乘积"],
+      ["联合分布", "trinomial distribution", "三项分布", "每次试验分入三个互斥类别的计数模型"],
+      ["联合分布", "triangular support", "三角支持集", "计数总和约束或不等式形成的区域"],
+      ["依赖性", "covariance", "协方差", "中心化变量乘积的期望"],
+      ["依赖性", "co-movement", "共同变化", "两个变量偏差同号或异号的趋势"],
+      ["依赖性", "correlation coefficient", "相关系数", "标准化协方差，范围 [-1,1]"],
+      ["依赖性", "positive correlation", "正相关", "一个变量增大时另一个线性上升"],
+      ["依赖性", "negative correlation", "负相关", "一个变量增大时另一个线性下降"],
+      ["依赖性", "uncorrelated", "不相关", "协方差为 0，不保证独立"],
+      ["依赖性", "linear dependence", "线性依赖", "可由直线趋势描述的依赖"],
+      ["回归", "best linear predictor", "最佳线性预测", "使总体均方预测误差最小的直线"],
+      ["回归", "least squares", "最小二乘", "最小化平方残差的方法"],
+      ["回归", "regression line", "回归直线", "用 X 预测 Y 的总体线性函数"],
+      ["回归", "slope", "斜率", "X 增加一单位时线性预测的变化量"],
+      ["回归", "intercept", "截距", "使预测线经过均值点的常数项"],
+      ["回归", "residual", "残差", "观测值减预测值"],
+      ["回归", "orthogonality", "正交性", "最优残差与常数及预测变量内积为 0"],
+      ["条件分布", "conditional PMF", "条件 PMF", "离散联合切片除以边缘概率"],
+      ["条件分布", "conditional PDF", "条件 PDF", "连续联合密度除以边缘密度"],
+      ["条件分布", "conditional mean", "条件均值", "E[Y|X=x]，给定信息后的中心"],
+      ["条件分布", "conditional variance", "条件方差", "给定信息后的剩余不确定性"],
+      ["条件分布", "tower property", "塔式法则", "E[E(Y|X)]=E[Y]"],
+      ["条件分布", "law of total variance", "全方差公式", "总体方差=组内平均+组间方差"],
+      ["条件分布", "mean squared error (MSE)", "均方误差", "平方预测误差的期望"],
+      ["条件分布", "conditional expectation", "条件期望", "所有 X 函数中最优的 MSE 预测"],
+      ["积分区域", "integration region", "积分区域", "事件与联合支持集的交集"],
+      ["积分区域", "iterated integral", "累次积分", "按一个变量再另一个变量积分"],
+      ["积分区域", "joint CDF", "联合 CDF", "P(X≤a,Y≤b)"],
+      ["积分区域", "rectangle probability", "矩形概率", "用四个联合 CDF 值做容斥"],
+      ["二元正态", "bivariate normal", "二元正态", "具有椭圆等高线的联合正态模型"],
+      ["二元正态", "density contour", "密度等高线", "联合密度相同的点组成的曲线"],
+      ["二元正态", "ellipse", "椭圆", "相关结构在等高线中的几何表现"],
+      ["二元正态", "conditional normal distribution", "条件正态分布", "给定一个坐标后另一个仍为正态"],
+      ["二元正态", "conditional variance reduction", "条件方差缩减", "观察 X 后 Y 方差乘 1-ρ²"],
+      ["二元正态", "degenerate distribution", "退化分布", "|ρ|=1 时概率集中在直线上"],
+      ["二元正态", "standardized residual", "标准化残差", "去除条件均值后缩放的独立噪声"]
+    ],
+    chapter5: [
+      ["一元变换", "distribution of a function", "随机变量函数的分布", "已知 X，求 Y=g(X) 的分布"],
+      ["一元变换", "change of variable", "变量代换", "用逆变换和导数修正密度"],
+      ["一元变换", "monotone transformation", "单调变换", "整个支持集上只有一个逆分支"],
+      ["一元变换", "inverse function", "逆函数", "由 y 反解原变量 x"],
+      ["一元变换", "inverse branch", "逆像分支", "非单调变换中每个满足 g(x)=y 的根"],
+      ["一元变换", "absolute derivative", "导数绝对值", "一维密度伸缩修正因子"],
+      ["一元变换", "lognormal distribution", "对数正态分布", "正态变量取指数后的右偏正值分布"],
+      ["一元变换", "inverse-transform sampling", "逆变换抽样", "将 Uniform(0,1) 送入目标逆 CDF"],
+      ["一元变换", "probability integral transform", "概率积分变换", "连续变量代入自身 CDF 后服从均匀分布"],
+      ["二维变换", "multivariate transformation", "多元变量变换", "同时变换多个随机变量"],
+      ["二维变换", "Jacobian", "Jacobian 行列式", "修正局部面积或体积伸缩"],
+      ["二维变换", "inverse mapping", "逆映射", "从新变量解回原变量"],
+      ["二维变换", "mapped support", "映射后支持集", "变换后允许的新变量区域"],
+      ["二维变换", "convolution", "卷积", "独立变量之和的密度积分"],
+      ["二维变换", "overlap length", "重叠长度", "均匀卷积中决定密度的允许积分区间"],
+      ["比例分布", "beta distribution", "Beta 分布", "0 到 1 上的比例分布"],
+      ["比例分布", "total and proportion", "总量与比例", "Gamma 变量和及其占比的变换"],
+      ["比例分布", "F distribution", "F 分布", "两个独立缩放 Chi-square 的比值"],
+      ["模拟", "Box-Muller transform", "Box-Muller 变换", "由两个独立均匀变量生成两个独立标准正态"],
+      ["随机样本", "random sample", "随机样本", "独立同分布的一组观测"],
+      ["随机样本", "independent and identically distributed (iid)", "独立同分布", "CLT 与经典抽样分布的核心条件"],
+      ["随机样本", "linear combination", "线性组合", "常数加权随机变量之和"],
+      ["随机样本", "sample mean", "样本均值", "观测之和除以样本量"],
+      ["随机样本", "sampling distribution", "抽样分布", "统计量在重复抽样下的分布"],
+      ["随机样本", "standard error", "标准误", "统计量抽样分布的标准差"],
+      ["随机样本", "variance reduction", "方差缩减", "iid 均值方差按 1/n 缩小"],
+      ["随机样本", "variance floor", "方差下限", "相关样本使增大 n 后仍残留的方差"],
+      ["MGF", "MGF of a sum", "和的 MGF", "独立时等于各 MGF 乘积"],
+      ["MGF", "distributional identification", "分布识别", "通过匹配已知 MGF 确认分布"],
+      ["精确抽样分布", "sample variance", "样本方差", "用 n-1 分母估计总体方差"],
+      ["精确抽样分布", "residual sum of squares", "残差平方和", "偏离样本均值的平方和"],
+      ["精确抽样分布", "orthogonal transformation", "正交变换", "保持长度与标准正态独立结构"],
+      ["精确抽样分布", "mean-variance independence", "均值与方差独立", "正态样本特有的重要性质"],
+      ["精确抽样分布", "Student's t distribution", "Student t 分布", "未知方差标准化正态均值产生的分布"],
+      ["精确抽样分布", "Studentized mean", "学生化均值", "用样本标准差替代未知 σ 的统计量"],
+      ["精确抽样分布", "degrees of freedom", "自由度", "样本方差中为 n-1"],
+      ["精确抽样分布", "variance ratio", "方差比", "两个独立样本方差比较产生 F"],
+      ["渐近理论", "central limit theorem (CLT)", "中心极限定理", "标准化 iid 均值趋近标准正态"],
+      ["渐近理论", "convergence in distribution", "依分布收敛", "CDF 在连续点趋近极限 CDF"],
+      ["渐近理论", "normal approximation", "正态近似", "用匹配均值方差的正态替代复杂计数分布"],
+      ["渐近理论", "continuity correction", "连续性修正", "离散整数边界改为半整数边界"],
+      ["渐近理论", "binomial approximation", "二项分布近似", "用正态或 Poisson 近似 Binomial"],
+      ["渐近理论", "Poisson approximation", "Poisson 近似", "稀有事件 Binomial 的近似"],
+      ["概率界", "Markov's inequality", "Markov 不等式", "以非负变量期望控制上尾"],
+      ["概率界", "Chebyshev's inequality", "Chebyshev 不等式", "仅用均值方差控制双侧偏离"],
+      ["概率界", "convergence in probability", "依概率收敛", "偏离固定 ε 的概率趋于 0"],
+      ["概率界", "weak law of large numbers", "弱大数定律", "样本均值依概率收敛到总体均值"],
+      ["概率界", "finite-sample guarantee", "有限样本保证", "无需渐近就成立的概率上界"],
+      ["证明工具", "continuity theorem for MGFs", "MGF 连续性定理", "MGF 收敛用于推出分布收敛"],
+      ["证明工具", "characteristic function", "特征函数", "E[e^{itX}]，始终存在"],
+      ["证明工具", "Taylor expansion", "Taylor 展开", "CLT 证明中保留到二阶项"],
+      ["证明工具", "remainder term", "余项", "证明展开误差在极限下可忽略"],
+      ["反例", "Cauchy distribution", "Cauchy 分布", "均值与方差不存在，样本均值不按普通 CLT 集中"]
+    ]
+  };
+  return groups[key] || [];
+}
+
+function buildVocabularyTable(spec) {
+  const rows = vocabularyFor(spec.key);
+  const cell = (value) => value.replaceAll("|", "\\|");
+  const body = rows.map((row) => `| ${row.map(cell).join(" | ")} |`).join("\n");
+  return `## 英语术语分类总表
+
+以下术语覆盖本章正文、定理、例题、图表和练习中需要主动掌握的专业英语。复习时应做到：看到英文能说出中文含义，看到公式能解释术语所指对象，并能区分同组内容易混淆的概念。
+
+| 类别 | English | 中文 | 掌握重点 |
+| --- | --- | --- | --- |
+${body}`;
+}
+
 function buildNote(spec, material, assets) {
   let inline = 0;
   const sections = material.pages.map((page) => {
@@ -314,7 +578,7 @@ ${spec.review}
 ## 逐页覆盖核对
 
 本笔记按 PDF 原序覆盖第1页至第${material.pageCount}页，共 ${material.pageCount} 个独立正文小节；每个页标题均可打开对应完整原页。正文按内容选择 ${inline} 页直接插入公式、图表、区域、例题、练习或答案原图并配“读图提示”；完整 ${material.pageCount} 页原图与 OCR 文本保留在附录。原文件没有可提取文本层，OCR 误差不作为公式依据。`;
-  return { content: `${main.trim()}\n\n${buildAppendix(material, assets)}`, inline };
+  return { content: `${main.trim()}\n\n${buildVocabularyTable(spec)}\n\n${buildAppendix(material, assets)}`, inline };
 }
 
 function flashcards(spec) {
@@ -346,7 +610,7 @@ function protectedView(db, courseId, targetTitles) {
   };
 }
 
-function validate(db, note, pages, inline) {
+function validate(db, note, pages, inline, expectedVocabularyTerms) {
   const [main, appendix = ""] = note.contentMarkdown.split(appendixMarker);
   const mainPages = [...main.matchAll(/^### 第(\d+)页｜/gm)].map((m) => Number(m[1]));
   const appendixPages = [...appendix.matchAll(/^### 第 (\d+) 页/gm)].map((m) => Number(m[1]));
@@ -356,13 +620,17 @@ function validate(db, note, pages, inline) {
   const mainImages = (main.match(/!\[[^\]\n]+\]\(\/api\/media\/[A-Za-z0-9_-]+\)/g) || []).length;
   const hints = (main.match(/读图提示：/g) || []).length;
   if (appendixImages !== pages || mainImages !== inline || hints !== inline) throw new Error(`${note.title}: image or hint coverage`);
+  const vocabularyHeadings = (main.match(/^## 英语术语分类总表$/gm) || []).length;
+  const vocabularySection = main.split(/^## 英语术语分类总表$/m)[1] || "";
+  const vocabularyTerms = (vocabularySection.match(/^\| (?!类别 \|)(?!--- \|).+ \|$/gm) || []).length;
+  if (vocabularyHeadings !== 1 || vocabularyTerms !== expectedVocabularyTerms) throw new Error(`${note.title}: vocabulary coverage`);
   if (/courseware:|\{\{page:|[A-Z]:\\/.test(note.contentMarkdown)) throw new Error(`${note.title}: unresolved reference`);
   const mediaIds = new Set(db.mediaAssets.map((x) => x.id));
   const missing = [...note.contentMarkdown.matchAll(/\/api\/media\/([A-Za-z0-9_-]+)/g)].map((m) => m[1]).filter((id) => !mediaIds.has(id));
   if (missing.length) throw new Error(`${note.title}: missing media`);
   const fences = (main.match(/^\$\$$/gm) || []).length;
   if (fences % 2) throw new Error(`${note.title}: unmatched math fence`);
-  return { pages, sourceButtons: appendixImages, inlineFigures: mainImages, hints, formulas: fences / 2, contentChars: note.contentMarkdown.length, contentHash: hash(note.contentMarkdown), appendixHash: hash(note.contentMarkdown.slice(note.contentMarkdown.indexOf(appendixMarker))) };
+  return { pages, sourceButtons: appendixImages, inlineFigures: mainImages, hints, formulas: fences / 2, vocabularyTerms, contentChars: note.contentMarkdown.length, contentHash: hash(note.contentMarkdown), appendixHash: hash(note.contentMarkdown.slice(note.contentMarkdown.indexOf(appendixMarker))) };
 }
 
 const baseline = JSON.parse(await fs.readFile(dbPath, "utf8"));
@@ -438,7 +706,7 @@ try {
     summaries.push({
       key: spec.key, lessonId: lesson.id, noteId: note.id,
       sourceFile: material.sourceFile, assets: assets.size,
-      ...validate(next, note, spec.pages, built.inline)
+      ...validate(next, note, spec.pages, built.inline, vocabularyFor(spec.key).length)
     });
   }
 

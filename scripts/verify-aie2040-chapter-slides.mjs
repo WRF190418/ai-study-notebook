@@ -47,6 +47,10 @@ for (const item of report.notes) {
   const appendixHeadings = [...appendix.matchAll(/^### 第 (\d+) 页/gm)].map((match) => Number(match[1]));
   assert(headings.length === item.pages && headings.every((number, index) => number === index + 1), `${item.key}: body coverage`);
   assert(appendixHeadings.length === item.pages && appendixHeadings.every((number, index) => number === index + 1), `${item.key}: appendix coverage`);
+  const vocabularyHeadings = (main.match(/^## 英语术语分类总表$/gm) || []).length;
+  const vocabularySection = main.split(/^## 英语术语分类总表$/m)[1] || "";
+  const vocabularyTerms = (vocabularySection.match(/^\| (?!类别 \|)(?!--- \|).+ \|$/gm) || []).length;
+  assert(vocabularyHeadings === 1 && vocabularyTerms === item.vocabularyTerms, `${item.key}: vocabulary coverage`);
   assert(!/courseware:|\{\{page:|[A-Z]:\\/.test(note.contentMarkdown), `${item.key}: unresolved reference`);
   const refs = [...note.contentMarkdown.matchAll(/\/api\/media\/([A-Za-z0-9_-]+)/g)].map((match) => match[1]);
   assert(refs.every((id) => assets.some((asset) => asset.id === id && asset.noteId === item.noteId)), `${item.key}: foreign media reference`);
@@ -131,6 +135,11 @@ try {
     await expect(main.locator(".note-page-heading")).toHaveCount(item.pages);
     await expect(main.locator(".page-source-button")).toHaveCount(item.pages);
     await expect(main.locator(".katex-error")).toHaveCount(0);
+    const vocabularyHeading = main.getByRole("heading", { level: 2, name: "英语术语分类总表", exact: true });
+    await expect(vocabularyHeading).toHaveCount(1);
+    const vocabularyTable = vocabularyHeading.locator("xpath=following::table[1]");
+    await expect(vocabularyTable.locator("tbody tr")).toHaveCount(item.vocabularyTerms);
+    assert((await vocabularyTable.locator("tbody tr").evaluateAll((rows) => rows.map((row) => row.cells.length))).every((count) => count === 4), `${item.key}: vocabulary column count`);
     const appendix = reader.locator("details.courseware-appendix");
     await expect(appendix).toHaveCount(1);
     const samples = [1, Math.ceil(item.pages / 2), item.pages];
@@ -160,18 +169,21 @@ try {
     const middleHeading = main.getByRole("heading", { level: 3 }).filter({ hasText: new RegExp(`^第${samples[1]}页｜`) });
     await middleHeading.scrollIntoViewIfNeeded();
     await page.screenshot({ path: path.join(qaDir, `${item.key}-middle.png`), animations: "disabled" });
+    await vocabularyHeading.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: path.join(qaDir, `${item.key}-vocabulary.png`), animations: "disabled" });
     await appendix.locator("summary").click();
     await expect(appendix.locator("h3")).toHaveCount(item.pages);
     await appendix.locator("summary").click();
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2), `${item.key}: horizontal overflow`);
-    browserResults.push({ key: item.key, pages: item.pages, sourceButtons: item.pages, sampledMappings: samples, inlineFigures: item.inlineFigures, katexErrors: 0 });
+    browserResults.push({ key: item.key, pages: item.pages, sourceButtons: item.pages, sampledMappings: samples, inlineFigures: item.inlineFigures, vocabularyTerms: item.vocabularyTerms, katexErrors: 0 });
     await page.getByRole("button", { name: "返回课程章节", exact: true }).first().click();
   }
   assert(aiRequests === 0, "Unexpected AI request");
   assert(browserErrors.length === 0, `Browser errors: ${browserErrors.join("; ")}`);
   const result = {
     passed: true, verifiedAt: new Date().toISOString(), pages: 712, mediaAssets: 712,
-    sourceButtons: 712, inlineFigures: report.totalInlineFigures, accountIsolation: true,
+    sourceButtons: 712, inlineFigures: report.totalInlineFigures,
+    vocabularyTerms: report.notes.reduce((sum, item) => sum + item.vocabularyTerms, 0), accountIsolation: true,
     nonTargetRecordsUnchanged: true, aiRequests, browserErrors, notes: browserResults
   };
   await fs.writeFile(path.join(qaDir, "results.json"), JSON.stringify(result, null, 2));
