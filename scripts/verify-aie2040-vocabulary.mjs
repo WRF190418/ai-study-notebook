@@ -23,7 +23,7 @@ for (const item of report.notes) {
   assert(appendix.length > 0, `${item.lessonTitle}: appendix missing`);
   assert((main.match(/^## 英语术语分类总表$/gm) || []).length === 1, `${item.lessonTitle}: vocabulary heading`);
   const section = main.split(/^## 英语术语分类总表$/m)[1] || "";
-  const terms = (section.match(/^\| (?!类别 \|)(?!--- \|).+ \|$/gm) || []).length;
+  const terms = Math.max(0, (section.match(/^\| .+ \|$/gm) || []).length - 2);
   assert(terms === item.vocabularyTerms, `${item.lessonTitle}: vocabulary term count`);
   assert([...main.matchAll(/^## (.+)$/gm)].at(-1)?.[1] === "英语术语分类总表", `${item.lessonTitle}: vocabulary placement`);
 }

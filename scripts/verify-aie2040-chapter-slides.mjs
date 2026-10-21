@@ -49,7 +49,7 @@ for (const item of report.notes) {
   assert(appendixHeadings.length === item.pages && appendixHeadings.every((number, index) => number === index + 1), `${item.key}: appendix coverage`);
   const vocabularyHeadings = (main.match(/^## 英语术语分类总表$/gm) || []).length;
   const vocabularySection = main.split(/^## 英语术语分类总表$/m)[1] || "";
-  const vocabularyTerms = (vocabularySection.match(/^\| (?!类别 \|)(?!--- \|).+ \|$/gm) || []).length;
+  const vocabularyTerms = Math.max(0, (vocabularySection.match(/^\| .+ \|$/gm) || []).length - 2);
   assert(vocabularyHeadings === 1 && vocabularyTerms === item.vocabularyTerms, `${item.key}: vocabulary coverage`);
   assert(!/courseware:|\{\{page:|[A-Z]:\\/.test(note.contentMarkdown), `${item.key}: unresolved reference`);
   const refs = [...note.contentMarkdown.matchAll(/\/api\/media\/([A-Za-z0-9_-]+)/g)].map((match) => match[1]);

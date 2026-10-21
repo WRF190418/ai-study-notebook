@@ -622,7 +622,7 @@ function validate(db, note, pages, inline, expectedVocabularyTerms) {
   if (appendixImages !== pages || mainImages !== inline || hints !== inline) throw new Error(`${note.title}: image or hint coverage`);
   const vocabularyHeadings = (main.match(/^## 英语术语分类总表$/gm) || []).length;
   const vocabularySection = main.split(/^## 英语术语分类总表$/m)[1] || "";
-  const vocabularyTerms = (vocabularySection.match(/^\| (?!类别 \|)(?!--- \|).+ \|$/gm) || []).length;
+  const vocabularyTerms = Math.max(0, (vocabularySection.match(/^\| .+ \|$/gm) || []).length - 2);
   if (vocabularyHeadings !== 1 || vocabularyTerms !== expectedVocabularyTerms) throw new Error(`${note.title}: vocabulary coverage`);
   if (/courseware:|\{\{page:|[A-Z]:\\/.test(note.contentMarkdown)) throw new Error(`${note.title}: unresolved reference`);
   const mediaIds = new Set(db.mediaAssets.map((x) => x.id));

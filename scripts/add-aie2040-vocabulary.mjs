@@ -324,7 +324,7 @@ const vocabulary = {
 const hash = (value) => crypto.createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const countTerms = (main) => {
   const section = main.split(/^## 英语术语分类总表$/m)[1] || "";
-  return (section.match(/^\| (?!类别 \|)(?!--- \|).+ \|$/gm) || []).length;
+  return Math.max(0, (section.match(/^\| .+ \|$/gm) || []).length - 2);
 };
 
 function buildTable(rows) {
