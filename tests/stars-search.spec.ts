@@ -1,5 +1,110 @@
 import { expect, test } from "@playwright/test";
-import { createCourseWithStarterLesson, createNote } from "../lib/db";
+import { createCourseWithStarterLesson, createLesson, createNote } from "../lib/db";
+
+test("narrows search by course, chapter and note, with a current-chapter shortcut", async ({ page }, testInfo) => {
+  const register = await page.request.post("/api/auth/register", {
+    data: { name: "章节检索学生", email: `chapter-search-${testInfo.project.name}-${Date.now()}@example.com`, password: "12345678" }
+  });
+  expect(register.ok()).toBeTruthy();
+  const { user } = await (await page.request.get("/api/workspace")).json();
+  const first = await createCourseWithStarterLesson(user.id, {
+    title: "概率课程", code: "PROB-SEARCH", term: "2026年秋季学期", description: "章节检索测试", lessonTitle: "第一章 概率基础"
+  });
+  const secondLesson = await createLesson(user.id, first.course.id, { title: "第二章 随机变量" });
+  const second = await createCourseWithStarterLesson(user.id, {
+    title: "代数课程", code: "ALG-SEARCH", term: "2026年秋季学期", description: "跨课程隔离测试", lessonTitle: "第一章 向量"
+  });
+  const keyword = "章节定位测试词";
+  const specifications = [
+    { courseId: first.course.id, lessonId: first.lesson.id, title: "概率基础笔记", text: keyword },
+    { courseId: first.course.id, lessonId: first.lesson.id, title: "概率练习笔记", text: keyword },
+    { courseId: first.course.id, lessonId: secondLesson.id, title: "随机变量笔记", text: keyword },
+    { courseId: first.course.id, lessonId: secondLesson.id, title: "不含关键词的笔记", text: "这里只讨论分布函数。" },
+    { courseId: second.course.id, lessonId: second.lesson.id, title: "向量笔记", text: keyword }
+  ];
+  const notes = [];
+  for (const item of specifications) {
+    notes.push(await createNote({
+      userId: user.id, courseId: item.courseId, lessonId: item.lessonId, title: item.title,
+      sourceType: "text", sourceText: item.text, contentMarkdown: `### 第1页｜${item.title}\n\n${item.text}`,
+      summary: item.title, flashcards: [], mindMap: []
+    }));
+  }
+
+  await page.goto("/");
+  const guide = page.getByRole("dialog", { name: "新手指导" });
+  await expect(guide).toBeVisible();
+  await guide.getByRole("button", { name: "退出教程", exact: true }).click();
+  await expect(guide).toBeHidden();
+  const search = page.getByLabel("搜索全部笔记");
+  const results = page.getByRole("region", { name: "笔记搜索结果" });
+  const courseFilter = results.getByLabel("筛选课程");
+  const chapterFilter = results.getByLabel("筛选章节");
+  const noteFilter = results.getByLabel("筛选笔记");
+  const cards = results.locator(".search-result-card");
+  await search.fill(keyword);
+  await expect(cards).toHaveCount(4);
+  await expect(chapterFilter).toBeDisabled();
+  await expect(noteFilter).toBeDisabled();
+
+  await courseFilter.selectOption(first.course.id);
+  await expect(cards).toHaveCount(3);
+  await expect(chapterFilter.locator("option")).toHaveCount(3);
+  await chapterFilter.selectOption(first.lesson.id);
+  await expect(cards).toHaveCount(2);
+  await expect(noteFilter.locator("option")).toHaveCount(3);
+  await noteFilter.selectOption(notes[0].id);
+  await expect(cards).toHaveCount(1);
+  await expect(results).toContainText("1 条结果");
+  await search.press("Enter");
+  await expect(page.getByRole("heading", { name: /^第1页｜概率基础笔记/ })).toBeVisible();
+  await page.goBack();
+  await expect(results).toBeVisible();
+  await expect(courseFilter).toHaveValue(first.course.id);
+  await expect(chapterFilter).toHaveValue(first.lesson.id);
+  await expect(noteFilter).toHaveValue(notes[0].id);
+
+  await chapterFilter.selectOption(secondLesson.id);
+  await expect(noteFilter).toHaveValue("");
+  await expect(cards).toHaveCount(1);
+  // The picker includes notes without a hit, allowing an explicit zero-result search.
+  await noteFilter.selectOption(notes[3].id);
+  await expect(cards).toHaveCount(0);
+  await expect(results).toContainText("没有找到相关内容");
+  await courseFilter.selectOption(second.course.id);
+  await expect(chapterFilter).toHaveValue("");
+  await expect(noteFilter).toHaveValue("");
+  await expect(noteFilter.locator(`option[value="${notes[0].id}"]`)).toHaveCount(0);
+  await expect(cards).toHaveCount(1);
+  await courseFilter.selectOption("");
+  await expect(chapterFilter).toBeDisabled();
+  await expect(noteFilter).toBeDisabled();
+  await expect(cards).toHaveCount(4);
+
+  await courseFilter.selectOption(first.course.id);
+  await noteFilter.selectOption(notes[0].id);
+  await cards.click();
+  await page.getByRole("button", { name: "清除搜索" }).click();
+  const currentChapter = page.getByRole("button", { name: "在本章内搜索", exact: true });
+  await currentChapter.click();
+  await expect(currentChapter).toHaveAttribute("aria-pressed", "true");
+  await expect(search).toBeFocused();
+  await search.fill(keyword);
+  await expect(cards).toHaveCount(2);
+  await expect(courseFilter).toHaveValue(first.course.id);
+  await expect(chapterFilter).toHaveValue(first.lesson.id);
+  await expect(noteFilter).toHaveValue("");
+  await currentChapter.click();
+  await expect(currentChapter).toHaveAttribute("aria-pressed", "false");
+  await expect(cards).toHaveCount(4);
+  await currentChapter.click();
+  await noteFilter.selectOption(notes[1].id);
+  await expect(cards).toHaveCount(1);
+  await currentChapter.click();
+  await expect(noteFilter).toHaveValue("");
+  await expect(cards).toHaveCount(2);
+  await page.screenshot({ path: `test-results/search-chapter-filter-${testInfo.project.name}.png` });
+});
 
 test("searches page content globally and persists beautiful page stars", async ({ page }, testInfo) => {
   const consoleErrors: string[] = [];

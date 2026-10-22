@@ -86,6 +86,9 @@ type NavigationSnapshot = {
   selectedNoteId: string;
   query: string;
   searchOpen: boolean;
+  searchCourseId?: string;
+  searchLessonId?: string;
+  searchNoteId?: string;
   scrollTop: number;
 };
 
@@ -131,6 +134,8 @@ export default function NotebookApp({
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchCourseId, setSearchCourseId] = useState("");
+  const [searchLessonId, setSearchLessonId] = useState("");
+  const [searchNoteId, setSearchNoteId] = useState("");
   const [pendingJump, setPendingJump] = useState<PageJump | null>(null);
   const [starMessage, setStarMessage] = useState("");
   const [organizerCollapsed, setOrganizerCollapsed] = useState(false);
@@ -143,7 +148,7 @@ export default function NotebookApp({
   const [tutorialPractice, setTutorialPractice] = useState(false);
   const [tutorialChapter, setTutorialChapter] = useState("");
   const practiceRef = useRef(false);
-  const personalSnapshot = useRef<{ workspace: Workspace; view: AppView; nav: NavigationSnapshot; searchFilter: string; homeScroll: number; collapsed: boolean; dark: boolean; focus: boolean; history: unknown; url: string } | null>(null);
+  const personalSnapshot = useRef<{ workspace: Workspace; view: AppView; nav: NavigationSnapshot; homeScroll: number; collapsed: boolean; dark: boolean; focus: boolean; history: unknown; url: string } | null>(null);
   const tutorialSearchSnapshot = useRef<NavigationSnapshot | null>(null);
   const tutorialHistoryGuard = useRef(false);
   const restoringPersonalHistory = useRef(false);
@@ -180,9 +185,29 @@ export default function NotebookApp({
     [workspace.courses, workspace.lessons, workspace.notes]
   );
   const searchResults = useMemo(() => searchNotes(searchIndex, query), [query, searchIndex]);
-  const visibleSearchResults = searchCourseId
-    ? searchResults.filter((result) => result.courseId === searchCourseId)
-    : searchResults;
+  const searchLessons = workspace.lessons.filter((lesson) => lesson.courseId === searchCourseId).sort((a, b) => a.order - b.order);
+  const searchNotesInScope = workspace.notes.filter((note) => note.courseId === searchCourseId && (!searchLessonId || note.lessonId === searchLessonId));
+  const visibleSearchResults = searchResults.filter((result) =>
+    (!searchCourseId || result.courseId === searchCourseId) &&
+    (!searchLessonId || result.lessonId === searchLessonId) &&
+    (!searchNoteId || result.noteId === searchNoteId)
+  );
+  const searchingCurrentLesson = Boolean(activeLesson && searchCourseId === activeLesson.courseId && searchLessonId === activeLesson.id && !searchNoteId);
+
+  function changeSearchCourse(id: string) {
+    setSearchCourseId(id);
+    setSearchLessonId("");
+    setSearchNoteId("");
+  }
+
+  function toggleCurrentLessonSearch() {
+    if (!activeLesson) return;
+    setSearchCourseId(searchingCurrentLesson ? "" : activeLesson.courseId);
+    setSearchLessonId(searchingCurrentLesson ? "" : activeLesson.id);
+    setSearchNoteId("");
+    setSearchOpen(true);
+    searchAreaRef.current?.querySelector("input")?.focus();
+  }
 
   useEffect(() => {
     setAppHydrated(true);
@@ -237,6 +262,9 @@ export default function NotebookApp({
       setSelectedNoteId(snapshot.selectedNoteId);
       setQuery(snapshot.query);
       setSearchOpen(snapshot.searchOpen);
+      setSearchCourseId(snapshot.searchCourseId ?? "");
+      setSearchLessonId(snapshot.searchLessonId ?? "");
+      setSearchNoteId(snapshot.searchNoteId ?? "");
       setPendingJump(null);
       tutorialEvent("search-back");
       window.setTimeout(() => {
@@ -379,6 +407,9 @@ export default function NotebookApp({
       selectedNoteId: selectedNote?.id ?? selectedNoteId,
       query,
       searchOpen,
+      searchCourseId,
+      searchLessonId,
+      searchNoteId,
       scrollTop: contentScrollRef.current?.scrollTop ?? 0
     };
     const hash = target.pageKey ? pageAnchorId(targetNote.id, target.pageKey) : `note-${targetNote.id}`;
@@ -521,7 +552,7 @@ export default function NotebookApp({
     const scene = tutorialChapters.find(c => c.id === chapterId)?.scene ?? "home";
     setTutorialChapter(`${chapterId}-${Date.now()}`);
     setFocusMode(false); setFocusDarkMode(false); setThemePickerOpen(false);
-    setOrganizerCollapsed(theme === "galactic-guide" && scene !== "organizer"); setPendingJump(null); setQuery(""); setSearchOpen(false); setSearchCourseId("");
+    setOrganizerCollapsed(theme === "galactic-guide" && scene !== "organizer"); setPendingJump(null); setQuery(""); setSearchOpen(false); changeSearchCourse("");
     tutorialSearchSnapshot.current = null;
     setSelectedTerm(chapterId === "space" ? "2026年春季 · 教学练习" : tutorialTerm);
     setCourseId(chapterId === "space" ? "tutorial-course-spring" : "tutorial-course");
@@ -532,7 +563,7 @@ export default function NotebookApp({
   }
 
   function startTutorial(chapterId: string) {
-    personalSnapshot.current = { workspace, view: appView, nav: { selectedTerm, courseId, lessonId, activeLessonId, selectedNoteId, query, searchOpen, scrollTop: contentScrollRef.current?.scrollTop ?? 0 }, searchFilter: searchCourseId, homeScroll: homeScrollRef.current?.scrollTop ?? 0, collapsed: organizerCollapsed, dark: focusDarkMode, focus: focusMode, history: window.history.state, url: window.location.href };
+    personalSnapshot.current = { workspace, view: appView, nav: { selectedTerm, courseId, lessonId, activeLessonId, selectedNoteId, query, searchOpen, searchCourseId, searchLessonId, searchNoteId, scrollTop: contentScrollRef.current?.scrollTop ?? 0 }, homeScroll: homeScrollRef.current?.scrollTop ?? 0, collapsed: organizerCollapsed, dark: focusDarkMode, focus: focusMode, history: window.history.state, url: window.location.href };
     practiceRef.current = true; setTutorialPractice(true);
     setWorkspace(createTutorialWorkspace(initialUser.id, workspace.preferences));
     prepareTutorialChapter(chapterId);
@@ -545,7 +576,8 @@ export default function NotebookApp({
     setWorkspace(previous.workspace); setAppView(previous.view);
     setSelectedTerm(previous.nav.selectedTerm); setCourseId(previous.nav.courseId); setLessonId(previous.nav.lessonId);
     setActiveLessonId(previous.nav.activeLessonId); setSelectedNoteId(previous.nav.selectedNoteId);
-    setQuery(previous.nav.query); setSearchOpen(previous.nav.searchOpen); setSearchCourseId(previous.searchFilter);
+    setQuery(previous.nav.query); setSearchOpen(previous.nav.searchOpen);
+    setSearchCourseId(previous.nav.searchCourseId ?? ""); setSearchLessonId(previous.nav.searchLessonId ?? ""); setSearchNoteId(previous.nav.searchNoteId ?? "");
     setFocusMode(previous.focus); setFocusDarkMode(previous.dark); setOrganizerCollapsed(previous.collapsed);
     setPendingJump(null); setThemePickerOpen(false); setStarMessage("");
     if (tutorialHistoryGuard.current && window.history.state?.tutorialGuard) { restoringPersonalHistory.current = true; tutorialHistoryGuard.current = false; window.history.back(); }
@@ -560,6 +592,7 @@ export default function NotebookApp({
     setSelectedTerm(snapshot.selectedTerm); setCourseId(snapshot.courseId); setLessonId(snapshot.lessonId);
     setActiveLessonId(snapshot.activeLessonId); setSelectedNoteId(snapshot.selectedNoteId);
     setQuery(snapshot.query); setSearchOpen(true); setPendingJump(null);
+    setSearchCourseId(snapshot.searchCourseId ?? ""); setSearchLessonId(snapshot.searchLessonId ?? ""); setSearchNoteId(snapshot.searchNoteId ?? "");
     tutorialEvent("search-back");
   }
 
@@ -732,6 +765,17 @@ export default function NotebookApp({
                 placeholder="搜索笔记、公式或知识点"
                 value={query}
               />
+              {activeLesson ? (
+                <button
+                  aria-pressed={searchingCurrentLesson}
+                  className="search-current-lesson"
+                  onClick={toggleCurrentLessonSearch}
+                  title={`搜索本章全部笔记：${activeLesson.title}`}
+                  type="button"
+                >
+                  在本章内搜索
+                </button>
+              ) : null}
               {query ? (
                 <button
                   aria-label="清除搜索"
@@ -739,7 +783,7 @@ export default function NotebookApp({
                   onClick={() => {
                     setQuery("");
                     setSearchOpen(false);
-                    setSearchCourseId("");
+                    changeSearchCourse("");
                   }}
                   type="button"
                 >
@@ -751,11 +795,16 @@ export default function NotebookApp({
               <SearchResultsPanel
                 courseFilter={searchCourseId}
                 courses={workspace.courses}
-                onCourseFilter={setSearchCourseId}
+                lessonFilter={searchLessonId}
+                lessons={searchLessons}
+                noteFilter={searchNoteId}
+                notes={searchNotesInScope}
+                onCourseFilter={changeSearchCourse}
+                onLessonFilter={(id) => { setSearchLessonId(id); setSearchNoteId(""); }}
+                onNoteFilter={setSearchNoteId}
                 onOpenResult={navigateToLocatedPage}
                 query={query}
                 results={visibleSearchResults}
-                totalResults={searchResults.length}
               />
             ) : null}
           </div>
@@ -1175,37 +1224,67 @@ function DashboardHome({
 function SearchResultsPanel({
   courseFilter,
   courses,
+  lessonFilter,
+  lessons,
+  noteFilter,
+  notes,
   onCourseFilter,
+  onLessonFilter,
+  onNoteFilter,
   onOpenResult,
   query,
-  results,
-  totalResults
+  results
 }: {
   courseFilter: string;
   courses: Course[];
+  lessonFilter: string;
+  lessons: Lesson[];
+  noteFilter: string;
+  notes: Note[];
   onCourseFilter: (courseId: string) => void;
+  onLessonFilter: (lessonId: string) => void;
+  onNoteFilter: (noteId: string) => void;
   onOpenResult: (result: SearchResult) => void;
   query: string;
   results: SearchResult[];
-  totalResults: number;
 }) {
   const shownResults = results.slice(0, 80);
   return (
     <section aria-label="笔记搜索结果" className="search-results-panel">
       <div className="search-results-header">
-        <div>
+        <div className="search-results-summary">
           <span className="search-results-kicker">全文搜索</span>
-          <strong>{courseFilter ? `${results.length} 条结果` : `${totalResults} 条结果`}</strong>
+          <strong aria-live="polite">{results.length} 条结果</strong>
         </div>
-        <label>
-          <span className="sr-only">筛选课程</span>
-          <select onChange={(event) => onCourseFilter(event.target.value)} value={courseFilter}>
-            <option value="">全部课程</option>
-            {courses.map((course) => (
-              <option key={course.id} value={course.id}>{course.code} · {course.title}</option>
-            ))}
-          </select>
-        </label>
+        <div className="search-filters">
+          <label>
+            <span>课程</span>
+            <select aria-label="筛选课程" onChange={(event) => onCourseFilter(event.target.value)} value={courseFilter}>
+              <option value="">全部课程</option>
+              {courses.map((course) => (
+                <option key={course.id} value={course.id}>{course.code} · {course.title}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>章节</span>
+            <select aria-label="筛选章节" disabled={!courseFilter} onChange={(event) => onLessonFilter(event.target.value)} value={lessonFilter}>
+              <option value="">{courseFilter ? "全部章节" : "请先选择课程"}</option>
+              {lessons.map((lesson) => (
+                <option key={lesson.id} value={lesson.id}>{lesson.title}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>笔记</span>
+            <select aria-label="筛选笔记" disabled={!courseFilter} onChange={(event) => onNoteFilter(event.target.value)} value={noteFilter}>
+              <option value="">{courseFilter ? "全部笔记" : "请先选择课程"}</option>
+              {notes.map((note) => (
+                <option key={note.id} value={note.id}>{!lessonFilter ? `${lessons.find((lesson) => lesson.id === note.lessonId)?.title ?? "未分章"} · ` : ""}{note.title}</option>
+              ))}
+            </select>
+          </label>
+        </div>
       </div>
 
       <div className="search-results-list">
@@ -1230,7 +1309,7 @@ function SearchResultsPanel({
           <div className="search-empty">
             <Search size={24} />
             <strong>没有找到相关内容</strong>
-            <span>换一个关键词，或切换到“全部课程”后再试。</span>
+            <span>换一个关键词，或放宽课程、章节和笔记筛选后再试。</span>
           </div>
         )}
       </div>
